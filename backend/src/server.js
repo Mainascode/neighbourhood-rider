@@ -162,7 +162,7 @@ async function startServer() {
   /* socket */
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "https://neighbourhood-rider.vercel.app/",
+      origin: process.env.CLIENT_URL || "https://neighbourhood-rider.vercel.app",
       credentials: true,
     },
   });
