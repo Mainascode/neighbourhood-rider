@@ -72,6 +72,10 @@ async function startServer() {
     res.json({ status: "ok", service: "NeighborhoodRider API" });
   });
 
+  app.get("/", (_, res) => {
+    res.json({ message: "Neighborhood Rider API is running 🚀" });
+  });
+
   /* auth */
   app.post("/api/auth/login", loginRoute);
   app.post("/api/auth/register", registerRoute);
