@@ -47,7 +47,6 @@ import adminDashboard from "./api/admin/dashboard.js";
 import adminRiders from "./api/admin/riders.js";
 import adminOrders from "./api/admin/orders.js";
 import adminFaqs from "./api/admin/faqs.js";
-import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
 import pushRoute from "./api/notifications/push.js";
 
