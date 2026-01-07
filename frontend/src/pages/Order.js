@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import ChatBot from "../components/Chatbot";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../lib/socket";
 import LiveMap from "../components/LiveMap";
+import { API_URL } from "../lib/config";
 
 export default function Order() {
     const { user } = useAuth();
@@ -14,10 +15,11 @@ export default function Order() {
     const [activeOrder, setActiveOrder] = useState(null);
 
     // Check for active order on mount
-    useState(() => {
+    useEffect(() => {
         const checkOrder = async () => {
             try {
-                const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/my`, {
+                const res = await fetch(`${API_URL}/api/orders/my`, {
+                    credentials: "include",
                     headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
                 });
                 const data = await res.json();
@@ -35,7 +37,7 @@ export default function Order() {
         setShowFaq(true);
         if (faqs.length === 0) {
             try {
-                const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs`);
+                const res = await fetch(`${API_URL}/api/faqs`);
                 const data = await res.json();
                 setFaqs(data);
             } catch (err) {

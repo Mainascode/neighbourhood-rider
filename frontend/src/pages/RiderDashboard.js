@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { socket } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
+import { API_URL } from "../lib/config";
 
 export default function RiderDashboard({ tab = "orders" }) {
     const { user } = useAuth();
@@ -21,7 +22,7 @@ export default function RiderDashboard({ tab = "orders" }) {
 
     const fetchAssignments = useCallback(async () => {
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/my`, {
+            const res = await fetch(`${API_URL}/api/orders/my`, {
                 credentials: "include",
             });
             const data = await res.json();
@@ -34,7 +35,7 @@ export default function RiderDashboard({ tab = "orders" }) {
 
     const fetchProfile = useCallback(async () => {
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/riders/me`, {
+            const res = await fetch(`${API_URL}/api/riders/me`, {
                 credentials: "include",
             });
             const data = await res.json();
@@ -46,7 +47,7 @@ export default function RiderDashboard({ tab = "orders" }) {
 
     const fetchFaqs = useCallback(async () => {
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs`);
+            const res = await fetch(`${API_URL}/api/faqs`);
             const data = await res.json();
             setFaqs(data);
         } catch (err) {
@@ -74,7 +75,7 @@ export default function RiderDashboard({ tab = "orders" }) {
     const handleAcceptOrder = async (orderId) => {
         try {
             setLoading(true);
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/accept`, {
+            const res = await fetch(`${API_URL}/api/orders/accept`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),
@@ -99,7 +100,7 @@ export default function RiderDashboard({ tab = "orders" }) {
     const handleCompleteOrder = async (orderId) => {
         try {
             setLoading(true);
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/pay`, { // Re-using Pay endpoint as it marks completed & paid
+            const res = await fetch(`${API_URL}/api/orders/pay`, { // Re-using Pay endpoint as it marks completed & paid
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),
@@ -123,7 +124,7 @@ export default function RiderDashboard({ tab = "orders" }) {
     const handleDeliverOrder = async (orderId) => {
         try {
             setLoading(true);
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/deliver`, {
+            const res = await fetch(`${API_URL}/api/orders/deliver`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),
@@ -146,7 +147,7 @@ export default function RiderDashboard({ tab = "orders" }) {
     const handleToggleOnline = async () => {
         try {
             const newStatus = !riderProfile.isAvailable;
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/riders/me`, {
+            const res = await fetch(`${API_URL}/api/riders/me`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isAvailable: newStatus }),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_URL } from "../lib/config";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { FaQuestionCircle, FaChevronDown, FaChevronUp } from "react-icons/fa";
@@ -14,7 +15,7 @@ export default function Faqs() {
 
     const fetchFaqs = async () => {
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs`);
+            const res = await fetch(`${API_URL}/api/faqs`);
             const data = await res.json();
             setFaqs(data);
         } catch (err) {

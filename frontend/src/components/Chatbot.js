@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { FaComments, FaPaperPlane, FaTimes } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_URL } from "../lib/config";
 
 
 // Replace with actual Admin WhatsApp
@@ -40,7 +41,7 @@ export default function ChatBot({ user }) {
     /* API Call to Backend GPT */
     try {
       setLoading(true);
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/chat`, {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -94,7 +95,7 @@ export default function ChatBot({ user }) {
 
   const notifyBackend = async (data) => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/bot-create`, {
+      const res = await fetch(`${API_URL}/api/orders/bot-create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

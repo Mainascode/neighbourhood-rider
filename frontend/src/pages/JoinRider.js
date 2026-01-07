@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "../index.css";
 import { useNotify } from "../context/NotificationContext";
+import { API_URL } from "../lib/config";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Import useAuth
 
@@ -27,7 +28,7 @@ export default function JoinRider() {
         const checkStatus = async () => {
             if (!user) return; // Only check status if user is logged in
             try {
-                const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/riders/me`, {
+                const res = await fetch(`${API_URL}/api/riders/me`, {
                     credentials: "include", // Use cookies
                 });
                 if (res.ok) {
@@ -58,7 +59,7 @@ export default function JoinRider() {
         setLoading(true);
 
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/riders/register`, {
+            const res = await fetch(`${API_URL}/api/riders/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

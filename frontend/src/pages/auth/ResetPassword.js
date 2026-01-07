@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_URL } from "../../lib/config";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { FaLock, FaArrowLeft } from "react-icons/fa";
 
@@ -21,7 +22,7 @@ export default function ResetPassword() {
         setError("");
 
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/auth/reset-password/${token}`, {
+            const res = await fetch(`${API_URL}/api/auth/reset-password/${token}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ password }),

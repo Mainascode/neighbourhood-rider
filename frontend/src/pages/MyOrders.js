@@ -17,7 +17,7 @@ export default function MyOrders() {
 
     const fetchOrders = useCallback(async () => {
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/my`, {
+            const res = await fetch(`${API_URL}/api/orders/my`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
                 credentials: "include"
             });
@@ -71,7 +71,7 @@ export default function MyOrders() {
     const handlePayOrder = async (orderId) => {
         try {
             // Simulate Payment Process
-            const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/pay`, {
+            const res = await fetch(`${API_URL}/api/orders/pay`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),

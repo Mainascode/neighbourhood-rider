@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   /* 🛠️ Actions */
   const handleAssignOrder = async (orderId, riderId) => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/orders/assign`, {
+      const res = await fetch(`${API_URL}/api/orders/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
   }, [notify]);
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/admin/dashboard`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/admin/dashboard`, { credentials: "include" });
       const data = await res.json();
       setStats(data);
     } catch (err) { console.error(err); }
@@ -89,7 +89,7 @@ export default function AdminDashboard() {
 
   const fetchRiders = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/admin/riders`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/admin/riders`, { credentials: "include" });
       const data = await res.json();
       setRiders(data);
     } catch (err) { console.error(err); }
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/admin/orders`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/admin/orders`, { credentials: "include" });
       const data = await res.json();
       setOrders(data);
     } catch (err) { console.error(err); }
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
 
   const fetchFaqs = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs/all`, { credentials: "include" }); // Fetch ALL for admin
+      const res = await fetch(`${API_URL}/api/faqs/all`, { credentials: "include" }); // Fetch ALL for admin
       const data = await res.json();
       setFaqs(data);
     } catch (err) { console.error(err); }
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
 
   const fetchInquiries = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/admin/inquiries`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/admin/inquiries`, { credentials: "include" });
       const data = await res.json();
       setInquiries(data);
     } catch (err) { console.error(err); }
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
 
   /* 🛠️ Actions */
   const handleApproveRider = async (id, status) => {
-    const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/admin/riders/${id}/approve`, {
+    const res = await fetch(`${API_URL}/api/admin/riders/${id}/approve`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status })
     });
     if (res.ok) {
@@ -143,8 +143,8 @@ export default function AdminDashboard() {
   const handleAddFaq = async (e) => {
     e.preventDefault();
     const url = newFaq._id
-      ? `${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs/${newFaq._id}`
-      : `${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs`;
+      ? `${API_URL}/api/faqs/${newFaq._id}`
+      : `${API_URL}/api/faqs`;
 
     const method = newFaq._id ? "PUT" : "POST";
 
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteFaq = async (id) => {
-    const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/faqs/${id}`, {
+    const res = await fetch(`${API_URL}/api/faqs/${id}`, {
       method: "DELETE", credentials: "include"
     });
     if (res.ok) {
