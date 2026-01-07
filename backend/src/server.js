@@ -1,7 +1,9 @@
-// src/server.js
 import express from "express";
 import http from "http";
 import dotenv from "dotenv";
+
+dotenv.config();
+
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
@@ -160,7 +162,7 @@ async function startServer() {
   /* socket */
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      origin: process.env.CLIENT_URL || "https://neighbourhood-rider.vercel.app/",
       credentials: true,
     },
   });
