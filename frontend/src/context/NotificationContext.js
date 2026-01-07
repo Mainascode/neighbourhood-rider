@@ -13,6 +13,19 @@ export const useNotify = () => {
 export function NotificationProvider({ children }) {
   const [notification, setNotification] = useState(null);
 
+  /* Push Notifications */
+  const enableNotifications = async () => {
+    try {
+      const { registerServiceWorker, subscribeToPush } = await import("../lib/pushConfig");
+      await registerServiceWorker();
+      await subscribeToPush();
+      notify("Notifications enabled! 🔔", "success");
+    } catch (e) {
+      console.error(e);
+      notify("Failed to enable notifications.", "error");
+    }
+  };
+
   const notify = (message, type = "info", timeout = 3000) => {
     setNotification({ message, type });
 
@@ -22,17 +35,16 @@ export function NotificationProvider({ children }) {
   };
 
   return (
-    <NotificationContext.Provider value={{ notify }}>
+    <NotificationContext.Provider value={{ notify, enableNotifications }}>
       {children}
 
       {/* Notification UI */}
       {notification && (
         <div
           className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-xl text-riderLight font-semibold transition-all
-            ${
-              notification.type === "success"
-                ? "bg-green-600"
-                : notification.type === "error"
+            ${notification.type === "success"
+              ? "bg-green-600"
+              : notification.type === "error"
                 ? "bg-red-600"
                 : "bg-blue-600"
             }

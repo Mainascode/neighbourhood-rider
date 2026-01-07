@@ -1,6 +1,10 @@
 import cors from "cors";
 
 export default cors({
-  origin: process.env.CLIENT_URL || "https://neighbourhood-rider.vercel.app",
+  origin: [
+    "https://neighbourhood-rider.vercel.app",
+    "http://localhost:3000",
+    process.env.CLIENT_URL
+  ].filter(Boolean),
   credentials: true,
 });

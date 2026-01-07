@@ -67,7 +67,7 @@ export function generateResponse(step, input, context = {}) {
     // STEP 0: Greeting/Idle
     if (step === 0) {
         if (lower.includes("order") || lower.includes("buy") || lower.includes("need") || lower.includes("tuma")) {
-            return { nextStep: 1, text: "Sure! List what you need (e.g., 'Bread, Milk, Gas, Groceries'). 🛒" };
+            return { nextStep: 1, text: "Sure! List what you need (e.g., 'Bread, Milk, Groceries'). 🛒" };
         }
         if (lower.includes("hello") || lower.includes("hi") || lower.includes("niaje")) {
             const randomGreeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
@@ -99,7 +99,7 @@ export function generateResponse(step, input, context = {}) {
 
     // STEP 3: Final Confirmation
     if (step === 3) {
-        if (lower === "yes" || lower === "y" || lower === "sawa" || lower === "confirm" || lower.includes("ok")) {
+        if (lower === "yes" || lower === "y" || lower === "sawa" || lower === "confirm" || lower.includes("ok") || lower.includes("fiti")) {
             return { nextStep: 4, text: "Wait kidogo...", action: "complete" };
         } else {
             return { nextStep: 0, text: "Cancelled. Let's start over. Type 'Order' when ready." };

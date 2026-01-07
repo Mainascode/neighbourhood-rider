@@ -47,7 +47,9 @@ import adminDashboard from "./api/admin/dashboard.js";
 import adminRiders from "./api/admin/riders.js";
 import adminOrders from "./api/admin/orders.js";
 import adminFaqs from "./api/admin/faqs.js";
+import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
+import pushRoute from "./api/notifications/push.js";
 
 /* middleware */
 import requireAuth from "./middleware/requireAuth.js";
@@ -162,11 +164,18 @@ async function startServer() {
   /* chat */
   app.use("/api/chat", chatRoute);
 
+  /* notifications */
+  app.use("/api/notifications", pushRoute);
+
 
   /* socket */
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "https://neighbourhood-rider.vercel.app",
+      origin: [
+        "https://neighbourhood-rider.vercel.app",
+        "http://localhost:3000",
+        process.env.CLIENT_URL
+      ].filter(Boolean),
       credentials: true,
     },
   });

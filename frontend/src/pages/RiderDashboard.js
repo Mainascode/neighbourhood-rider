@@ -7,7 +7,7 @@ import { API_URL } from "../lib/config";
 
 export default function RiderDashboard({ tab = "orders" }) {
     const { user } = useAuth();
-    const { notify } = useNotify();
+    const { notify, enableNotifications } = useNotify();
     const [activeTab, setActiveTab] = useState(tab);
     const [assignments, setAssignments] = useState([]);
     const [riderProfile, setRiderProfile] = useState(null);
@@ -342,6 +342,15 @@ export default function RiderDashboard({ tab = "orders" }) {
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">National ID</span>
                                     <span className="font-bold text-riderLight font-mono">{riderProfile.idNumber}</span>
+                                </div>
+                                <div className="pt-4 border-t border-riderBlue/10">
+                                    <button
+                                        onClick={enableNotifications}
+                                        className="w-full bg-riderBlue text-riderLight font-bold py-3 rounded-xl shadow-lg hover:bg-blue-800 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        🔔 Enable Push Notifications
+                                    </button>
+                                    <p className="text-xs text-gray-500 mt-2 text-center">Get notified on your device when new orders arrive.</p>
                                 </div>
                             </div>
                         </div>
