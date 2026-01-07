@@ -53,7 +53,7 @@ import chatRoute from "./api/chat/chat.routes.js";
 import requireAuth from "./middleware/requireAuth.js";
 import requireAdmin from "./middleware/requireAdmin.js";
 
-dotenv.config();
+
 
 async function startServer() {
   const app = express();
