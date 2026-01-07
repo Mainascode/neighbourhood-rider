@@ -13,10 +13,12 @@ export default function refresh(req, res) {
       role: user.role,
     });
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     res.cookie("accessToken", newAccess, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
       maxAge: 15 * 60 * 1000,
     });
 
