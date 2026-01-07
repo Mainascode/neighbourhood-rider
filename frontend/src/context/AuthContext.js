@@ -3,7 +3,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
-const API = process.env.REACT_APP_API_URL || "https://neighbourhood-rider.onrender.com";
+import { API_URL } from "../lib/config";
+
+const API = API_URL;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

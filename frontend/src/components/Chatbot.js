@@ -41,6 +41,7 @@ export default function ChatBot({ user }) {
     /* API Call to Backend GPT */
     try {
       setLoading(true);
+      console.log("ChatBot Requesting:", `${API_URL}/api/chat`);
       const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -163,7 +164,7 @@ export default function ChatBot({ user }) {
                   </div>
                 </div>
               ))}
-              {loading && <div className="text-xs text-gray-600 text-center animate-pulse">Sending to Admin...</div>}
+              {loading && <div className="text-xs text-gray-600 text-center animate-pulse">Loading...</div>}
               <div ref={endRef} />
             </div>
 
