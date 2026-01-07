@@ -41,7 +41,6 @@ export default function ChatBot({ user }) {
     /* API Call to Backend GPT */
     try {
       setLoading(true);
-      console.log("ChatBot Requesting:", `${API_URL}/api/chat`);
       const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

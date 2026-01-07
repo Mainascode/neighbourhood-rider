@@ -18,15 +18,19 @@ export default function RiderDashboard({ tab = "orders" }) {
         setActiveTab(tab);
     }, [tab]);
 
-    const activeOrder = assignments.find(a => a.status === 'delivering') || assignments[0];
+    const activeOrder = Array.isArray(assignments) ? assignments.find(a => a.status === 'delivering') || assignments[0] : null;
 
     const fetchAssignments = useCallback(async () => {
         try {
             const res = await fetch(`${API_URL}/api/orders/my`, {
                 credentials: "include",
             });
-            const data = await res.json();
-            setAssignments(data);
+            if (res.ok) {
+                const data = await res.json();
+                setAssignments(Array.isArray(data) ? data : []);
+            } else {
+                setAssignments([]);
+            }
         } catch (err) {
             console.error(err);
             notify("Failed to fetch assignments", "error");
