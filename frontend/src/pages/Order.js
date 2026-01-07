@@ -50,20 +50,22 @@ export default function Order() {
         <div className="min-h-screen flex flex-col bg-transparent text-riderLight relative">
             <Navbar />
 
-            <main className="flex-grow flex flex-col items-center justify-center p-6 text-center z-10">
-                <div className="absolute top-24 right-6 md:right-10">
+            <main className="flex-grow flex flex-col items-center justify-center p-4 md:p-6 text-center z-10 w-full">
+
+                {/* Help Button - Static on Mobile, Absolute on Desktop */}
+                <div className="w-full flex justify-end mb-6 md:absolute md:top-24 md:right-10">
                     <button
                         onClick={handleOpenFaq}
-                        className="bg-riderDark/50 backdrop-blur-md px-4 py-2 rounded-full shadow-lg border border-riderBlue/20 text-sm font-bold text-riderLight hover:bg-riderDark/70 transition-all flex items-center gap-2"
+                        className="bg-riderDark/50 backdrop-blur-md px-4 py-2 rounded-full shadow-lg border border-riderBlue/20 text-xs md:text-sm font-bold text-riderLight hover:bg-riderDark/70 transition-all flex items-center gap-2"
                     >
                         <span>❓</span> Help & FAQs
                     </button>
                 </div>
 
-                <h1 className="text-4xl font-extrabold mb-4 text-riderLight">
+                <h1 className="text-3xl md:text-4xl font-extrabold mb-4 text-riderLight">
                     Start Your Order
                 </h1>
-                <p className="text-lg text-gray-600 mb-8 max-w-lg">
+                <p className="text-base md:text-lg text-gray-600 mb-8 max-w-lg px-2">
                     Click the chat icon below to tell us what you need. Our cyclists are ready!
                 </p>
 
