@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { API_URL } from "../../lib/config";
 import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
 import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell } from "react-icons/fa";

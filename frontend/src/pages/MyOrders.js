@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { API_URL } from "../lib/config";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { FaBoxOpen, FaClock, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
