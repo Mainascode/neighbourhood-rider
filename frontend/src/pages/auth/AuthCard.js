@@ -19,7 +19,7 @@ export default function AuthCard({ title, subtitle, children }) {
         </div>
 
         {/* Body */}
-        <div className="p-8 relative z-10">
+        <div className="p-6 md:p-8 relative z-10">
           {children}
         </div>
       </div>

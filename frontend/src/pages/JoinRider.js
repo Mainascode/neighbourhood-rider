@@ -88,13 +88,13 @@ export default function JoinRider() {
     return (
         <>
             <Navbar />
-            <div className="min-h-screen bg-transparent text-riderLight pt-24 pb-12 px-6">
+            <div className="min-h-screen bg-transparent text-riderLight pt-20 md:pt-24 pb-12 px-4 md:px-6">
                 <div className="max-w-2xl mx-auto">
-                    <div className="text-center mb-10">
-                        <h1 className="text-4xl font-bold mb-4">
+                    <div className="text-center mb-8 md:mb-10">
+                        <h1 className="text-3xl md:text-4xl font-bold mb-3 md:mb-4">
                             Kuwa <span className="text-riderMaroon">Rider</span> wa Mtaa
                         </h1>
-                        <p className="text-gray-600 text-lg">
+                        <p className="text-gray-600 text-base md:text-lg px-2">
                             Earn money by delivering groceries and parcels in your neighborhood.
                             Be your own boss.
                         </p>

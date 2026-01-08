@@ -100,29 +100,29 @@ export default function MyOrders() {
         <div className="min-h-screen flex flex-col bg-transparent text-riderLight font-sans">
             <Navbar />
 
-            <main className="flex-grow pt-24 pb-16 px-6">
+            <main className="flex-grow pt-20 md:pt-24 pb-16 px-4 md:px-6">
                 <div className="max-w-4xl mx-auto">
 
                     <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 bg-riderBlue/20 rounded-2xl flex items-center justify-center text-riderBlue text-2xl shadow-lg border border-riderBlue/30">
+                        <div className="w-12 h-12 bg-riderBlue/20 rounded-2xl flex items-center justify-center text-riderBlue text-2xl shadow-lg border border-riderBlue/30 shrink-0">
                             <FaBoxOpen />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-extrabold text-riderLight">My Orders</h1>
-                            <p className="text-gray-600">Track and manage your deliveries</p>
+                            <h1 className="text-2xl md:text-3xl font-extrabold text-riderLight">My Orders</h1>
+                            <p className="text-sm md:text-base text-gray-600">Track and manage your deliveries</p>
                         </div>
                     </div>
 
                     {/* LIVE TRACKING SECTION (Uber-Style) */}
                     {trackingOrder && (
-                        <div className="mb-8 w-full h-[500px] bg-riderBlack/90 rounded-3xl overflow-hidden shadow-2xl border border-riderBlue/20 relative animate-fade-in">
+                        <div className="mb-8 w-full h-[350px] md:h-[500px] bg-riderBlack/90 rounded-3xl overflow-hidden shadow-2xl border border-riderBlue/20 relative animate-fade-in">
                             {/* Map Header Overlay */}
                             <div className="absolute top-0 left-0 right-0 z-[400] p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start pointer-events-none">
                                 <div className="pointer-events-auto bg-riderBlack/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-riderBlue/20 shadow-lg">
-                                    <h2 className="text-sm font-bold text-riderLight">Order #{trackingOrder._id.slice(-6).toUpperCase()}</h2>
+                                    <h2 className="text-xs md:text-sm font-bold text-riderLight">Order #{trackingOrder._id.slice(-6).toUpperCase()}</h2>
                                     <div className="flex items-center gap-2 mt-1">
                                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                        <p className="text-xs text-green-400 font-bold uppercase tracking-wider">{trackingOrder.status}</p>
+                                        <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider">{trackingOrder.status}</p>
                                     </div>
                                     <p className="text-[10px] text-gray-400 mt-1">
                                         {riderLocation ? "Rider is sharing live location" : "Connecting to rider..."}
@@ -146,7 +146,7 @@ export default function MyOrders() {
                             {/* Bottom Info Card (Floating) */}
                             <div className="absolute bottom-6 left-4 right-4 z-[400] pointer-events-none">
                                 <div className="bg-riderBlack/90 backdrop-blur-xl border border-riderBlue/20 p-4 rounded-2xl shadow-xl flex items-center gap-4 max-w-md mx-auto pointer-events-auto">
-                                    <div className="w-12 h-12 bg-riderBlue/20 rounded-full flex items-center justify-center text-riderBlue text-xl">
+                                    <div className="w-10 h-10 md:w-12 md:h-12 bg-riderBlue/20 rounded-full flex items-center justify-center text-riderBlue text-lg md:text-xl shrink-0">
                                         🚍
                                     </div>
                                     <div className="flex-1">
@@ -159,7 +159,7 @@ export default function MyOrders() {
                     )}
 
                     {/* TABS */}
-                    <div className="flex gap-2 mb-8 bg-riderBlack/90 backdrop-blur-md p-1 rounded-xl shadow-lg border border-riderBlue/10 w-fit">
+                    <div className="flex gap-2 mb-8 bg-riderBlack/90 backdrop-blur-md p-1 rounded-xl shadow-lg border border-riderBlue/10 w-full md:w-fit overflow-x-auto">
                         <TabButton
                             active={activeTab === "pending"}
                             onClick={() => setActiveTab("pending")}
