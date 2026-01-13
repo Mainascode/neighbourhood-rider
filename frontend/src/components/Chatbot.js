@@ -63,7 +63,7 @@ export default function ChatBot({ user }) {
       // 🛑 Require "Yes" Confirmation
       if (response.data?.confirmed) {
         // Double check if user actually typed "yes" or similar
-        const isExplicitYes = /yes|ndio|sawa|confirm|okay|sure/i.test(input);
+        const isExplicitYes = /yes|ndio|sawa|confirm|okay|sure/i.test(text);
 
         if (!isExplicitYes) {
           return "Got it! Just type 'Yes' to confirm and I'll find a rider immediately. 🏍️";
