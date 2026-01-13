@@ -92,7 +92,15 @@ export default function Order() {
                         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-riderLight italic">
                             <span className="text-3xl">📍</span> Live Delivery Map
                         </h2>
-                        <LiveMap role="user" socket={socket} order={activeOrder} />
+                        <LiveMap
+                            role="user"
+                            socket={socket}
+                            order={activeOrder}
+                            deliveryLocation={activeOrder?.pickup?.location?.coordinates ? {
+                                lat: activeOrder.pickup.location.coordinates[1],
+                                lng: activeOrder.pickup.location.coordinates[0]
+                            } : null}
+                        />
                     </div>
                 </div>
             )}

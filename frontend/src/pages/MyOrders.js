@@ -140,7 +140,12 @@ export default function MyOrders() {
                             {/* The Map */}
                             <LiveMap
                                 riderLocation={riderLocation}
-                                deliveryLocation={trackingOrder.locationCoordinates || { lat: -1.2921, lng: 36.8219 }}
+                                deliveryLocation={
+                                    trackingOrder.pickup?.location?.coordinates ? {
+                                        lat: trackingOrder.pickup.location.coordinates[1],
+                                        lng: trackingOrder.pickup.location.coordinates[0]
+                                    } : { lat: -1.2921, lng: 36.8219 }
+                                }
                             />
 
                             {/* Bottom Info Card (Floating) */}

@@ -93,6 +93,25 @@ export default function ChatBot({ user }) {
     }
   };
 
+  /* Geo-Location Helper */
+  const getLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setOrderData(prev => ({ ...prev, lat: latitude, lng: longitude }));
+        },
+        (err) => console.error("Location error", err),
+        { enableHighAccuracy: true }
+      );
+    }
+  };
+
+  // Trigger location on open
+  useEffect(() => {
+    if (isOpen) getLocation();
+  }, [isOpen]);
+
   const notifyBackend = async (data) => {
     try {
       const res = await fetch(`${API_URL}/api/orders/bot-create`, {
@@ -101,7 +120,9 @@ export default function ChatBot({ user }) {
         body: JSON.stringify({
           items: data.items.split(","),
           location: data.location,
-          email: user?.email || "mainaemmanuel855@gmail.com", // Fallback
+          lat: data.lat,
+          lng: data.lng,
+          email: user?.email || "mainaemmanuel855@gmail.com",
         }),
       });
       return await res.json();

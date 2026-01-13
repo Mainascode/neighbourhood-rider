@@ -7,20 +7,24 @@ const router = express.Router();
 // POST /api/orders/bot-create
 router.post("/", async (req, res) => {
     try {
-        const { items, location, email, total } = req.body;
+        const { items, location, email, lat, lng } = req.body;
 
         // Create Order
         const newOrder = await Order.create({
             pickup: {
                 address: location,
-                location: { type: "Point", coordinates: [0, 0] }, // Placeholder
+                location: {
+                    type: "Point",
+                    coordinates: [lng || 36.8219, lat || -1.2921] // [lng, lat] GeoJSON
+                },
             },
             dropoff: location, // Assuming dropoff is same or extracted text
             items: typeof items === "string" ? items.split(",") : items,
             amount: 0, // Pending calculation
             isBotOrder: true,
             status: "pending",
-            // userId: null (Guest)
+            // userId: null (Guest) or we can try to find user by email?
+            // checking if user exists by email would be nice to link it.
         });
 
         // Auto Assign!
