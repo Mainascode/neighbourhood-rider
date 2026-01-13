@@ -338,6 +338,34 @@ export default function AdminDashboard() {
                           Assign
                         </button>
                       )}
+
+                      {order.status === "delivered" && (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm("Confirm payment to Rider? This will mark the order as Completed.")) return;
+                            try {
+                              const res = await fetch(`${API_URL}/api/orders/pay`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                                body: JSON.stringify({ orderId: order._id })
+                              });
+                              if (res.ok) {
+                                notify("Order Paid & Completed!", "success");
+                                fetchOrders();
+                                fetchDashboard();
+                              } else {
+                                notify("Payment failed", "error");
+                              }
+                            } catch (e) {
+                              notify("Connection error", "error");
+                            }
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-riderLight px-4 py-2 rounded-lg transition-colors font-medium text-sm shadow-md"
+                        >
+                          Pay Rider 💸
+                        </button>
+                      )}
                       <button className="bg-riderBlue/10 hover:bg-riderBlue/20 p-2 rounded-lg transition-colors text-sm">Details</button>
                     </div>
                   </div>
@@ -470,6 +498,35 @@ export default function AdminDashboard() {
             <div className="space-y-6 mb-8">
               <div className="flex justify-between border-b border-riderBlue/10 pb-2"><span>Name</span><span className="font-bold">{selectedRider.name}</span></div>
               <div className="flex justify-between border-b border-riderBlue/10 pb-2"><span>Role</span><span className="font-bold capitalize">{selectedRider.status}</span></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Profile Photo</p>
+                <img
+                  src={selectedRider.riderPicture || "https://placehold.co/400"}
+                  alt="Rider"
+                  className="w-full h-32 object-cover rounded-xl border border-riderBlue/20 bg-black/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">ID Document</p>
+                <img
+                  src={selectedRider.idPicture || "https://placehold.co/400"}
+                  alt="ID"
+                  className="w-full h-32 object-cover rounded-xl border border-riderBlue/20 bg-black/50"
+                />
+              </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-riderDark/30 rounded-xl">
+              <p className="text-sm text-gray-500 mb-1">Location Interest</p>
+              <p className="font-bold">{selectedRider.location ? "📍 Location Set" : "N/A"}</p>
+              {selectedRider.location?.coordinates && (
+                <p className="text-xs text-riderBlue mt-1">
+                  Lat: {selectedRider.location.coordinates[1]}, Lng: {selectedRider.location.coordinates[0]}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

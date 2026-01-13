@@ -277,19 +277,10 @@ export default function RiderDashboard({ tab = "orders" }) {
 
                                     {order.status === 'delivered' && (
                                         <div className="col-span-full">
-                                            <div className="text-center bg-green-500/10 p-3 rounded-xl border border-green-500/20 mb-3">
-                                                <p className="font-bold text-green-600">Waiting for Payment...</p>
-                                                <p className="text-xs text-gray-600">Once you receive cash/M-Pesa, press complete.</p>
+                                            <div className="text-center bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 mb-3">
+                                                <p className="font-bold text-yellow-500">Waiting for Admin to Pay... ⏳</p>
+                                                <p className="text-xs text-gray-600">You have done your part. Admin will confirm payment shortly.</p>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    if (window.confirm("Have you received payment?")) handleCompleteOrder(order._id);
-                                                }}
-                                                disabled={loading}
-                                                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50"
-                                            >
-                                                Payment Received & Complete ✅
-                                            </button>
                                         </div>
                                     )}
 
