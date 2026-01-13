@@ -101,7 +101,7 @@ export default function JoinRider() {
                     </div>
 
                     {!user ? (
-                        <div className="bg-riderBlack/90 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl text-center">
+                        <div className="bg-riderBlack/80 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl text-center">
                             <h2 className="text-2xl font-bold mb-4">Login Required</h2>
                             <p className="text-gray-600 mb-6">You must be logged in to apply as a rider.</p>
                             <button onClick={() => navigate("/login")} className="bg-riderBlue hover:bg-blue-600 px-6 py-3 rounded-xl font-bold transition-all">
@@ -148,7 +148,7 @@ export default function JoinRider() {
                             )}
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className="bg-riderBlack/90 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl space-y-6">
+                        <form onSubmit={handleSubmit} className="bg-riderBlack/80 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl space-y-6">
 
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>

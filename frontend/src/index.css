@@ -75,5 +75,5 @@ body {
 
 /* 🧊 Glassmorphism Helper */
 .glass {
-    @apply bg-riderBlack/90 border border-riderBlue/10 shadow-xl;
+    @apply bg-riderBlack/80 border border-riderBlue/10 shadow-xl;
 }

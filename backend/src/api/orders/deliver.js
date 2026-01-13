@@ -1,4 +1,5 @@
 import Order from "../../models/Order.js";
+import { sendPushNotification } from "../../lib/push.js";
 
 export default async function deliverOrder(req, res) {
     const { orderId } = req.body;
@@ -12,12 +13,23 @@ export default async function deliverOrder(req, res) {
     order.status = "delivered";
     await order.save();
 
+
+
+    // ...
     // Notify User via Socket
     const io = req.app.get("io");
     if (io) {
         io.to(`order:${orderId}`).emit("order:update", order);
         io.to(`order:${orderId}`).emit("order:delivered", { message: "Order Delivered", orderId });
     }
+
+    // Notify Customer via Push
+    await sendPushNotification(
+        order.userId,
+        "Order Delivered! 📍",
+        "Your rider has arrived. Please confirm and pay.",
+        "/orders"
+    );
 
     res.json({ success: true, message: "Order marked as delivered" });
 }

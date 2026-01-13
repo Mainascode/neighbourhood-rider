@@ -115,7 +115,7 @@ export default function MyOrders() {
 
                     {/* LIVE TRACKING SECTION (Uber-Style) */}
                     {trackingOrder && (
-                        <div className="mb-8 w-full h-[350px] md:h-[500px] bg-riderBlack/90 rounded-3xl overflow-hidden shadow-2xl border border-riderBlue/20 relative animate-fade-in">
+                        <div className="mb-8 w-full h-[350px] md:h-[500px] bg-riderBlack/80 rounded-3xl overflow-hidden shadow-2xl border border-riderBlue/20 relative animate-fade-in">
                             {/* Map Header Overlay */}
                             <div className="absolute top-0 left-0 right-0 z-[400] p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start pointer-events-none">
                                 <div className="pointer-events-auto bg-riderBlack/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-riderBlue/20 shadow-lg">

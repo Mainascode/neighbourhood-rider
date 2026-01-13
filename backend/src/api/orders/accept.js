@@ -2,6 +2,7 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
 import Rider from "../../models/Rider.js";
+import { sendPushNotification } from "../../lib/push.js";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).end();
@@ -41,12 +42,23 @@ export default async function handler(req, res) {
         order.status = "delivering";
         await order.save();
 
-        // 5. Notify via Socket (Frontend listens for this)
+
+
+        // ...
+        // 5. Notify via Socket
         const io = req.app.get("io");
         if (io) {
             io.to(`order:${order._id}`).emit("order:update", order);
             io.emit("admin:order:update", order); // Notify admin dashboard
         }
+
+        // 6. Notify Customer via Push
+        await sendPushNotification(
+            order.userId,
+            "Rider Accepted Your Order! 🏍️",
+            `${user.name} is on the way to pick up your items.`,
+            "/orders"
+        );
 
         res.json({ success: true, order });
 

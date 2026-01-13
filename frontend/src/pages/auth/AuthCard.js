@@ -2,7 +2,7 @@ export default function AuthCard({ title, subtitle, children }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-transparent">
       {/* Glass Card */}
-      <div className="w-full max-w-md bg-riderBlack/90 backdrop-blur-xl border border-riderBlue/20 rounded-3xl shadow-2xl overflow-hidden relative">
+      <div className="w-full max-w-md bg-riderBlack/80 backdrop-blur-xl border border-riderBlue/20 rounded-3xl shadow-2xl overflow-hidden relative">
 
         {/* Decorative Glow */}
         <div className="absolute -top-20 -left-20 w-40 h-40 bg-riderMaroon/40 rounded-full blur-3xl pointer-events-none"></div>

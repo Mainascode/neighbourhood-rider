@@ -69,7 +69,7 @@ export default function Order() {
                     Click the chat icon below to tell us what you need. Our cyclists are ready!
                 </p>
 
-                <div className="bg-riderBlack/90 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-riderBlue/10 max-w-md w-full">
+                <div className="bg-riderBlack/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-riderBlue/10 max-w-md w-full">
                     <h3 className="font-bold text-xl mb-4 text-riderLight">Common Items</h3>
                     <ul className="text-left space-y-2 text-gray-700">
                         <li className="flex items-center gap-2">🍞 Bread</li>
