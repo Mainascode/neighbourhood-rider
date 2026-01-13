@@ -3,6 +3,7 @@ import Order from "../../models/Order.js";
 import { assignBestRider } from "../../lib/matchRider.js";
 import { findNearestRiders } from "../../lib/matchRider.js";
 import requireAuth from "../../middleware/auth.js";
+import { sendPushNotification } from "../../lib/push.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
@@ -38,6 +39,14 @@ export default async function handler(req, res) {
       // Notify the specific rider via their User ID channel (which they listen to)
       io.emit(`rider:order:${assignedRider.userId}`, order);
     }
+
+    // NEW: Send Push Notification to Rider
+    await sendPushNotification(
+      assignedRider.userId,
+      "New Order Assigned! 📦",
+      "You have a new delivery request. Tap to accept.",
+      "/rider/orders"
+    );
   }
 
   res.status(201).json({ order, suggestedRiders: riders, assignedTo: assignedRider?.name });
