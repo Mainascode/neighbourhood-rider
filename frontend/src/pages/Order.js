@@ -92,6 +92,25 @@ export default function Order() {
                         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-riderLight italic">
                             <span className="text-3xl">📍</span> Live Delivery Map
                         </h2>
+
+                        {activeOrder.riderId && activeOrder.riderId.phone && (
+                            <div className="flex gap-3 mb-6">
+                                <a
+                                    href={`tel:${activeOrder.riderId.phone}`}
+                                    className="flex-1 bg-green-600/20 border border-green-500/50 hover:bg-green-600/40 text-green-400 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all"
+                                >
+                                    <span>📞</span> Call Rider
+                                </a>
+                                <a
+                                    href={`https://wa.me/${activeOrder.riderId.phone.replace('+', '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex-1 bg-green-500 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-green-600 transition-all"
+                                >
+                                    <span>💬</span> WhatsApp
+                                </a>
+                            </div>
+                        )}
                         <LiveMap
                             role="user"
                             socket={socket}

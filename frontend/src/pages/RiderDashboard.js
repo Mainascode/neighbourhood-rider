@@ -218,9 +218,14 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         </span>
                                     </div>
                                     <h3 className="font-bold text-xl text-riderLight mb-1">{order.customer?.name || "Customer"}</h3>
-                                    <a href={`tel:${order.customer?.phone}`} className="text-sm text-riderLight/80 hover:text-riderMaroon flex items-center gap-2">
-                                        📞 {order.customer?.phone}
-                                    </a>
+                                    <div className="flex gap-2 mt-2">
+                                        <a href={`tel:${order.customer?.phone}`} className="flex-1 bg-green-600/20 text-green-400 text-sm font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1 hover:bg-green-600/40 transition-all">
+                                            📞 Call
+                                        </a>
+                                        <a href={`https://wa.me/${order.customer?.phone?.replace('+', '')}`} target="_blank" rel="noreferrer" className="flex-1 bg-green-500 text-white text-sm font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1 hover:bg-green-600 transition-all shadow-md">
+                                            💬 WhatsApp
+                                        </a>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2 mb-6 text-sm text-gray-600 bg-riderDark/30 p-3 rounded-lg">
