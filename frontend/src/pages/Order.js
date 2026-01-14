@@ -70,17 +70,35 @@ export default function Order() {
                 </p>
 
                 <div className="bg-riderBlack/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-riderBlue/10 max-w-md w-full">
-                    <h3 className="font-bold text-xl mb-4 text-riderLight">Common Items</h3>
-                    <ul className="text-left space-y-2 text-gray-700">
-                        <li className="flex items-center gap-2">🍞 Bread</li>
-                        <li className="flex items-center gap-2">🥛 Milk</li>
-                        <li className="flex items-center gap-2">🥚 Eggs</li>
-                        <li className="flex items-center gap-2">🍎 Fruits</li>
-                        <li className="flex items-center gap-2">🥦 Vegetables</li>
-                        <li className="flex items-center gap-2">🍗 Meat</li>
-                        <li className="flex items-center gap-2">🧻 Household Supplies</li>
-                        <li className="flex items-center gap-2">💊 Pharmacy Items</li>
-                    </ul>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+                        {[
+                            { name: "Bread", icon: "/assets/items/bread_icon.png" },
+                            { name: "Milk", icon: "/assets/items/milk_icon.png" },
+                            { name: "Eggs", icon: "/assets/items/eggs_icon.png" },
+                            { name: "Fruits", icon: "/assets/items/fruits_icon.png" },
+                            { name: "Veggies", icon: "/assets/items/vegetables_icon.png" },
+                            { name: "Meat", icon: "/assets/items/meat_icon.png" },
+                            { name: "Supplies", icon: "/assets/items/supplies_icon.png" },
+                            { name: "Pharmacy", icon: "/assets/items/pharmacy_icon.png" }
+                        ].map((item, i) => (
+                            <div key={i} className="bg-riderBlack/40 backdrop-blur-sm p-4 rounded-xl border border-riderBlue/10 flex flex-col items-center gap-2 hover:bg-riderBlue/5 transition-colors group">
+                                <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center bg-white/50 rounded-full shadow-inner mb-1 group-hover:scale-110 transition-transform">
+                                    <img
+                                        src={item.icon}
+                                        alt={item.name}
+                                        className="w-full h-full object-contain p-2"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = 'none';
+                                            e.target.parentNode.innerText = '📦';
+                                            e.target.parentNode.style.fontSize = '2rem';
+                                        }}
+                                    />
+                                </div>
+                                <span className="font-bold text-riderLight text-sm md:text-base">{item.name}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </main>
 

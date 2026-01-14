@@ -4,7 +4,7 @@ module.exports = {
     extend: {
       colors: {
         riderMaroon: "#F43F5E", // Rose 500 (Fun Pink/Red)
-        riderBlue: "#8B5CF6",   // Violet 500 (Playful Purple)
+        riderBlue: "#7C3AED",   // Violet 600 (Darker for better contrast)
         riderGreen: "#10B981",  // Emerald 500 (Bright Green)
         riderBlack: "#FFFBEB",  // Amber 50 (Warm Vanilla Background)
         riderDark: "#FFF1F2",   // Rose 50 (Subtle Pink Card Bg)
