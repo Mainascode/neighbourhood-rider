@@ -6,7 +6,7 @@ import Vendor from "../../models/Vendor.js";
 export default async function register(req, res) {
     try {
         // Check if user already has a vendor profile
-        const existing = await Vendor.findOne({ userId: req.user._id });
+        const existing = await Vendor.findOne({ userId: req.user.id });
         if (existing) {
             return res.status(400).json({ message: "Already registered as a vendor" });
         }
@@ -18,7 +18,7 @@ export default async function register(req, res) {
         }
 
         const vendor = await Vendor.create({
-            userId: req.user._id,
+            userId: req.user.id,
             storeName,
             description,
             phone,

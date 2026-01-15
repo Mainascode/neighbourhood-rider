@@ -1,26 +1,23 @@
 /**
  * POST /api/riders/register
  */
-export default async function register(req, res) {
+export default async function riderRegister(req, res) {
   try {
-    const existing = await Rider.findOne({ user: req.user._id });
+    const existing = await Rider.findOne({ userId: req.user.id });
     if (existing) {
-      return res.status(400).json({ message: "Already registered as rider" });
+      return res.status(400).json({ error: "Already registered as rider" });
     }
 
-    const { name, phone, location, idNumber, idPicture, riderPicture } = req.body;
+    const { phone, idNumber, vehicleType, plateNumber } = req.body;
 
     // TODO: Add proper validation here
 
     const rider = await Rider.create({
-      userId: req.user._id, // Note: Model uses userId, not user
-      name,
+      userId: req.user.id,
       phone,
       idNumber,
-      idPicture,
-      riderPicture,
-      location: location ? { type: "Point", coordinates: location } : undefined,
-      isAvailable: false, // Default to unavailable until approved? Or available but not shown? Model default is true. Let's stick to default or explicit.
+      vehicleType,
+      plateNumber,
       status: "pending",
     });
 

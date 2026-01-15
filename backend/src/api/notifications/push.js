@@ -23,6 +23,10 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 router.post("/subscribe", requireAuth, async (req, res) => {
     try {
         const subscription = req.body;
+        const userId = req.user.id;
+        const role = req.user.role;
+
+        console.log(`🔔 Subscribe: User ${userId} (${role})`);
 
         if (!subscription || !subscription.endpoint || !subscription.keys) {
             return res.status(400).json({ error: "Invalid subscription object" });

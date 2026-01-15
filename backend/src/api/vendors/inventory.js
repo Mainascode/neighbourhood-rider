@@ -55,10 +55,11 @@ export async function removeItem(req, res) {
  * GET /api/vendors/inventory
  * Get inventory items
  */
-export async function getInventory(req, res) {
+export const getInventory = async (req, res) => {
     try {
-        const vendor = await Vendor.findOne({ userId: req.user._id });
-        if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+        const vendor = await Vendor.findOne({ userId: req.user.id });
+        if (!vendor) return res.status(404).json({ message: "Vendor profile not found" });
+
         res.json(vendor.inventory);
     } catch (err) {
         res.status(500).json({ message: "Failed to fetch inventory" });

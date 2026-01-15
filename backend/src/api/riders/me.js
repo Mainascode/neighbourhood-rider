@@ -19,7 +19,7 @@ export default async function me(req, res) {
     }
 
     try {
-        const rider = await Rider.findOne({ userId: req.user._id });
+        const rider = await Rider.findOne({ userId: req.user.id });
         if (!rider) {
             return res.status(404).json({ message: "Not a rider" });
         }
