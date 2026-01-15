@@ -1,8 +1,9 @@
 import ImageSlider from "./ImageSlider";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Hero() {
+  const navigate = useNavigate();
   return (
     <section className="relative overflow-hidden bg-transparent text-riderLight py-12 md:py-20">
       {/* Background Decor - light */}
