@@ -46,6 +46,7 @@ import vendorRegister from "./api/vendors/register.js";
 import vendorInventory from "./api/vendors/inventory.js";
 import vendorPublic from "./api/vendors/public.js";
 import vendorDispatch from "./api/vendors/dispatch.js";
+import vendorSettings from "./api/vendors/settings.js";
 
 /* admin */
 import adminDashboard from "./api/admin/dashboard.js";
@@ -111,7 +112,11 @@ async function startServer() {
   app.post("/api/vendors/register", requireAuth, vendorRegister);
   app.get("/api/vendors/inventory", requireAuth, vendorInventory.getInventory);
   app.post("/api/vendors/inventory", requireAuth, vendorInventory.addItem);
+  app.post("/api/vendors/inventory", requireAuth, vendorInventory.addItem);
   app.delete("/api/vendors/inventory/:itemId", requireAuth, vendorInventory.removeItem);
+  app.patch("/api/vendors/me", requireAuth, vendorSettings.updateVendor);
+  app.delete("/api/vendors/me", requireAuth, vendorSettings.deleteVendor);
+  app.get("/api/vendors/me", requireAuth, vendorSettings.getVendorProfile);
 
   /* public vendor routes */
   app.get("/api/vendors/nearby", vendorPublic.listPublicVendors);

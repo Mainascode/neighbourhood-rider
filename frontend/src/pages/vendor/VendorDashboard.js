@@ -21,9 +21,9 @@ export default function VendorDashboard() {
 
     useEffect(() => {
         if (!user) return;
+        fetchVendorProfile();
         fetchInventory();
-        // Socket listener for new orders specific to this vendor
-        // Note: Backend emits to `vendor:${userId}`
+
         socket.on(`vendor:order:new`, (newOrder) => {
             notify("New Order Received! 🔔", "success");
             setOrders(prev => [newOrder, ...prev]);
@@ -34,92 +34,78 @@ export default function VendorDashboard() {
         };
     }, [user, notify]);
 
-    const handleRequestRider = async (order) => {
+    const fetchVendorProfile = async () => {
         try {
-            setLoading(true);
-            const res = await fetch(`${API_URL}/api/vendors/orders/dispatch`, {
-                method: "POST",
+            const res = await fetch(`${API_URL}/api/vendors/me`, { credentials: "include" });
+            if (res.ok) {
+                const data = await res.json();
+                setVendor(data);
+            }
+        } catch (err) { console.error(err); }
+    };
+
+    const handleUpdateShop = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/api/vendors/me`, {
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ orderId: order._id })
+                body: JSON.stringify({
+                    storeName: vendor.storeName,
+                    phone: vendor.phone,
+                    description: vendor.description,
+                    address: vendor.address,
+                    isOpen: vendor.isOpen
+                })
             });
 
             const data = await res.json();
-
             if (res.ok) {
-                notify(data.message, "success");
-                // Update local order status
-                setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'assigned' } : o));
+                setVendor(data);
+                notify("Shop settings updated!", "success");
             } else {
-                notify(data.message || "Failed to find rider", "error");
+                notify(data.message || "Update failed", "error");
             }
         } catch (err) {
             console.error(err);
-            notify("Connection Error", "error");
+            notify("Connection error", "error");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchInventory = async () => {
-        try {
-            const res = await fetch(`${API_URL}/api/vendors/inventory`, { credentials: "include" });
-            if (res.ok) {
-                const data = await res.json();
-                setInventory(data);
-            }
-        } catch (err) { console.error(err); }
-    };
+    const handleDeleteShop = async () => {
+        const confirmDelete = window.confirm("Are you sure you want to delete your shop? This cannot be undone.");
+        if (!confirmDelete) return;
 
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setNewItem(prev => ({ ...prev, image: reader.result }));
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+        const doubleCheck = window.prompt("Type 'DELETE' to confirm.");
+        if (doubleCheck !== "DELETE") return;
 
-    const handleAddItem = async () => {
-        if (!newItem.name || !newItem.price) return notify("Name and Price required", "error");
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/vendors/inventory`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(newItem)
+            const res = await fetch(`${API_URL}/api/vendors/me`, {
+                method: "DELETE",
+                credentials: "include"
             });
+            const data = await res.json();
             if (res.ok) {
-                const updatedInventory = await res.json();
-                setInventory(updatedInventory);
-                setNewItem({ name: "", price: "", image: "" });
-                notify("Item added successfully", "success");
+                notify("Shop deleted. Redirecting...", "info");
+                setTimeout(() => {
+                    navigate("/orders"); // Redirect to user page
+                    window.location.reload(); // Force reload to refresh role
+                }, 2000);
             } else {
-                notify("Failed to add item (Is your shop approved?)", "error");
+                notify(data.message || "Delete failed", "error");
             }
         } catch (err) {
-            notify("Error adding item", "error");
+            console.error(err);
+            notify("Connection error", "error");
         } finally {
             setLoading(false);
         }
     };
-
-    const handleDeleteItem = async (itemId) => {
-        if (!window.confirm("Delete this item?")) return;
-        try {
-            const res = await fetch(`${API_URL}/api/vendors/inventory/${itemId}`, {
-                method: "DELETE", credentials: "include"
-            });
-            if (res.ok) {
-                const updatedInventory = await res.json();
-                setInventory(updatedInventory);
-                notify("Item deleted", "info");
-            }
-        } catch (err) { console.error(err); }
-    }
 
     return (
         <div className="min-h-screen bg-transparent text-riderLight font-sans">
@@ -136,11 +122,13 @@ export default function VendorDashboard() {
                         <p className="text-gray-500 font-medium">Vendor Dashboard</p>
                     </div>
                     <div className="flex gap-4 relative z-10">
-                        <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full border border-green-200">
-                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                            <span className="text-green-700 font-bold text-sm">Store Open</span>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${vendor?.isOpen ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                            <span className={`w-2.5 h-2.5 rounded-full ${vendor?.isOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                            <span className={`${vendor?.isOpen ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
+                                {vendor?.isOpen ? 'Store Open' : 'Store Closed'}
+                            </span>
                         </div>
-                        <button className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-bold transition-all text-gray-600">
+                        <button onClick={() => setActiveTab('settings')} className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-bold transition-all text-gray-600">
                             Settings
                         </button>
                     </div>
@@ -148,19 +136,103 @@ export default function VendorDashboard() {
 
                 {/* Tabs */}
                 <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
-                    {['Overview', 'Orders', 'Inventory', 'Reviews'].map((tab) => (
+                    {['Overview', 'Orders', 'Inventory', 'Reviews', 'Settings'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab.toLowerCase())}
                             className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${activeTab === tab.toLowerCase()
                                 ? "bg-riderBlue text-white shadow-lg shadow-riderBlue/30"
-                                : "bg-riderDark/50 text-gray-500 hover:bg-riderDark hover:text-riderBlue"
+                                : "bg-white border border-gray-200 text-gray-500 hover:bg-gray-50"
                                 }`}
                         >
                             {tab}
                         </button>
                     ))}
                 </div>
+
+                {/* SETTINGS TAB */}
+                {activeTab === 'settings' && vendor && (
+                    <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-xl shadow-riderBlue/5 space-y-8">
+                            <div>
+                                <h2 className="text-2xl font-bold mb-1">Shop Settings</h2>
+                                <p className="text-gray-500 text-sm">Update your store details and visibility.</p>
+                            </div>
+
+                            <form onSubmit={handleUpdateShop} className="space-y-6">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                        <div>
+                                            <span className="block font-bold text-gray-700">Store Status</span>
+                                            <span className="text-sm text-gray-500">{vendor.isOpen ? "Customers can order" : "Store is closed for orders"}</span>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={vendor.isOpen} onChange={e => setVendor({ ...vendor, isOpen: e.target.checked })} className="sr-only peer" />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                                        </label>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-500 mb-2">Store Name</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all font-bold text-riderLight"
+                                            value={vendor.storeName}
+                                            onChange={e => setVendor({ ...vendor, storeName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-500 mb-2">Phone</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all font-bold text-riderLight"
+                                            value={vendor.phone}
+                                            onChange={e => setVendor({ ...vendor, phone: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-500 mb-2">Address / Location</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all font-bold text-riderLight"
+                                            value={vendor.address}
+                                            onChange={e => setVendor({ ...vendor, address: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-500 mb-2">Description</label>
+                                        <textarea
+                                            rows="3"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all font-medium text-riderLight"
+                                            value={vendor.description}
+                                            onChange={e => setVendor({ ...vendor, description: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    disabled={loading}
+                                    type="submit"
+                                    className="w-full bg-riderBlue hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-riderBlue/20"
+                                >
+                                    {loading ? "Saving Changes..." : "Save Changes"}
+                                </button>
+                            </form>
+
+                            <div className="pt-6 border-t border-gray-100">
+                                <h3 className="text-red-500 font-bold mb-2">Danger Zone</h3>
+                                <p className="text-gray-400 text-sm mb-4">Deleting your shop is irreversible. All inventory and history will be lost.</p>
+                                <button
+                                    onClick={handleDeleteShop}
+                                    className="border border-red-200 text-red-500 hover:bg-red-50 font-bold py-3 px-6 rounded-xl text-sm transition-all"
+                                >
+                                    Delete Shop
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
                 {/* ORDERS TAB */}
                 {activeTab === 'orders' && (
