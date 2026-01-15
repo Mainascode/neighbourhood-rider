@@ -6,9 +6,27 @@ body {
     font-family: 'Outfit', sans-serif;
     font-style: italic;
     scroll-behavior: smooth;
-    /* Removed solid bg to allow LiveBackground to show */
-    /* "Fresh Mint" Theme Background */
-    @apply bg-riderBlack text-riderLight;
+    /* Multicolored Dot Pattern Background */
+    background-color: #F3F4F6;
+    background-image:
+        radial-gradient(circle at 25px 25px, #EF4444 2px, transparent 2.5px),
+        radial-gradient(circle at 12px 12px, #F97316 2px, transparent 2.5px),
+        radial-gradient(circle at 37px 37px, #3B82F6 2px, transparent 2.5px);
+    background-size: 50px 50px;
+    background-attachment: fixed;
+    /* Ensures pattern stays while scrolling */
+    animation: bg-move 60s linear infinite;
+    @apply text-riderLight;
+}
+
+@keyframes bg-move {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 50px 50px;
+    }
 }
 
 /* Custom Scrollbar */
