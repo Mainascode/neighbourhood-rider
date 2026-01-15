@@ -2,7 +2,7 @@ module.exports = {
   content: ["./src/**/*.{js,jsx}"],
   theme: {
     extend: {
-      colors: {
+      
         colors: {
           riderMaroon: "#EF4444", // Red 500 (Alerts)
           riderBlue: "#F97316",   // Orange 500 (Primary Brand Color - Vibrant)
@@ -12,7 +12,7 @@ module.exports = {
           riderLight: "#1F2937",  // Gray 800 (Primary Text)
           riderOrange: "#F59E0B", // Amber 500 (Secondary)
         },
-      },
+      
     },
   },
   plugins: [],
