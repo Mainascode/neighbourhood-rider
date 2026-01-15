@@ -94,30 +94,30 @@ export default function JoinVendor() {
                     </div>
 
                     {!user ? (
-                        <div className="bg-riderBlack/80 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl text-center">
+                        <div className="bg-white border border-gray-200 p-8 rounded-3xl shadow-sm text-center">
                             <h2 className="text-2xl font-bold mb-4">Login Required</h2>
-                            <p className="text-gray-600 mb-6">You must be logged in to register your shop.</p>
-                            <button onClick={() => navigate("/login")} className="bg-riderBlue hover:bg-blue-600 px-6 py-3 rounded-xl font-bold transition-all text-white">
+                            <p className="text-gray-500 mb-6">You must be logged in to register your shop.</p>
+                            <button onClick={() => navigate("/login")} className="bg-riderBlue hover:bg-blue-600 px-6 py-3 rounded-xl font-bold transition-all text-white shadow-lg shadow-riderBlue/20">
                                 Go to Login
                             </button>
                         </div>
                     ) : (submitted || status ? (
-                        <div className="bg-riderBlack/80 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl text-center">
+                        <div className="bg-white border border-gray-200 p-8 rounded-3xl shadow-sm text-center">
                             <div className="text-6xl mb-4">⏳</div>
                             <h2 className="text-2xl font-bold text-yellow-500 mb-2">Application Pending</h2>
-                            <p className="text-gray-700">
+                            <p className="text-gray-500">
                                 Your shop details are under review. We will notify you once approved.
                             </p>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className="bg-riderBlack/80 backdrop-blur-md border border-riderBlue/10 p-8 rounded-2xl space-y-6">
+                        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 p-8 rounded-3xl shadow-xl shadow-riderBlue/5 space-y-6">
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Store Name</label>
+                                <label className="block text-sm font-bold text-gray-500 mb-2">Store Name</label>
                                 <input
                                     required
                                     type="text"
-                                    className="w-full bg-riderDark/40 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:border-riderBlue text-riderLight"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all text-riderLight"
                                     placeholder="Mama Mboga Fresh"
                                     value={formData.storeName}
                                     onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
@@ -126,22 +126,22 @@ export default function JoinVendor() {
 
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-600 mb-2">Phone Number</label>
+                                    <label className="block text-sm font-bold text-gray-500 mb-2">Phone Number</label>
                                     <input
                                         required
                                         type="tel"
-                                        className="w-full bg-riderDark/40 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:border-riderBlue text-riderLight"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all text-riderLight"
                                         placeholder="0712 345 678"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-600 mb-2">Store Location / Area</label>
+                                    <label className="block text-sm font-bold text-gray-500 mb-2">Store Location / Area</label>
                                     <input
                                         required
                                         type="text"
-                                        className="w-full bg-riderDark/40 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:border-riderBlue text-riderLight"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all text-riderLight"
                                         placeholder="e.g. South B Shopping Center"
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -150,9 +150,9 @@ export default function JoinVendor() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Description</label>
+                                <label className="block text-sm font-bold text-gray-500 mb-2">Description</label>
                                 <textarea
-                                    className="w-full bg-riderDark/40 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:border-riderBlue text-riderLight"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all text-riderLight"
                                     rows="3"
                                     placeholder="We sell fresh vegetables and fruits..."
                                     value={formData.description}
@@ -161,18 +161,18 @@ export default function JoinVendor() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-2">Store Logo / Image</label>
+                                <label className="block text-sm font-bold text-gray-500 mb-2">Store Logo / Image</label>
                                 <input
                                     type="file"
                                     accept="image/*"
-                                    className="w-full bg-riderDark/40 border border-gray-700 rounded-xl px-4 py-2 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-riderBlue file:text-white hover:file:bg-blue-600"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-riderBlue/10 file:text-riderBlue hover:file:bg-riderBlue/20"
                                     onChange={(e) => handleFileChange(e, "logo")}
                                 />
                             </div>
 
                             <button
                                 disabled={loading}
-                                className="w-full bg-riderBlue hover:bg-violet-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg transform hover:-translate-y-1 disabled:opacity-50"
+                                className="w-full bg-riderBlue hover:bg-violet-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-riderBlue/30 transform hover:-translate-y-1 disabled:opacity-50"
                             >
                                 {loading ? "Submit Application..." : "Create Shop"}
                             </button>
