@@ -9,8 +9,9 @@ dotenv.config();
 
 const seedVendor = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('✅ Connected to MongoDB');
+        const uri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/neighbourhoodrider";
+        await mongoose.connect(uri);
+        console.log(`✅ Connected to MongoDB at ${uri}`);
 
         // 1. Create/Update User
         const email = 'vendor@test.com';

@@ -4,29 +4,14 @@
 
 body {
     font-family: 'Outfit', sans-serif;
-    font-style: italic;
-    scroll-behavior: smooth;
-    /* Multicolored Dot Pattern Background */
-    background-color: #F3F4F6;
-    background-image:
-        radial-gradient(circle at 25px 25px, #EF4444 2px, transparent 2.5px),
-        radial-gradient(circle at 12px 12px, #F97316 2px, transparent 2.5px),
-        radial-gradient(circle at 37px 37px, #3B82F6 2px, transparent 2.5px);
-    background-size: 50px 50px;
+    /* Hero-style Background */
+    @apply bg-riderBlack;
+    background-image: radial-gradient(#F97316 1px, transparent 1px);
+    background-size: 24px 24px;
     background-attachment: fixed;
-    /* Ensures pattern stays while scrolling */
-    animation: bg-move 60s linear infinite;
+    /* Opacity handled via color or overlay, but here we hardcode the dot color which is already distinctive */
+
     @apply text-riderLight;
-}
-
-@keyframes bg-move {
-    0% {
-        background-position: 0 0;
-    }
-
-    100% {
-        background-position: 50px 50px;
-    }
 }
 
 /* Custom Scrollbar */

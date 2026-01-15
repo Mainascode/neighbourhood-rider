@@ -32,6 +32,6 @@ export default async function register(req, res) {
         res.status(201).json(vendor);
     } catch (err) {
         console.error("Vendor Registration Error:", err);
-        res.status(500).json({ message: "Vendor registration failed" });
+        res.status(500).json({ message: "Vendor registration failed", error: err.message });
     }
 }

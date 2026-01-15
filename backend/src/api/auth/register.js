@@ -35,17 +35,20 @@ export default async function register(req, res) {
 
   await user.save();
 
+  /* ✅ SET COOKIES CORRECTLY FOR PRODUCTION */
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false, // localhost ONLY
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     maxAge: 15 * 60 * 1000,
   });
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
