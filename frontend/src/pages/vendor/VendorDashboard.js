@@ -107,6 +107,93 @@ export default function VendorDashboard() {
         }
     };
 
+    const handleRequestRider = async (order) => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${API_URL}/api/vendors/orders/dispatch`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ orderId: order._id })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                notify(data.message, "success");
+                // Update local order status
+                setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'assigned' } : o));
+            } else {
+                notify(data.message || "Failed to find rider", "error");
+            }
+        } catch (err) {
+            console.error(err);
+            notify("Connection Error", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchInventory = async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/vendors/inventory`, { credentials: "include" });
+            if (res.ok) {
+                const data = await res.json();
+                setInventory(data);
+            }
+        } catch (err) { console.error(err); }
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setNewItem(prev => ({ ...prev, image: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleAddItem = async () => {
+        if (!newItem.name || !newItem.price) return notify("Name and Price required", "error");
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/api/vendors/inventory`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(newItem)
+            });
+            if (res.ok) {
+                const updatedInventory = await res.json();
+                setInventory(updatedInventory);
+                setNewItem({ name: "", price: "", image: "" });
+                notify("Item added successfully", "success");
+            } else {
+                notify("Failed to add item (Is your shop approved?)", "error");
+            }
+        } catch (err) {
+            notify("Error adding item", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteItem = async (itemId) => {
+        if (!window.confirm("Delete this item?")) return;
+        try {
+            const res = await fetch(`${API_URL}/api/vendors/inventory/${itemId}`, {
+                method: "DELETE", credentials: "include"
+            });
+            if (res.ok) {
+                const updatedInventory = await res.json();
+                setInventory(updatedInventory);
+                notify("Item deleted", "info");
+            }
+        } catch (err) { console.error(err); }
+    }
+
     return (
         <div className="min-h-screen bg-transparent text-riderLight font-sans">
             <Navbar />
