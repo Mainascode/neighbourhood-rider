@@ -9,9 +9,10 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-riderBlack/80 backdrop-blur-xl border-b border-riderBlue/10 text-riderLight px-4 md:px-6 py-3 md:py-4 flex justify-between items-center transition-all duration-300 shadow-sm">
-      <Link to="/" className="font-extrabold text-lg md:text-2xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-riderBlue to-riderMaroon hover:scale-105 transition-transform whitespace-nowrap">
-        NEIGHBORHOOD <span className="font-black">RIDER</span>
+    <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 text-riderLight px-4 md:px-6 py-3 md:py-4 flex justify-between items-center transition-all duration-300 shadow-sm">
+      <Link to="/" className="font-extrabold text-lg md:text-2xl tracking-tight text-riderLight hover:text-riderBlue transition-colors whitespace-nowrap flex items-center gap-1">
+        <span className="text-3xl">🚴</span>
+        <span>NEIGHBORHOOD <span className="text-riderBlue">RIDER</span></span>
       </Link>
 
       {/* Mobile Toggle */}

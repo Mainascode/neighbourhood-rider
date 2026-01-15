@@ -5,9 +5,18 @@ import { Link, useNavigate } from "react-router-dom";
 export default function Hero() {
   const navigate = useNavigate();
   return (
-    <section className="relative overflow-hidden bg-transparent text-riderLight py-12 md:py-20">
-      {/* Background Decor - light */}
-      <div className="absolute top-0 right-0 w-full h-full opacity-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-riderMaroon to-transparent pointer-events-none"></div>
+    <section className="relative overflow-hidden bg-riderBlack text-riderLight py-12 md:py-20">
+      {/* Background Decor - Dot Pattern */}
+      <div className="absolute inset-0 z-0 opacity-[0.4]" style={{
+        backgroundImage: `radial-gradient(#F97316 1px, transparent 1px)`,
+        backgroundSize: '24px 24px'
+      }}></div>
+
+      {/* Soft Gradient Overlay */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-white/50 to-riderBlack"></div>
+
+      {/* Decorative Blob */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-riderBlue/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1fr_1.2fr] gap-8 items-center relative z-10">
 
