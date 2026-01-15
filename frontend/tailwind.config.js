@@ -3,14 +3,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        riderMaroon: "#F43F5E", // Rose 500 (Fun Pink/Red)
-        riderBlue: "#7C3AED",   // Violet 600 (Darker for better contrast)
-        riderGreen: "#10B981",  // Emerald 500 (Bright Green)
-        riderBlack: "#FFFBEB",  // Amber 50 (Warm Vanilla Background)
-        riderDark: "#FFF1F2",   // Rose 50 (Subtle Pink Card Bg)
-        riderLight: "#4C1D95",  // Violet 900 (Deep Readable Text)
-        // Others
-        riderOrange: "#F59E0B", // Amber 500 (Sunny Yellow)
+        colors: {
+          riderMaroon: "#EF4444", // Red 500 (Alerts)
+          riderBlue: "#F97316",   // Orange 500 (Primary Brand Color - Vibrant)
+          riderGreen: "#10B981",  // Emerald 500 (Success)
+          riderBlack: "#F3F4F6",  // Gray 100 (Main Background - NOT White)
+          riderDark: "#FFFFFF",   // White (Card Backgrounds)
+          riderLight: "#1F2937",  // Gray 800 (Primary Text)
+          riderOrange: "#F59E0B", // Amber 500 (Secondary)
+        },
       },
     },
   },

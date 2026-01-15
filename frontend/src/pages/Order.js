@@ -111,53 +111,56 @@ export default function Order() {
         <div className="min-h-screen flex flex-col bg-transparent text-riderLight relative">
             <Navbar />
 
-            <main className="flex-grow flex flex-col items-center justify-center p-4 md:p-6 text-center z-10 w-full">
+            <main className="flex-grow flex flex-col items-center justify-start pt-24 pb-12 px-4 md:px-6 z-10 w-full max-w-7xl mx-auto">
 
-                {/* Help Button - Static on Mobile, Absolute on Desktop */}
-                <div className="w-full flex justify-end mb-6 md:absolute md:top-24 md:right-10">
-                    <button
-                        onClick={handleOpenFaq}
-                        className="bg-riderDark/50 backdrop-blur-md px-4 py-2 rounded-full shadow-lg border border-riderBlue/20 text-xs md:text-sm font-bold text-riderLight hover:bg-riderDark/70 transition-all flex items-center gap-2"
-                    >
-                        <span>❓</span> Help & FAQs
-                    </button>
+                {/* Header Section */}
+                <div className="text-center mb-10">
+                    <h1 className="text-3xl md:text-5xl font-extrabold mb-4 text-riderLight tracking-tight">
+                        What do you need today?
+                    </h1>
+                    <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto">
+                        Select a shop below to browse their inventory.
+                    </p>
                 </div>
 
-                <h1 className="text-3xl md:text-4xl font-extrabold mb-4 text-riderLight">
-                    Start Your Order
-                </h1>
-                <p className="text-base md:text-lg text-gray-600 mb-8 max-w-lg px-2">
-                    Click the chat icon below to tell us what you need. Our cyclists are ready!
-                </p>
-
-                <div className="bg-riderBlack/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-riderBlue/10 max-w-4xl w-full">
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 w-full">
                     {/* VENDOR GRID */}
-                    <h2 className="text-xl font-bold mb-6 text-left border-b border-white/10 pb-2">Select a Shop</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+                    <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                        <h2 className="text-xl font-bold text-riderLight">Nearby Shops</h2>
+                        <span className="text-riderBlue text-sm font-bold bg-riderBlue/10 px-3 py-1 rounded-full cursor-pointer hover:bg-riderBlue/20">View All</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
                         {vendors.length === 0 ? (
-                            <p className="col-span-full text-gray-500 py-10">Searching for nearby shops...</p>
+                            <p className="col-span-full text-gray-400 py-10 text-center italic">Searching for nearby shops...</p>
                         ) : (
                             vendors.map((vendor) => (
                                 <div
                                     key={vendor._id}
                                     onClick={() => handleSelectVendor(vendor)}
-                                    className="bg-riderBlack/40 backdrop-blur-sm p-4 rounded-xl border border-riderBlue/10 flex flex-col items-center gap-3 hover:bg-riderBlue/5 transition-all group cursor-pointer hover:-translate-y-1 hover:shadow-lg"
+                                    className="bg-gray-50 p-0 rounded-2xl border border-gray-200 hover:border-riderBlue/50 transition-all group cursor-pointer hover:-translate-y-1 hover:shadow-md flex flex-col overflow-hidden"
                                 >
-                                    <div className="w-full h-32 bg-white/5 rounded-lg overflow-hidden relative">
+                                    <div className="w-full h-40 bg-gray-200 relative">
                                         <img
                                             src={vendor.logo || `https://ui-avatars.com/api/?name=${vendor.storeName}&background=random`}
                                             alt={vendor.storeName}
                                             className="w-full h-full object-cover"
                                         />
                                         {!vendor.isOpen && (
-                                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                                                <span className="text-red-500 font-bold uppercase text-sm border border-red-500 px-2 py-1 rounded">Closed</span>
+                                            <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-sm">
+                                                <span className="text-red-500 font-bold uppercase text-xs border border-red-500 px-3 py-1 rounded-full bg-white">Closed</span>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-center w-full">
-                                        <h3 className="font-bold text-riderLight text-lg truncate w-full">{vendor.storeName}</h3>
-                                        <p className="text-xs text-gray-400 truncate">{vendor.address || "Nearby"}</p>
+                                    <div className="p-5">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h3 className="font-bold text-riderLight text-lg truncate">{vendor.storeName}</h3>
+                                            <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded">4.8 ★</span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 truncate mb-4">{vendor.address || "Nearby"}</p>
+                                        <button className="w-full bg-white border border-gray-200 text-riderLight font-bold py-2 rounded-xl text-sm group-hover:bg-riderBlue group-hover:text-white group-hover:border-riderBlue transition-colors">
+                                            Visit Shop
+                                        </button>
                                     </div>
                                 </div>
                             ))

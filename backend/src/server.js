@@ -44,9 +44,6 @@ import mpesaCallback from "./api/payments/callback.js";
 /* vendors */
 import vendorRegister from "./api/vendors/register.js";
 import vendorInventory from "./api/vendors/inventory.js";
-/* vendors */
-import vendorRegister from "./api/vendors/register.js";
-import vendorInventory from "./api/vendors/inventory.js";
 import vendorPublic from "./api/vendors/public.js";
 import vendorDispatch from "./api/vendors/dispatch.js";
 
