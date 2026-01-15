@@ -2,10 +2,10 @@ import { FaCheckCircle } from "react-icons/fa";
 
 export default function Community() {
   const benefits = [
-    "Trusted riders verified by community",
-    "Lightning fast response times",
-    "Secure pay on delivery",
-    "Community-first approach"
+    "Support your Local Businesses 🏪",
+    "Trusted riders verified by community 🚴",
+    "Lightning fast response times ⚡",
+    "Secure pay on delivery 🤝",
   ];
 
   return (
@@ -22,8 +22,8 @@ export default function Community() {
               Built for Your <br /> Neighbourood.
             </h2>
             <p className="text-xl text-gray-500 leading-relaxed font-bold relative z-10">
-              We work with riders who know your streets, your shops, and your community.
-              This is not a faceless delivery service it’s local, personal, and safe.
+              We connect local shops to local people. From your favorite Mama Mboga
+              to the Boda guy you trust. It’s an ecosystem that grows together.
             </p>
           </div>
         </div>

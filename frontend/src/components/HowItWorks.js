@@ -4,18 +4,18 @@ export default function HowItWorks() {
   const steps = [
     {
       icon: <FaRegComments className="text-4xl text-riderMaroon mb-4" />,
-      title: "Tuambie Unataka Nini",
-      desc: "Chat na assistant wetu hapo chini ama kwa WhatsApp utuambie unahitaji nini.",
+      title: "Cheki Maduka & Errands",
+      desc: "Chagua bidhaa kwa local vendors ama utuambie errand unataka tufanye.",
     },
     {
       icon: <FaBicycle className="text-4xl text-riderMaroon mb-4" />,
-      title: "Cyclist Atakuja Chap Chap",
-      desc: "Cyclist wetu wa mtaa atachukua order yako na kukuletea mbio.",
+      title: "Rider Anakuja Chap Chap",
+      desc: "Rider wetu wa mtaa anapokea hiyo request na kukuletea mbio.",
     },
     {
       icon: <FaWallet className="text-4xl text-riderBlack mb-4" />,
-      title: "Lipa Akifika",
-      desc: "Ukipata mzigo wako salama, lipa na M-Pesa. Hakuna stress.",
+      title: "Lipa bila Stress",
+      desc: "Confirm mzigo imefika, alafu lipa salama na M-Pesa. Hapo sawa?",
     },
   ];
 

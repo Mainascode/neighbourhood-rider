@@ -7,18 +7,18 @@ export default function CTASection() {
         <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl inline-block mb-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-riderLight relative z-10">
-            Uko ready kuorder?
+            Uko ready kuanza?
           </h2>
           <p className="text-gray-500 font-bold text-lg max-w-2xl mx-auto relative z-10">
-            Chochote unahitaji, cyclist wetu ako area ready kukusaidia.
+            Kama unauza, unabuy, ama unaride—sisi tuko pamoja na wewe.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row justify-center gap-6">
           <Link to="/order" className="bg-riderMaroon px-8 py-4 rounded-xl font-bold text-lg text-riderLight shadow-lg hover:bg-rose-800 transition-all hover:-translate-y-1 text-center">
-            Order Now
+            Order Sasa
           </Link>
-          <Link to="/join" className="bg-riderDark/50 backdrop-blur-md border border-riderBlue/10 text-riderLight px-8 py-4 rounded-xl font-bold text-lg hover:bg-riderDark/70 hover:shadow-md transition-all text-center">
-            Kuwa Cyclist
+          <Link to="/join-vendor" className="bg-white border border-gray-200 text-riderLight px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-50 hover:shadow-md transition-all text-center">
+            Fungua Duka
           </Link>
         </div>
       </div>

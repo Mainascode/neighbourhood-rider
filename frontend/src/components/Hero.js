@@ -33,12 +33,12 @@ export default function Hero() {
           <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] border-2 border-white/50 inline-block mb-10 shadow-xl shadow-riderBlue/5 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
             <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-riderMaroon/10"></div>
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight mb-4 text-riderLight">
-              Cyclist wako wa <span className="text-riderMaroon">Mtaa</span> <br className="hidden md:block" />
-              Ako Hapa.
+              Soko na Rider wa <span className="text-riderMaroon">Mtaa</span> <br className="hidden md:block" />
+              Wako Hapa.
             </h1>
             <p className="text-gray-900 font-medium text-lg leading-relaxed max-w-lg">
-              Groceries, parcels, ama errands ndogo ndogo?
-              Tuko ready kukusaidia chap chap. We are just around the corner.
+              Tunaconnect mtaa mzima—kutoka kwa <strong>Mama Mboga</strong> mpaka mlangoni kwako na <strong>Rider wa kuaminika</strong>.
+              Chochote unahitaji, sisi tuko ready.
             </p>
           </div>
 
