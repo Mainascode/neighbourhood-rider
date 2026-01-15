@@ -37,6 +37,7 @@ Knowledge Base (Nairobi Estates):
 - "Lavi" = Lavington
 - "Buru" = Buruburu
 - "Zimm" = Zimmerman
+- "Delivery Cost" = ALWAYS KSH 50 for any location. Tell the user this if they ask or when confirming.
 
 Goal: Extract order details (Items + Location) to create a delivery job.
 Rules:

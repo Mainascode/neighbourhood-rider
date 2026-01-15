@@ -13,11 +13,13 @@ const OrderSchema = new mongoose.Schema({
       coordinates: [Number]
     }
   },
+  vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
   dropoff: String,
+  items: [],
   status: {
     type: String,
-    enum: ["pending", "assigned", "delivering", "delivered", "completed"],
-    default: "pending"
+    enum: ["pending", "pending_vendor", "assigned", "delivering", "delivered", "cancelled"],
+    default: "pending",
   },
   paid: { type: Boolean, default: false },
   amount: { type: Number, default: 200 }, // Default delivery fee

@@ -50,6 +50,12 @@ export default function Navbar() {
           </>
         )}
 
+        {user?.role === "vendor" && (
+          <>
+            <NavLink to="/vendor/dashboard" label="My Shop" />
+          </>
+        )}
+
         {user && (
           <button
             onClick={logout}

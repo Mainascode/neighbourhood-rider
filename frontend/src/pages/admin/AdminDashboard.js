@@ -2,13 +2,14 @@ import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../lib/config";
 import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
-import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell } from "react-icons/fa";
+import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell, FaStore } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminDashboard() {
   const [activeModal, setActiveModal] = useState(null); // changed from activeTab
   const [orders, setOrders] = useState([]);
   const [riders, setRiders] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [inquiries, setInquiries] = useState([]); // In future this would fetch from backend history
 
@@ -20,6 +21,7 @@ export default function AdminDashboard() {
   });
 
   const [selectedRider, setSelectedRider] = useState(null);
+  const [selectedVendor, setSelectedVendor] = useState(null);
   const [selectedOrderForAssignment, setSelectedOrderForAssignment] = useState(null);
   const [newFaq, setNewFaq] = useState({ question: "", answer: "", isPublished: true });
   const { notify } = useNotify();
@@ -120,9 +122,18 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   }, []);
 
+  const fetchVendors = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/vendors`, { credentials: "include" });
+      const data = await res.json();
+      setVendors(data);
+    } catch (err) { console.error(err); }
+  }, []);
+
   useEffect(() => {
     fetchDashboard(); // Always fetch dashboard stats
     if (activeModal === "riders") fetchRiders();
+    if (activeModal === "vendors") fetchVendors();
     if (activeModal === "orders") fetchOrders();
     if (activeModal === "faqs") fetchFaqs();
     if (activeModal === "inquiries") fetchInquiries();
@@ -138,6 +149,17 @@ export default function AdminDashboard() {
       notify(`Rider ${status}`, "success");
       fetchRiders();
       setSelectedRider(null);
+    }
+  };
+
+  const handleApproveVendor = async (id, status) => {
+    const res = await fetch(`${API_URL}/api/admin/vendors/${id}/approve`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status })
+    });
+    if (res.ok) {
+      notify(`Vendor ${status}`, "success");
+      fetchVendors();
+      setSelectedVendor(null);
     }
   };
 
@@ -188,6 +210,7 @@ export default function AdminDashboard() {
         <nav className="w-full space-y-3 px-3 relative z-10">
           <NavItem icon={<FaBoxOpen />} label="Dashboard" active={activeModal === null} onClick={() => setActiveModal(null)} />
           <NavItem icon={<FaMotorcycle />} label="Riders" active={activeModal === "riders"} onClick={() => setActiveModal("riders")} />
+          <NavItem icon={<FaStore />} label="Vendors" active={activeModal === "vendors"} onClick={() => setActiveModal("vendors")} />
           <NavItem icon={<FaMoneyBillWave />} label="Live Orders" active={activeModal === "orders"} onClick={() => setActiveModal("orders")} />
           <NavItem icon={<FaQuestionCircle />} label="FAQs" active={activeModal === "faqs"} onClick={() => setActiveModal("faqs")} />
           <NavItem icon={<FaComments />} label="Inquiries" active={activeModal === "inquiries"} onClick={() => setActiveModal("inquiries")} />
@@ -298,6 +321,36 @@ export default function AdminDashboard() {
                       <td className="p-4"><StatusBadge status={r.status} /></td>
                       <td className="p-4">
                         <button onClick={() => setSelectedRider(r)} className="text-blue-400 hover:text-blue-300 font-medium">Manage</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </DashboardModal>
+          )}
+
+          {/* 🏪 VENDORS MODAL */}
+          {activeModal === "vendors" && (
+            <DashboardModal title="Manage Vendors" onClose={() => setActiveModal(null)}>
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-riderDark/20 text-gray-600 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="p-4">Store Name</th>
+                    <th className="p-4">Phone</th>
+                    <th className="p-4">Location</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-sm">
+                  {vendors.map(v => (
+                    <tr key={v._id} className="hover:bg-riderDark/50 transition-colors">
+                      <td className="p-4 font-bold">{v.storeName}</td>
+                      <td className="p-4 text-gray-600">{v.phone}</td>
+                      <td className="p-4 text-gray-600">{v.address || "N/A"}</td>
+                      <td className="p-4"><StatusBadge status={v.status} /></td>
+                      <td className="p-4">
+                        <button onClick={() => setSelectedVendor(v)} className="text-blue-400 hover:text-blue-300 font-medium">Review</button>
                       </td>
                     </tr>
                   ))}
@@ -534,6 +587,41 @@ export default function AdminDashboard() {
               <button onClick={() => handleApproveRider(selectedRider._id, "rejected")} className="bg-red-600 hover:bg-red-700 text-riderLight py-3 rounded-xl font-bold">Reject</button>
             </div>
             <button onClick={() => setSelectedRider(null)} className="w-full mt-4 text-gray-600 hover:text-riderLight">Cancel</button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Vendor Details Modal */}
+      {selectedVendor && (
+        <div className="fixed inset-0 bg-riderBlack/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#18181b] rounded-2xl p-6 max-w-lg w-full border border-riderBlue/10 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6">Review Vendor</h2>
+            <div className="space-y-6 mb-8">
+              <div className="flex justify-between border-b border-riderBlue/10 pb-2"><span>Store Name</span><span className="font-bold">{selectedVendor.storeName}</span></div>
+              <div className="flex justify-between border-b border-riderBlue/10 pb-2"><span>Status</span><span className="font-bold capitalize">{selectedVendor.status}</span></div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <p className="text-sm text-gray-400">Description</p>
+              <div className="bg-riderDark/30 p-3 rounded-xl text-gray-300">{selectedVendor.description}</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Logo</p>
+                <img
+                  src={selectedVendor.logo || "https://placehold.co/400"}
+                  alt="Logo"
+                  className="w-full h-32 object-cover rounded-xl border border-riderBlue/20 bg-black/50"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => handleApproveVendor(selectedVendor._id, "approved")} className="bg-green-600 hover:bg-green-700 text-riderLight py-3 rounded-xl font-bold">Approve</button>
+              <button onClick={() => handleApproveVendor(selectedVendor._id, "rejected")} className="bg-red-600 hover:bg-red-700 text-riderLight py-3 rounded-xl font-bold">Reject</button>
+            </div>
+            <button onClick={() => setSelectedVendor(null)} className="w-full mt-4 text-gray-600 hover:text-riderLight">Cancel</button>
           </motion.div>
         </div>
       )}

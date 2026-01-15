@@ -20,6 +20,10 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 // Rider
 import RiderDashboard from "./pages/RiderDashboard";
 
+// Vendor
+import JoinVendor from "./pages/JoinVendor";
+import VendorDashboard from "./pages/vendor/VendorDashboard";
+
 // Live BG
 import LiveBackground from "./components/LiveBackground.js";
 
@@ -52,6 +56,10 @@ export default function App() {
 
         {/* 🔐 Admin (email restricted later) */}
         <Route path="/admin/dashboard" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+
+        {/* 🏪 Vendor */}
+        <Route path="/join-vendor" element={<PrivateRoute><JoinVendor /></PrivateRoute>} />
+        <Route path="/vendor/dashboard" element={<PrivateRoute><VendorDashboard /></PrivateRoute>} />
       </Routes>
     </Router>
   );

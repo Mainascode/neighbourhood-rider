@@ -32,13 +32,18 @@ export default function Hero() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start">
-            <Link to="/order" className="bg-gradient-to-r from-riderMaroon to-riderOrange text-white px-10 py-4 rounded-full font-black text-lg shadow-xl shadow-riderMaroon/30 hover:shadow-2xl hover:shadow-riderMaroon/40 hover:-translate-y-1 transition-all duration-300 text-center active:scale-95">
-              🚀 Order Now
-            </Link>
-            <Link to="/join" className="bg-white border-2 border-riderBlue text-riderBlue px-10 py-4 rounded-full font-bold text-lg hover:bg-riderBlue hover:text-white transition-all duration-300 text-center shadow-lg hover:shadow-riderBlue/30 hover:-translate-y-1 active:scale-95">
-              🚲 Kuwa Cyclist
-            </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center opacity-0 animate-[fadeIn_1s_ease-out_1.2s_forwards]">
+            <button onClick={() => navigate("/order")} className="bg-riderMaroon hover:bg-rose-600 text-white font-bold py-4 px-10 rounded-full text-lg shadow-xl shadow-riderMaroon/20 transition-all hover:-translate-y-1 hover:shadow-2xl flex items-center gap-3">
+              Order Now <span className="text-xl">🍕</span>
+            </button>
+            <div className="flex gap-4">
+              <button onClick={() => navigate("/join")} className="bg-riderBlue/10 hover:bg-riderBlue/20 text-riderLight font-bold py-4 px-8 rounded-full text-lg border border-riderBlue/20 backdrop-blur-md transition-all hover:border-riderBlue/50">
+                Join as Rider 🚴
+              </button>
+              <button onClick={() => navigate("/join-vendor")} className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 font-bold py-4 px-8 rounded-full text-lg border border-orange-500/20 backdrop-blur-md transition-all hover:border-orange-500/50">
+                Sell with Us 🏪
+              </button>
+            </div>
           </div>
         </motion.div>
 

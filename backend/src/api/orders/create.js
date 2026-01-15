@@ -13,8 +13,13 @@ export default async function handler(req, res) {
 
   const { pickupLng, pickupLat, address, dropoff } = req.body;
 
-  const order = await Order.create({
+  /* New: Handle Vendor Order */
+  const { vendorId, items } = req.body;
+
+  const orderData = {
     userId: user.id,
+    vendorId: vendorId || null, // Link to vendor if present
+    items: items || [], // Store items
     pickup: {
       address,
       location: {
@@ -22,29 +27,48 @@ export default async function handler(req, res) {
         coordinates: [pickupLng, pickupLat]
       }
     },
-    dropoff
-  });
+    dropoff,
+    status: vendorId ? "pending_vendor" : "pending", // Vendor needs to see it first
+    amount: items ? items.reduce((sum, i) => sum + i.price, 50) : 50 // Calculate Amount + Delivery
+  };
 
+  const order = await Order.create(orderData);
+
+  // If Vendor Order -> Notify Vendor, DO NOT Auto-Assign Rider yet (Vendor calls rider)
+  const io = req.app.get("io");
+  if (vendorId) {
+    // Find Vendor's UserId to notify them personally
+    // We need to fetch the vendor document to get the userId
+    const Vendor = (await import("../../models/Vendor.js")).default;
+    const vendorProfile = await Vendor.findById(vendorId);
+
+    if (vendorProfile && io) {
+      io.to(`vendor:${vendorProfile.userId}`).emit("vendor:order:new", order);
+      await sendPushNotification(
+        vendorProfile.userId,
+        "New Shop Order! 🛍️",
+        `Order #${order._id.slice(-6)} received. Amount: KES ${order.amount}`,
+        "/vendor/dashboard"
+      );
+    }
+
+    return res.status(201).json({ order, message: "Sent to Vendor" });
+  }
+
+  // Legacy/Chatbot Flow -> Auto Assign Rider
   const riders = await findNearestRiders(pickupLng, pickupLat);
-
-  // Auto Assign!
   const assignedRider = await assignBestRider(order);
 
-  // If assigned, notify Rider immediately
   if (assignedRider) {
-    const io = req.app.get("io");
     if (io) {
       io.to(`order:${order._id}`).emit("order:update", order);
-
-      // Notify the specific rider via their User ID channel (which they listen to)
       io.emit(`rider:order:${assignedRider.userId}`, order);
     }
 
-    // NEW: Send Push Notification to Rider
     await sendPushNotification(
       assignedRider.userId,
-      "New Order Assigned! 📦",
-      "You have a new delivery request. Tap to accept.",
+      "New Delivery Request! 📦",
+      "Generic errand request. Tap to accept.",
       "/rider/orders"
     );
   }

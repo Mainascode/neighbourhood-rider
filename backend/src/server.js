@@ -37,15 +37,25 @@ import riderRegister from "./api/riders/register.js";
 import nearbyRiders from "./api/riders/nearby.js";
 import riderMe from "./api/riders/me.js";
 
-
 /* payments */
 import mpesaPayment from "./api/payments/mpesa.js";
 import mpesaCallback from "./api/payments/callback.js";
+
+/* vendors */
+import vendorRegister from "./api/vendors/register.js";
+import vendorInventory from "./api/vendors/inventory.js";
+/* vendors */
+import vendorRegister from "./api/vendors/register.js";
+import vendorInventory from "./api/vendors/inventory.js";
+import vendorPublic from "./api/vendors/public.js";
+import vendorDispatch from "./api/vendors/dispatch.js";
 
 /* admin */
 import adminDashboard from "./api/admin/dashboard.js";
 import adminRiders from "./api/admin/riders.js";
 import adminOrders from "./api/admin/orders.js";
+import adminVendors from "./api/admin/vendors.js";
+import adminFaqs from "./api/admin/faqs.js";
 import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
 import pushRoute from "./api/notifications/push.js";
@@ -100,6 +110,17 @@ async function startServer() {
   app.post("/api/riders/register", requireAuth, riderRegister);
   app.use("/api/riders/nearby", requireAuth, nearbyRiders);
   app.get("/api/riders/me", requireAuth, riderMe);
+
+  /* vendors */
+  app.post("/api/vendors/register", requireAuth, vendorRegister);
+  app.get("/api/vendors/inventory", requireAuth, vendorInventory.getInventory);
+  app.post("/api/vendors/inventory", requireAuth, vendorInventory.addItem);
+  app.delete("/api/vendors/inventory/:itemId", requireAuth, vendorInventory.removeItem);
+
+  /* public vendor routes */
+  app.get("/api/vendors/nearby", vendorPublic.listPublicVendors);
+  app.get("/api/vendors/:id/public", vendorPublic.getPublicVendorDetails);
+  app.post("/api/vendors/orders/dispatch", requireAuth, vendorDispatch);
 
 
   /* payments */
@@ -157,6 +178,9 @@ async function startServer() {
   );
   app.use("/api/admin/riders", requireAuth, requireAdmin, adminRiders);
   app.use("/api/admin/orders", requireAuth, requireAdmin, adminOrders);
+  app.get("/api/admin/vendors", requireAuth, requireAdmin, adminVendors.listVendors);
+  app.patch("/api/admin/vendors/:id/approve", requireAuth, requireAdmin, adminVendors.updateVendorStatus);
+
   app.use("/api/admin/orders", requireAuth, requireAdmin, adminOrders);
   app.use("/api/faqs", adminFaqs); // Public read, admin write
 
