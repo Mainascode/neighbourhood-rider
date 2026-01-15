@@ -8,14 +8,20 @@ import ChatBot from "../components/Chatbot";
 import "../index.css";
 
 
+import { useAuth } from "../context/AuthContext";
+
 export default function Landing() {
+  const { user } = useAuth();
+
+  const showContent = !user || user.role === "user";
+
   return (
     <>
       <Navbar />
-      <Hero />
+      {showContent && <Hero />}
       <HowItWorks />
       <Community />
-      <CTASection />
+      {showContent && <CTASection />}
       <ChatBot />
       <Footer />
     </>
