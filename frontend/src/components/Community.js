@@ -16,24 +16,26 @@ export default function Community() {
 
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center relative z-10">
         <div>
-          <div className="bg-white/60 backdrop-blur-md p-8 rounded-3xl border border-riderBlue/10 shadow-lg">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight text-riderLight">
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden">
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-riderMaroon/5 rounded-full blur-2xl pointer-events-none"></div>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight text-riderLight relative z-10">
               Built for Your <br /> Neighbourood.
             </h2>
-            <p className="text-xl text-gray-900 leading-relaxed font-bold opacity-90">
+            <p className="text-xl text-gray-500 leading-relaxed font-bold relative z-10">
               We work with riders who know your streets, your shops, and your community.
               This is not a faceless delivery service it’s local, personal, and safe.
             </p>
           </div>
         </div>
 
-        <div className="bg-riderDark/50 backdrop-blur-md rounded-3xl p-10 shadow-2xl border border-riderBlue/10">
-          <h3 className="text-2xl font-bold mb-8 text-riderLight">Why choose us?</h3>
-          <div className="space-y-6">
+        <div className="bg-white rounded-3xl p-10 shadow-xl border border-gray-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-riderBlue/5 rounded-full blur-3xl -mr-32 -mt-32 transition-all group-hover:bg-riderBlue/10"></div>
+          <h3 className="text-2xl font-bold mb-8 text-riderLight relative z-10">Why choose us?</h3>
+          <div className="space-y-6 relative z-10">
             {benefits.map((benefit, i) => (
-              <div key={i} className="flex items-center gap-4 group">
-                <FaCheckCircle className="text-riderBlue text-2xl flex-shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-lg font-semibold text-gray-200">{benefit}</span>
+              <div key={i} className="flex items-center gap-4 group/item">
+                <FaCheckCircle className="text-riderBlue text-2xl flex-shrink-0 group-hover/item:scale-110 transition-transform" />
+                <span className="text-lg font-bold text-gray-600">{benefit}</span>
               </div>
             ))}
           </div>

@@ -24,13 +24,9 @@ import RiderDashboard from "./pages/RiderDashboard";
 import JoinVendor from "./pages/JoinVendor";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
 
-// Live BG
-import LiveBackground from "./components/LiveBackground.js";
-
 export default function App() {
   return (
     <Router>
-      <LiveBackground />
       <Routes>
         {/* 🌍 Public */}
         <Route path="/" element={<Landing />} />
@@ -41,7 +37,6 @@ export default function App() {
         <Route path="/faqs" element={<Faqs />} />
 
 
-        {/* 🚴 User */}
         {/* 🚴 User */}
         <Route path="/order" element={<PrivateRoute><Order /></PrivateRoute>} />
         <Route path="/orders" element={<PrivateRoute><MyOrders /></PrivateRoute>} />

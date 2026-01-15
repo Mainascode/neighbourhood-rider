@@ -35,13 +35,13 @@ export default function HowItWorks() {
           {steps.map((step, i) => (
             <div
               key={i}
-              className="bg-riderDark/50 backdrop-blur-md p-6 rounded-2xl border border-riderBlue/10 flex flex-col items-center text-center group hover:bg-riderDark/70 transition-all duration-300 shadow-xl"
+              className="bg-white p-8 rounded-3xl border border-gray-100 flex flex-col items-center text-center group hover:-translate-y-2 hover:shadow-xl transition-all duration-300 shadow-sm"
             >
-              <div className="p-3 bg-riderMaroon/10 rounded-full mb-4 group-hover:bg-riderMaroon/20 transition-colors">
+              <div className="p-4 bg-riderMaroon/5 rounded-full mb-6 group-hover:bg-riderMaroon/10 transition-colors">
                 {step.icon}
               </div>
-              <h3 className="font-bold text-xl text-riderLight mb-2">{step.title}</h3>
-              <p className="text-gray-700 font-medium text-sm leading-relaxed">{step.desc}</p>
+              <h3 className="font-bold text-xl text-riderLight mb-3">{step.title}</h3>
+              <p className="text-gray-500 font-medium text-sm leading-relaxed">{step.desc}</p>
             </div>
           ))}
         </div>

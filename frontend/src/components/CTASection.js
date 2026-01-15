@@ -4,11 +4,12 @@ export default function CTASection() {
   return (
     <section className="bg-transparent text-riderLight py-16 border-t border-riderBlue/10">
       <div className="max-w-5xl mx-auto px-6 text-center">
-        <div className="bg-white/60 backdrop-blur-md p-8 rounded-3xl border border-riderBlue/10 shadow-lg inline-block mb-10">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-riderLight">
+        <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl inline-block mb-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-riderLight relative z-10">
             Uko ready kuorder?
           </h2>
-          <p className="text-gray-900 font-bold text-lg max-w-2xl mx-auto">
+          <p className="text-gray-500 font-bold text-lg max-w-2xl mx-auto relative z-10">
             Chochote unahitaji, cyclist wetu ako area ready kukusaidia.
           </p>
         </div>
