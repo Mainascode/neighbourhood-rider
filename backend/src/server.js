@@ -53,7 +53,6 @@ import adminRiders from "./api/admin/riders.js";
 import adminOrders from "./api/admin/orders.js";
 import adminVendors from "./api/admin/vendors.js";
 import adminFaqs from "./api/admin/faqs.js";
-import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
 import pushRoute from "./api/notifications/push.js";
 
@@ -88,7 +87,6 @@ async function startServer() {
   app.post("/api/auth/login", loginRoute);
   app.post("/api/auth/register", registerRoute);
   app.post("/api/auth/refresh", refreshRoute);
-  app.post("/api/auth/logout", logoutRoute);
   app.post("/api/auth/logout", logoutRoute);
   app.get("/api/auth/me", requireAuth, meRoute);
   app.post("/api/auth/forgot-password", forgotPasswordRoute);
