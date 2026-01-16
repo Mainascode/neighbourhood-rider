@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         }
 
         // 4. Update Status
-        order.status = "delivering";
+        order.status = "picking_up"; // Start Pickup Phase
         await order.save();
 
 
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         await sendPushNotification(
             order.userId,
             "Rider Accepted Your Order! 🏍️",
-            `${user.name} is on the way to pick up your items.`,
+            `${user.name} is heading to the shop. Please pay the vendor directly.`,
             "/orders"
         );
 

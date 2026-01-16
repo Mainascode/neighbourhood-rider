@@ -101,21 +101,29 @@ export default function RiderDashboard({ tab = "orders" }) {
 
 
 
-    const handleCompleteOrder = async (orderId) => {
+    const handleCompleteOrder = async (orderId, amount) => {
+        // Strict Confirmation
+        /* const confirmPayment = window.confirm(`💰 HANDLE CASH: Have you received KES ${amount} from the client?\n\nClick OK only if you have the money in hand.`);
+        if (!confirmPayment) return; */
+
+        // Prompt for OTP
+        const otp = prompt(`🔐 SECURITY CHECK\n\nAsk the client for the 4-digit DELIVERY CODE.\n\nEnter Code to confirm receipt of KES ${amount}:`);
+        if (!otp) return;
+
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/api/orders/pay`, { // Re-using Pay endpoint as it marks completed & paid
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId }),
+                body: JSON.stringify({ orderId, otp }),
                 credentials: "include"
             });
             const data = await res.json();
-            if (data.success) {
+            if (data.success || !data.error) { // Handling potential inconsistent response keys
                 notify("Payment Confirmed & Order Completed! 🎉", "success");
                 fetchAssignments();
             } else {
-                notify(data.error || "Failed to complete order", "error");
+                notify(data.error || "Failed to complete order: Invalid Code", "error");
             }
         } catch (e) {
             notify("Connection error", "error");
@@ -255,6 +263,38 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         </button>
                                     )}
 
+                                    {order.status === 'picking_up' && (
+                                        <div className="col-span-full bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20 text-center">
+                                            <p className="font-bold text-yellow-500 mb-2">At the Shop</p>
+                                            <p className="text-sm text-gray-400 mb-4">Ensure client pays <strong>KES {order.goodsTotal}</strong> to Vendor.</p>
+                                            <button
+                                                onClick={async () => {
+                                                    const confirm = window.confirm("Has the Vendor confirmed receipt of payment?");
+                                                    if (!confirm) return;
+                                                    try {
+                                                        setLoading(true);
+                                                        const res = await fetch(`${API_URL}/api/orders/pickup`, {
+                                                            method: "POST",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ orderId: order._id }),
+                                                            credentials: "include"
+                                                        });
+                                                        const data = await res.json();
+                                                        if (data.success) {
+                                                            notify("Pickup Confirmed! Start Delivery 🏍️", "success");
+                                                            fetchAssignments();
+                                                        } else notify(data.error, "error");
+                                                    } catch (e) { notify("Error", "error"); }
+                                                    finally { setLoading(false); }
+                                                }}
+                                                disabled={loading}
+                                                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
+                                            >
+                                                Vendor Paid & Items Picked ✅
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {order.status === 'delivering' && (
                                         <>
                                             <a
@@ -277,9 +317,32 @@ export default function RiderDashboard({ tab = "orders" }) {
 
                                     {order.status === 'delivered' && (
                                         <div className="col-span-full">
-                                            <div className="text-center bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 mb-3">
-                                                <p className="font-bold text-yellow-500">Waiting for Admin to Pay... ⏳</p>
-                                                <p className="text-xs text-gray-600">You have done your part. Admin will confirm payment shortly.</p>
+                                            <div className="text-center bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20 mb-3">
+                                                <p className="font-bold text-yellow-600 text-lg mb-2">Wait for Payment 💰</p>
+                                                {order.goodsPaid ? (
+                                                    // New Flow: Collect Delivery Fee Only
+                                                    <>
+                                                        <p className="text-sm text-gray-600 mb-2">Collect <strong>Delivery Fee</strong> Only.</p>
+                                                        <p className="text-2xl font-black text-riderMaroon mb-4">KES {order.deliveryFee || 200}</p>
+                                                        <button
+                                                            onClick={() => handleCompleteOrder(order._id, order.deliveryFee || 200)}
+                                                            className="bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-green-700 transition-all w-full animate-pulse"
+                                                        >
+                                                            I Have Received KES {order.deliveryFee || 200}
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    // Legacy / Fallback
+                                                    <>
+                                                        <p className="text-sm text-gray-600 mb-4">Client should pay you <strong>KES {order.amount}</strong> now.</p>
+                                                        <button
+                                                            onClick={() => handleCompleteOrder(order._id, order.amount)}
+                                                            className="bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-green-700 transition-all w-full animate-pulse"
+                                                        >
+                                                            I Have Received KES {order.amount}
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     )}

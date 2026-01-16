@@ -107,6 +107,28 @@ export default function Order() {
         }
     };
 
+    const payDeliveryFee = async () => {
+        if (!activeOrder) return;
+        try {
+            const res = await fetch(`${API_URL}/api/orders/pay-delivery`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: activeOrder._id, paymentMethod: "mpesa" })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Update local state
+                setActiveOrder(data.order);
+                alert("Delivery Fee Paid! Rider will be assigned.");
+            } else {
+                alert("Payment failed: " + data.message);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Payment error.");
+        }
+    };
+
     return (
         <div className="min-h-screen flex flex-col bg-transparent text-riderLight relative">
             <Navbar />
@@ -235,13 +257,94 @@ export default function Order() {
                 </div>
             )}
 
-            {/* Live Map Section (Persistent) - Only show if active order */}
-            {activeOrder && (
+            {/* PAYMENT MODAL (If Not Paid) */}
+            {activeOrder && !activeOrder.isDeliveryFeePaid && (
+                <div className="fixed inset-0 bg-riderBlack/90 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95">
+                        <div className="w-16 h-16 bg-riderBlue/10 text-riderBlue rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                            💳
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Delivery Fee Payment</h2>
+                        <p className="text-gray-500 mb-6">
+                            To process your order, please pay the cashless delivery fee of <span className="text-riderBlue font-bold">KES 50</span>.
+                        </p>
+
+                        <div className="bg-gray-50 p-4 rounded-xl mb-6 text-left border border-gray-100">
+                            <div className="flex justify-between mb-2">
+                                <span className="text-gray-600">Items Total (Pay Rider Later):</span>
+                                <span className="font-bold">KES {activeOrder.goodsTotal}</span>
+                            </div>
+                            <div className="flex justify-between border-t border-gray-200 pt-2">
+                                <span className="text-gray-900 font-bold">Delivery Fee (Pay Now):</span>
+                                <span className="text-riderBlue font-bold">KES 50</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={payDeliveryFee}
+                            className="w-full bg-riderBlue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105"
+                        >
+                            Pay KES 50 (Cashless)
+                        </button>
+                        <p className="text-xs text-gray-400 mt-4">
+                            Secured by M-Pesa. You will pay the rider KES {activeOrder.goodsTotal} upon delivery.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Live Map Section (Persistent) - Only show if active order AND paid */}
+            {activeOrder && activeOrder.isDeliveryFeePaid && (
                 <div className="w-full max-w-4xl mx-auto px-6 mb-12 relative z-10">
                     <div className="bg-riderBlack/90 backdrop-blur-md rounded-3xl p-6 border border-riderBlue/10 shadow-xl">
                         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-riderLight italic">
                             <span className="text-3xl">📍</span> Live Delivery Map
                         </h2>
+
+                        {/* Payment Instruction Banner */}
+                        {activeOrder.status === 'picking_up' && (
+                            <div className="mb-6 bg-yellow-50 border border-yellow-200 p-6 rounded-2xl text-center shadow-sm animate-in fade-in slide-in-from-top-4">
+                                <h3 className="text-xl font-extrabold text-yellow-700 mb-2">Rider is at the shop! 🏬</h3>
+                                <p className="text-gray-700 font-bold mb-4">
+                                    Please pay <span className="text-black text-xl">KES {activeOrder.goodsTotal}</span> directly to the Vendor.
+                                </p>
+                                {/* Vendor Details Logic would require populating vendor details in activeOrder or fetching them */}
+                                {activeOrder.vendorId && (
+                                    <div className="bg-white p-4 rounded-xl border border-yellow-100 shadow-sm max-w-xs mx-auto">
+                                        <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">VENDOR M-PESA</p>
+                                        <p className="text-2xl font-mono font-black text-gray-800 tracking-wider">
+                                            {typeof activeOrder.vendorId === 'object' ? activeOrder.vendorId.phone : "Ask Rider for Number"}
+                                        </p>
+                                    </div>
+                                )}
+                                <p className="text-sm text-gray-500 mt-4">The rider will collect your items once payment is confirmed by the vendor.</p>
+                            </div>
+                        )}
+
+                        <div className="mb-6 bg-blue-50 border border-blue-200 p-4 rounded-2xl text-center shadow-sm">
+                            <p className="text-blue-900 font-bold text-sm">
+                                ℹ️ Delivery Fee Paid.
+                            </p>
+                        </div>
+
+                        {/* OTP Display - Only show if fee is paid */}
+                        {activeOrder.completionOtp && (
+                            <div className="mb-6 bg-white border-2 border-dashed border-riderBlue/30 p-4 rounded-2xl text-center">
+                                <p className="text-xs text-uppercase text-gray-500 font-bold tracking-widest mb-1">DELIVERY CODE</p>
+                                <p className="text-4xl font-mono font-black text-riderBlue tracking-[0.5em]">{activeOrder.completionOtp}</p>
+                                <p className="text-xs text-gray-400 mt-2">Give this code to the rider <strong>after</strong> you receive your items.</p>
+                            </div>
+                        )}
+
+                        {activeOrder.status === 'delivered' && (
+                            <div className="mb-6 bg-green-50 border border-green-200 p-6 rounded-2xl text-center shadow-sm animate-in fade-in slide-in-from-top-4">
+                                <h3 className="text-xl font-extrabold text-green-700 mb-2">Rider has Arrived! 🏁</h3>
+                                <p className="text-gray-700 font-bold mb-4">
+                                    Please pay <span className="text-black text-xl">KES {activeOrder.goodsTotal}</span> directly to the rider via M-Pesa or Cash.
+                                </p>
+                                <p className="text-sm text-gray-500">The rider will complete the order once payment is received.</p>
+                            </div>
+                        )}
 
                         {activeOrder.riderId && activeOrder.riderId.phone && (
                             <div className="flex gap-3 mb-6">

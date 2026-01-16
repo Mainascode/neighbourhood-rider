@@ -29,7 +29,11 @@ export default async function handler(req, res) {
     },
     dropoff,
     status: vendorId ? "pending_vendor" : "pending", // Vendor needs to see it first
-    amount: items ? items.reduce((sum, i) => sum + i.price, 50) : 50 // Calculate Amount + Delivery
+    goodsTotal: items ? items.reduce((sum, i) => sum + i.price, 0) : 0,
+    deliveryFee: 50,
+    amount: (items ? items.reduce((sum, i) => sum + i.price, 0) : 0) + 50, // Goods + 50
+    isDeliveryFeePaid: false,
+    completionOtp: Math.floor(1000 + Math.random() * 9000).toString() // Generate 4-digit OTP
   };
 
   const order = await Order.create(orderData);

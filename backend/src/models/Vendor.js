@@ -12,6 +12,13 @@ const VendorSchema = new mongoose.Schema({
         type: { type: String, enum: ["Point"], default: "Point" },
         coordinates: [Number], // [lng, lat]
     },
+    // Payment Details
+    mpesaType: {
+        type: String,
+        enum: ["till", "pochi", "paybill", "phone"],
+        default: "pochi"
+    },
+    mpesaNumber: { type: String }, // The Till Number or Phone Number
     isOpen: { type: Boolean, default: false },
     status: {
         type: String,
