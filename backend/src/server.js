@@ -31,7 +31,7 @@ import myOrders from "./api/orders/my-orders.js";
 import botCreateOrder from "./api/orders/bot-create.js";
 import deliverOrder from "./api/orders/deliver.js";
 import payOrder from "./api/orders/pay.js";
-import vendorOrders from "./api/vendors/orders.js";
+import * as vendorOrders from "./api/vendors/orders.js";
 
 /* riders */
 import riderRegister from "./api/riders/register.js";
