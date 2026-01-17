@@ -17,7 +17,7 @@ export default function Order() {
     const [vendors, setVendors] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [cart, setCart] = useState([]);
-    const { notify } = useNotify(); // Assuming useNotify hook exists or is imported, wait, let me check imports. Ah, used in AdminDashboard, need to import here or pass.
+    // const { notify } = useNotify(); // Removing unused notify
     // Wait, Order.js doesn't import useNotify. Let me fix imports first in next call. 
     // For now I'll use simple alert or console if notify missing, but better to add it.
 
@@ -94,18 +94,7 @@ export default function Order() {
         }
     };
 
-    const handleOpenFaq = async () => {
-        setShowFaq(true);
-        if (faqs.length === 0) {
-            try {
-                const res = await fetch(`${API_URL}/api/faqs`);
-                const data = await res.json();
-                setFaqs(data);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    };
+    /* handleOpenFaq removed as unused */
 
     const payDeliveryFee = async () => {
         if (!activeOrder) return;

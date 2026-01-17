@@ -137,7 +137,7 @@ export default function AdminDashboard() {
     if (activeModal === "orders") fetchOrders();
     if (activeModal === "faqs") fetchFaqs();
     if (activeModal === "inquiries") fetchInquiries();
-  }, [activeModal, fetchDashboard, fetchRiders, fetchOrders, fetchFaqs, fetchInquiries]);
+  }, [activeModal, fetchDashboard, fetchRiders, fetchOrders, fetchFaqs, fetchInquiries, fetchVendors]);
 
 
   /* 🛠️ Actions */

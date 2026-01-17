@@ -31,7 +31,7 @@ import myOrders from "./api/orders/my-orders.js";
 import botCreateOrder from "./api/orders/bot-create.js";
 import deliverOrder from "./api/orders/deliver.js";
 import payOrder from "./api/orders/pay.js";
-import * as vendorOrders from "./api/vendors/orders.js";
+import { confirmGoodsPayment } from "./api/vendors/orders.js";
 
 /* riders */
 import riderRegister from "./api/riders/register.js";
@@ -121,7 +121,7 @@ async function startServer() {
 
   // Vendor Order Management
 
-  app.patch("/api/orders/:id/confirm-goods", requireAuth, vendorOrders.confirmGoodsPayment);
+  app.patch("/api/orders/:id/confirm-goods", requireAuth, confirmGoodsPayment);
 
   /* public vendor routes */
   app.get("/api/vendors/nearby", vendorPublic.listPublicVendors);

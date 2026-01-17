@@ -488,14 +488,4 @@ export default function VendorDashboard() {
     );
 }
 
-function StatCard({ title, value, icon }) {
-    return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-                <h3 className="text-gray-400 font-bold text-xs uppercase tracking-wider">{title}</h3>
-                <span className="text-xl rounded-full bg-gray-50 w-10 h-10 flex items-center justify-center border border-gray-100">{icon}</span>
-            </div>
-            <p className="text-3xl font-black text-riderLight tracking-tight">{value}</p>
-        </div>
-    )
-}
+/* StatCard removed as unused */
