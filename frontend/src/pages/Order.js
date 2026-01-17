@@ -6,13 +6,13 @@ import { useAuth } from "../context/AuthContext";
 import { socket } from "../lib/socket";
 import LiveMap from "../components/LiveMap";
 import { API_URL } from "../lib/config";
-import { useNotify } from "../context/NotificationContext";
+/* useNotify removed */
 
 export default function Order() {
     const { user } = useAuth();
 
     const [showFaq, setShowFaq] = useState(false);
-    const [faqs, setFaqs] = useState([]);
+    const [faqs] = useState([]);
     const [activeOrder, setActiveOrder] = useState(null);
     const [vendors, setVendors] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState(null);
