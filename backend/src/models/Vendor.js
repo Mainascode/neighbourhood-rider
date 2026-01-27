@@ -12,6 +12,11 @@ const VendorSchema = new mongoose.Schema({
         type: { type: String, enum: ["Point"], default: "Point" },
         coordinates: [Number], // [lng, lat]
     },
+    category: {
+        type: String,
+        enum: ["general", "shop", "pharmacy", "gas", "water", "market", "butchery", "liquor", "courier", "food"],
+        default: "general"
+    },
     // Payment Details
     mpesaType: {
         type: String,

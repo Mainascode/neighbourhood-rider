@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
-import ChatBot from "../components/Chatbot";
+import GooglePayButton from "@google-pay/button-react";
+
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../lib/socket";
@@ -17,7 +18,14 @@ export default function Order() {
     const [vendors, setVendors] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [cart, setCart] = useState([]);
-    // const { notify } = useNotify(); // Removing unused notify
+    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [paymentMethod, setPaymentMethod] = useState('mpesa');
+    const [mpesaPhone, setMpesaPhone] = useState('');
+
+    useEffect(() => {
+        if (user?.phone) setMpesaPhone(user.phone);
+    }, [user]);
+
     // Wait, Order.js doesn't import useNotify. Let me fix imports first in next call. 
     // For now I'll use simple alert or console if notify missing, but better to add it.
 
@@ -96,19 +104,34 @@ export default function Order() {
 
     /* handleOpenFaq removed as unused */
 
-    const payDeliveryFee = async () => {
+    const payDeliveryFee = async (method, paymentData = null) => {
         if (!activeOrder) return;
         try {
+            const body = {
+                orderId: activeOrder._id,
+                paymentMethod: method,
+                phoneNumber: mpesaPhone
+            };
+
+            if (method === 'google_pay') {
+                body.token = paymentData; // Send token to backend
+            }
+
             const res = await fetch(`${API_URL}/api/orders/pay-delivery`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: activeOrder._id, paymentMethod: "mpesa" })
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                body: JSON.stringify(body)
             });
             const data = await res.json();
+
             if (data.success) {
-                // Update local state
-                setActiveOrder(data.order);
-                alert("Delivery Fee Paid! Rider will be assigned.");
+                if (method === 'mpesa') {
+                    alert("STK Push Sent! Check your phone.");
+                    // In a real app, you'd poll for status or listen to socket here.
+                } else {
+                    setActiveOrder(data.order);
+                    alert("Payment Successful! Rider will be assigned.");
+                }
             } else {
                 alert("Payment failed: " + data.message);
             }
@@ -141,11 +164,27 @@ export default function Order() {
                         <span className="text-riderBlue text-sm font-bold bg-riderBlue/10 px-3 py-1 rounded-full cursor-pointer hover:bg-riderBlue/20">View All</span>
                     </div>
 
+                    {/* Category Filter Bar */}
+                    <div className="flex gap-3 overflow-x-auto pb-4 mb-4 scrollbar-hide">
+                        {['all', 'shop', 'pharmacy', 'gas', 'water', 'market', 'butchery', 'liquor', 'food'].map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedCategory === cat
+                                    ? 'bg-riderMaroon text-white border-riderMaroon'
+                                    : 'bg-white text-gray-500 border-gray-200 hover:border-riderMaroon/50'
+                                    }`}
+                            >
+                                {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                        {vendors.length === 0 ? (
-                            <p className="col-span-full text-gray-400 py-10 text-center italic">Searching for nearby shops...</p>
+                        {vendors.filter(v => selectedCategory === 'all' || v.category === selectedCategory).length === 0 ? (
+                            <p className="col-span-full text-gray-400 py-10 text-center italic">No shops found in this category.</p>
                         ) : (
-                            vendors.map((vendor) => (
+                            vendors.filter(v => selectedCategory === 'all' || v.category === selectedCategory).map((vendor) => (
                                 <div
                                     key={vendor._id}
                                     onClick={() => handleSelectVendor(vendor)}
@@ -246,6 +285,7 @@ export default function Order() {
                 </div>
             )}
 
+
             {/* PAYMENT MODAL (If Not Paid) */}
             {activeOrder && !activeOrder.isDeliveryFeePaid && (
                 <div className="fixed inset-0 bg-riderBlack/90 z-[60] flex items-center justify-center p-4">
@@ -269,14 +309,93 @@ export default function Order() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={payDeliveryFee}
-                            className="w-full bg-riderBlue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105"
-                        >
-                            Pay KES 50 (Cashless)
-                        </button>
+                        {/* Payment Method Tabs */}
+                        <div className="flex gap-2 mb-4">
+                            <button
+                                onClick={() => setPaymentMethod('mpesa')}
+                                className={`flex-1 py-2 rounded-lg font-bold text-sm border ${paymentMethod === 'mpesa'
+                                    ? 'bg-green-600 text-white border-green-600'
+                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                M-Pesa
+                            </button>
+                            <button
+                                onClick={() => setPaymentMethod('google_pay')}
+                                className={`flex-1 py-2 rounded-lg font-bold text-sm border ${paymentMethod === 'google_pay'
+                                    ? 'bg-black text-white border-black'
+                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                Google Pay
+                            </button>
+                        </div>
+
+                        {paymentMethod === 'mpesa' ? (
+                            <div className="animate-in fade-in">
+                                <input
+                                    type="tel"
+                                    placeholder="2547..."
+                                    className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl mb-4 text-center font-mono font-bold text-lg focus:ring-2 focus:ring-green-500 outline-none"
+                                    value={mpesaPhone}
+                                    onChange={(e) => setMpesaPhone(e.target.value)}
+                                />
+                                <button
+                                    onClick={() => payDeliveryFee('mpesa')}
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105"
+                                >
+                                    Pay KES 50 (M-Pesa)
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="h-16 flex items-center justify-center animate-in fade-in">
+                                {/* Helper wrapper for Google Pay */}
+                                <GooglePayButton
+                                    environment="TEST" // Switch to PRODUCTION
+                                    paymentRequest={{
+                                        apiVersion: 2,
+                                        apiVersionMinor: 0,
+                                        allowedPaymentMethods: [
+                                            {
+                                                type: 'CARD',
+                                                parameters: {
+                                                    allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                                                    allowedCardNetworks: ['MASTERCARD', 'VISA'],
+                                                },
+                                                tokenizationSpecification: {
+                                                    type: 'PAYMENT_GATEWAY',
+                                                    parameters: {
+                                                        gateway: 'example', // Replace with real gateway
+                                                        gatewayMerchantId: 'exampleGatewayMerchantId', // Replace
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                        merchantInfo: {
+                                            merchantId: '12345678901234567890',
+                                            merchantName: 'Neighborhood Rider',
+                                        },
+                                        transactionInfo: {
+                                            totalPriceStatus: 'FINAL',
+                                            totalPriceLabel: 'Total',
+                                            totalPrice: '50.00',
+                                            currencyCode: 'KES',
+                                            countryCode: 'KE',
+                                        },
+                                    }}
+                                    onLoadPaymentData={paymentRequest => {
+                                        console.log('load payment data', paymentRequest);
+                                        payDeliveryFee('google_pay', paymentRequest);
+                                    }}
+                                    buttonColor="black"
+                                    buttonType="pay"
+                                    style={{ width: '100%' }}
+                                />
+                            </div>
+                        )}
+
                         <p className="text-xs text-gray-400 mt-4">
-                            Secured by M-Pesa. You will pay the rider KES {activeOrder.goodsTotal} upon delivery.
+                            Secured Payment. You will pay the rider KES {activeOrder.goodsTotal} upon delivery.
                         </p>
                     </div>
                 </div>
@@ -366,7 +485,7 @@ export default function Order() {
                 </div>
             )}
 
-            <ChatBot user={user} />
+
             <Footer />
 
             {/* FAQ Modal */}

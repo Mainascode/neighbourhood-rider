@@ -9,9 +9,11 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import JoinRider from "./pages/JoinRider";
 import Order from "./pages/Order";
+import Parcel from "./pages/Parcel";
 import MyOrders from "./pages/MyOrders";
 import PrivateRoute from "./components/PrivateRoute";
 import Faqs from "./pages/Faqs";
+import Wallet from "./pages/Wallet";
 
 
 // Admin
@@ -40,6 +42,8 @@ export default function App() {
         {/* 🚴 User */}
         <Route path="/order" element={<PrivateRoute><Order /></PrivateRoute>} />
         <Route path="/orders" element={<PrivateRoute><MyOrders /></PrivateRoute>} />
+        <Route path="/parcel" element={<PrivateRoute><Parcel /></PrivateRoute>} />
+        <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
 
         {/* 🏍️ Rider */}
         <Route path="/join" element={<PrivateRoute><JoinRider /></PrivateRoute>} />

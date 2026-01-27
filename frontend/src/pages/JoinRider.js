@@ -212,6 +212,20 @@ export default function JoinRider() {
                             </div>
 
                             <div>
+                                <label className="block text-sm font-bold text-gray-600 mb-2">Transport Mode</label>
+                                <select
+                                    required
+                                    className="w-full bg-riderDark/40 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:border-riderBlue text-riderLight appearance-none"
+                                    value={formData.vehicleType || "electric_motorcycle"}
+                                    onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+                                >
+                                    <option value="electric_motorcycle">Electric Motorcycle (eBoda)</option>
+                                    <option value="bicycle">Bicycle</option>
+                                </select>
+                                <p className="text-xs text-green-600 mt-1 font-bold">Go Green! We only support electric or manual transport.</p>
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-bold text-gray-600 mb-2">Your Photo (Selfie or Cyclist Photo)</label>
                                 <input
                                     required

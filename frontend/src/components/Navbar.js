@@ -32,6 +32,7 @@ export default function Navbar() {
         {user?.role === "user" && (
           <>
             <NavLink to="/order" label="Order" />
+            <NavLink to="/parcel" label="Send Parcel" />
             <NavLink to="/orders" label="My Orders" />
             <NavLink to="/faqs" label="FAQs" />
           </>
@@ -97,6 +98,7 @@ export default function Navbar() {
             {user?.role === "user" && (
               <>
                 <Link to="/order" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Order</Link>
+                <Link to="/parcel" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Send Parcel</Link>
                 <Link to="/orders" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
                 <Link to="/faqs" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>FAQs</Link>
               </>

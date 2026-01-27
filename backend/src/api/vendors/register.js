@@ -11,7 +11,7 @@ export default async function register(req, res) {
             return res.status(400).json({ message: "Already registered as a vendor" });
         }
 
-        const { storeName, description, phone, location, address, logo, coverImage } = req.body;
+        const { storeName, description, phone, location, address, logo, coverImage, category } = req.body;
 
         if (!storeName || !phone) {
             return res.status(400).json({ message: "Store Name and Phone are required" });
@@ -21,6 +21,7 @@ export default async function register(req, res) {
             userId: req.user.id,
             storeName,
             description,
+            category: category || "general",
             phone,
             address,
             logo,

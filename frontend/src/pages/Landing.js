@@ -4,7 +4,7 @@ import HowItWorks from "../components/HowItWorks";
 import Community from "../components/Community";
 import CTASection from "../components/CTASection";
 import Footer from "../components/Footer";
-import ChatBot from "../components/Chatbot";
+
 import "../index.css";
 
 
@@ -22,7 +22,7 @@ export default function Landing() {
       <HowItWorks />
       <Community />
       {showContent && <CTASection />}
-      <ChatBot />
+
       <Footer />
     </>
   );

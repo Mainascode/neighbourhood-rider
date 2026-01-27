@@ -16,10 +16,21 @@ export default async function handler(req, res) {
   /* New: Handle Vendor Order */
   const { vendorId, items } = req.body;
 
+  /* Pricing Calculation */
+  const { calculateOrderPricing } = await import("../../lib/pricing.js");
+  const goodsTotal = items ? items.reduce((sum, i) => sum + i.price, 0) : 0;
+
+  // Create pricing breakdown
+  const { pricing, distribution } = calculateOrderPricing(
+    goodsTotal,
+    { lat: pickupLat, lng: pickupLng },
+    dropoff.location?.coordinates ? { lat: dropoff.location.coordinates[1], lng: dropoff.location.coordinates[0] } : { lat: -1.2921, lng: 36.8219 } // Fallback or geocode mock
+  );
+
   const orderData = {
     userId: user.id,
-    vendorId: vendorId || null, // Link to vendor if present
-    items: items || [], // Store items
+    vendorId: vendorId || null,
+    items: items || [],
     pickup: {
       address,
       location: {
@@ -28,12 +39,17 @@ export default async function handler(req, res) {
       }
     },
     dropoff,
-    status: vendorId ? "pending_vendor" : "pending", // Vendor needs to see it first
-    goodsTotal: items ? items.reduce((sum, i) => sum + i.price, 0) : 0,
-    deliveryFee: 50,
-    amount: (items ? items.reduce((sum, i) => sum + i.price, 0) : 0) + 50, // Goods + 50
+    status: vendorId ? "pending_vendor" : "pending",
+
+    // Financials
+    pricing,
+    distribution,
+    goodsTotal: pricing.goodsTotal,
+    deliveryFee: pricing.deliveryFee,
+    amount: pricing.totalCost,
+
     isDeliveryFeePaid: false,
-    completionOtp: Math.floor(1000 + Math.random() * 9000).toString() // Generate 4-digit OTP
+    completionOtp: Math.floor(1000 + Math.random() * 9000).toString()
   };
 
   const order = await Order.create(orderData);

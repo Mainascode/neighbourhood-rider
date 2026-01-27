@@ -31,6 +31,7 @@ import myOrders from "./api/orders/my-orders.js";
 import botCreateOrder from "./api/orders/bot-create.js";
 import deliverOrder from "./api/orders/deliver.js";
 import payOrder from "./api/orders/pay.js";
+import payDeliveryFee from "./api/orders/payDelivery.js";
 import { confirmGoodsPayment } from "./api/vendors/orders.js";
 
 /* riders */
@@ -39,8 +40,8 @@ import nearbyRiders from "./api/riders/nearby.js";
 import riderMe from "./api/riders/me.js";
 
 /* payments */
-import mpesaPayment from "./api/payments/mpesa.js";
-import mpesaCallback from "./api/payments/callback.js";
+/* payments */
+import paymentRoutes from "./api/payments/routes.js";
 
 /* vendors */
 import vendorRegister from "./api/vendors/register.js";
@@ -103,6 +104,7 @@ async function startServer() {
   app.use("/api/orders/bot-create", botCreateOrder);
   app.post("/api/orders/deliver", requireAuth, deliverOrder);
   app.post("/api/orders/pay", requireAuth, payOrder);
+  app.post("/api/orders/pay-delivery", requireAuth, payDeliveryFee);
 
   /* riders */
   app.post("/api/riders/register", requireAuth, riderRegister);
@@ -130,8 +132,12 @@ async function startServer() {
 
 
   /* payments */
-  app.post("/api/payments/mpesa", requireAuth, mpesaPayment);
-  app.post("/api/payments/callback", mpesaCallback);
+  /* payments */
+  app.use("/api/payments", paymentRoutes);
+
+  /* wallet */
+  const walletRoutes = (await import("./api/wallet/routes.js")).default;
+  app.use("/api/wallet", walletRoutes);
 
   /* notifications (public/protected mixed) */
   /* notifications (public/protected mixed) */

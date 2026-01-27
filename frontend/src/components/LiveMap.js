@@ -1,73 +1,22 @@
-import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from "@react-google-maps/api";
 
-// Fix Leaflet Icon
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-});
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom Icons
-const riderIcon = new L.Icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/3448/3448606.png", // Motorbike
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-    popupAnchor: [0, -20],
-    className: "drop-shadow-xl"
-});
-
-const userIcon = new L.Icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png", // House/Pin
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -30],
-    className: "drop-shadow-xl"
-});
-
-// Helper to validate coordinates
-const isValidPos = (pos) => pos && typeof pos.lat === "number" && typeof pos.lng === "number";
-
-// Map Controller for Bounds & FlyTo
-function MapController({ riderPos, userPos }) {
-    const map = useMap();
-
-    useEffect(() => {
-        if (!riderPos && !userPos) return;
-
-        if (riderPos && userPos) {
-            // Fit bounds to show both (Uber style)
-            const bounds = L.latLngBounds([
-                [riderPos.lat, riderPos.lng],
-                [userPos.lat, userPos.lng]
-            ]);
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, duration: 1 });
-        } else if (riderPos) {
-            map.flyTo([riderPos.lat, riderPos.lng], 15, { duration: 1.5 });
-        } else if (userPos) {
-            map.flyTo([userPos.lat, userPos.lng], 15, { duration: 1.5 });
-        }
-    }, [riderPos, userPos, map]);
-
-    return null;
-}
-
-
+const LIBRARIES = ["places"];
 
 export default function LiveMap({ role, order, socket, riderLocation, deliveryLocation }) {
-    // State
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+        libraries: LIBRARIES
+    });
+
+    const [map, setMap] = useState(null);
+    const [directionsResponse, setDirectionsResponse] = useState(null);
     const [riderPos, setRiderPos] = useState(riderLocation || null);
     const [userPos] = useState(deliveryLocation || { lat: -1.2921, lng: 36.8219 });
-    const [routePositions, setRoutePositions] = useState([]);
-    const [eta, setEta] = useState(null); // { time: "10 min", dist: "5 km" }
+    const [eta, setEta] = useState(null);
 
-    // Update internal state if props change (for User view)
+    // Update internal state if props change
     useEffect(() => {
         if (riderLocation) setRiderPos(riderLocation);
     }, [riderLocation]);
@@ -98,93 +47,92 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
         }
     }, [role, order, socket]);
 
-    // 2. Routing & ETA Logic (OSRM)
+    // 2. Calculate Directions
     useEffect(() => {
-        if (!riderPos || !userPos) return;
+        if (isLoaded && riderPos && userPos) {
+            if (!window.google) return;
+            const directionsService = new window.google.maps.DirectionsService();
 
-        const fetchRoute = async () => {
-            // OSRM Public Demo Server
-            const url = `https://router.project-osrm.org/route/v1/driving/${riderPos.lng},${riderPos.lat};${userPos.lng},${userPos.lat}?overview=full&geometries=geojson`;
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-
-                if (data.routes && data.routes.length > 0) {
-                    const route = data.routes[0];
-                    const coords = route.geometry.coordinates.map(c => [c[1], c[0]]); // Flip to [lat, lng]
-                    setRoutePositions(coords);
-
-                    // Calculate ETA
-                    const durationMins = Math.ceil(route.duration / 60);
-                    const distanceKm = (route.distance / 1000).toFixed(1);
-                    setEta({ time: `${durationMins} min`, dist: `${distanceKm} km` });
+            directionsService.route({
+                origin: riderPos,
+                destination: userPos,
+                travelMode: window.google.maps.TravelMode.DRIVING,
+            }, (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK) {
+                    setDirectionsResponse(result);
+                    const leg = result.routes[0].legs[0];
+                    setEta({
+                        time: leg.duration.text,
+                        dist: leg.distance.text
+                    });
+                } else {
+                    console.error("Directions request failed due to " + status);
                 }
-            } catch (err) {
-                console.error("Routing error", err);
-            }
-        };
+            });
+        }
+    }, [isLoaded, riderPos, userPos]);
 
-        // Debounce to avoid spamming OSRM
-        const timer = setTimeout(fetchRoute, 1000);
-        return () => clearTimeout(timer);
+
+    const onLoad = useCallback(function callback(map) {
+        setMap(map);
+    }, []);
+
+    const onUnmount = useCallback(function callback(map) {
+        setMap(null);
+    }, []);
+
+    const center = useMemo(() => {
+        return riderPos || userPos;
     }, [riderPos, userPos]);
 
-    const focus = riderPos || userPos;
+    if (!isLoaded) return <div className="h-[500px] w-full flex items-center justify-center bg-gray-100 rounded-3xl">Loading Map...</div>;
 
     return (
         <div className="h-[500px] w-full rounded-3xl overflow-hidden shadow-2xl border border-riderBlue/20 relative z-10 bg-riderBlack/20 backdrop-blur-sm group">
-            <MapContainer
-                center={[focus.lat, focus.lng]}
+            <GoogleMap
+                mapContainerStyle={{ width: '100%', height: '100%' }}
+                center={center}
                 zoom={14}
-                scrollWheelZoom={true}
-                className="h-full w-full opacity-100 transition-opacity"
-                zoomControl={false} // Custom control looks better
+                onLoad={onLoad}
+                onUnmount={onUnmount}
+                options={{
+                    zoomControl: false,
+                    streetViewControl: false,
+                    mapTypeControl: false,
+                    fullscreenControl: false,
+                    styles: [
+                        { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                        { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                        { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+                        {
+                            featureType: "administrative.locality",
+                            elementType: "labels.text.fill",
+                            stylers: [{ color: "#d59563" }],
+                        },
+                        // Add more custom styles here for "Uber-like" look if needed
+                    ]
+                }}
             >
-                {/* Uber-like Clean Map Tiles (CartoDB Positron) */}
-                <TileLayer
-                    attribution='&copy; CARTO'
-                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                />
-
-                <MapController riderPos={isValidPos(riderPos) ? riderPos : null} userPos={isValidPos(userPos) ? userPos : null} />
-
-                {/* Route Line - Thick & Uber Black/Blue */}
-                {routePositions.length > 0 && (
-                    <>
-                        {/* Outer Glow/Border */}
-                        <Polyline positions={routePositions} color="white" weight={8} opacity={0.8} />
-                        {/* Inner Line */}
-                        <Polyline positions={routePositions} color="#2563EB" weight={5} opacity={1} />
-                    </>
+                {/* Directions Renderer handles the route line and markers automatically mostly, but we can customize */}
+                {directionsResponse && (
+                    <DirectionsRenderer
+                        options={{
+                            directions: directionsResponse,
+                            polylineOptions: {
+                                strokeColor: "#2563EB",
+                                strokeWeight: 5,
+                            },
+                            suppressMarkers: false, // We can suppress and use custom markers if we want
+                        }}
+                    />
                 )}
 
-                {/* User Dropoff */}
-                {isValidPos(userPos) && (
-                    <Marker position={[userPos.lat, userPos.lng]} icon={userIcon}>
-                        <Popup className="rounded-xl">
-                            <div className="text-center font-sans">
-                                <h3 className="font-bold text-riderMaroon text-sm">Drop Off</h3>
-                                <p className="text-xs text-gray-500">Destination</p>
-                            </div>
-                        </Popup>
-                    </Marker>
-                )}
-
-                {/* Rider Live Location */}
-                {isValidPos(riderPos) && (
-                    <Marker position={[riderPos.lat, riderPos.lng]} icon={riderIcon} zIndexOffset={100}>
-                        <Popup className="rounded-xl">
-                            <div className="text-center font-sans">
-                                <h3 className="font-bold text-riderBlue text-sm">Rider</h3>
-                                <p className="text-xs text-gray-500">Active Trip</p>
-                            </div>
-                        </Popup>
-                    </Marker>
-                )}
-            </MapContainer>
+                {!directionsResponse && riderPos && <Marker position={riderPos} />}
+                {!directionsResponse && userPos && <Marker position={userPos} />}
+            </GoogleMap>
 
             {/* Uber-style Floating Status Card */}
-            <div className="absolute top-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-xl z-[1000] border border-gray-100/50 flex flex-col gap-2 transition-all">
+            <div className="absolute top-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-xl z-[100] border border-gray-100/50 flex flex-col gap-2 transition-all">
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -218,8 +166,8 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
 
             {/* Recenter Button */}
             <button
-                className="absolute bottom-6 right-6 bg-white text-gray-700 p-3 rounded-full shadow-lg z-[1000] hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all"
-                onClick={() => setRiderPos({ ...riderPos })} // Trigger effect
+                className="absolute bottom-6 right-6 bg-white text-gray-700 p-3 rounded-full shadow-lg z-[100] hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all"
+                onClick={() => map && map.panTo(riderPos || userPos)}
                 title="Recenter Map"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

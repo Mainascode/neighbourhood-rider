@@ -16,7 +16,9 @@ export default function JoinVendor() {
         address: "",
         description: "",
         logo: "",
+        logo: "",
         coverImage: "",
+        category: "shop",
     });
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -147,6 +149,26 @@ export default function JoinVendor() {
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                     />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-500 mb-2">Category</label>
+                                <select
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-riderBlue focus:bg-white transition-all text-riderLight appearance-none"
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                >
+                                    <option value="shop">General Shop / Kiosk</option>
+                                    <option value="pharmacy">Pharmacy / Chemist</option>
+                                    <option value="gas">Gas / Energy</option>
+                                    <option value="water">Water Refill</option>
+                                    <option value="market">Market / Mama Mboga</option>
+                                    <option value="butchery">Butchery</option>
+                                    <option value="liquor">Liquor Store</option>
+                                    <option value="food">Restaurant / Fast Food</option>
+                                    <option value="courier">Courier / Errands</option>
+                                    <option value="other">Other</option>
+                                </select>
                             </div>
 
                             <div>

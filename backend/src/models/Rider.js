@@ -13,6 +13,11 @@ const RiderSchema = new mongoose.Schema({
     enum: ["pending", "approved", "rejected"],
     default: "pending",
   },
+  vehicleType: {
+    type: String,
+    enum: ["electric_motorcycle", "bicycle"],
+    default: "electric_motorcycle"
+  },
   location: {
     type: { type: String, enum: ["Point"], default: "Point" },
     coordinates: [Number],

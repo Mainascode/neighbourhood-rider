@@ -21,6 +21,10 @@ export default async function payOrder(req, res) {
     order.paid = true; // Legacy support
     await order.save();
 
+    // Distribute Funds to Wallets
+    const { distributeOrderFunds } = await import("../../lib/wallet.js");
+    await distributeOrderFunds(order);
+
 
 
     // ...

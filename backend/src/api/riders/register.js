@@ -16,6 +16,7 @@ export default async function riderRegister(req, res) {
       userId: req.user.id,
       phone,
       idNumber,
+      idNumber,
       vehicleType,
       plateNumber,
       status: "pending",

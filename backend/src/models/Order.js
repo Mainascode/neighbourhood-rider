@@ -29,7 +29,26 @@ const OrderSchema = new mongoose.Schema({
   isDeliveryFeePaid: { type: Boolean, default: false }, // Delivery Fee Payment Status
   riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
   isBotOrder: { type: Boolean, default: false },
-  completionOtp: { type: String } // OTP to verify delivery
+  completionOtp: { type: String }, // OTP to verify delivery
+  mpesaCheckoutRequestId: { type: String }, // For tracking Mpesa STK Push
+  paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'cash' },
+  paymentData: { type: Object }, // Store full callback data
+
+  // Detailed Pricing Breakdown
+  pricing: {
+    goodsTotal: Number,
+    deliveryFee: Number, // The fee charged to customer
+    serviceFee: Number,  // KES 30
+    totalCost: Number
+  },
+
+  // Calculated Splits
+  distribution: {
+    vendorPayout: Number,
+    riderPayout: Number,
+    adminRevenue: Number,
+    splits: Object
+  }
 }, { timestamps: true });
 
 export default mongoose.models.Order ||
