@@ -16,7 +16,6 @@ export default function JoinVendor() {
         address: "",
         description: "",
         logo: "",
-        logo: "",
         coverImage: "",
         category: "shop",
     });

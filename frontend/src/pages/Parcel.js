@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Navbar from "../components/Navbar";
-import { useAuth } from "../context/AuthContext";
+
 import { API_URL } from "../lib/config";
 import Footer from "../components/Footer";
 
 export default function Parcel() {
-    const { user } = useAuth();
+
     const [pickup, setPickup] = useState("");
     const [dropoff, setDropoff] = useState("");
     const [description, setDescription] = useState("");

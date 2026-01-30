@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { Order } from '../../models/Order.js';
+import Order from '../../models/Order.js';
 
 const getMpesaToken = async () => {
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
