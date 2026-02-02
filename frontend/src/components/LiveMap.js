@@ -14,7 +14,7 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
     const [directionsResponse, setDirectionsResponse] = useState(null);
     const [riderPos, setRiderPos] = useState(riderLocation || null);
     const [userPos, setUserPos] = useState(deliveryLocation || { lat: -1.2921, lng: 36.8219 });
-    const [eta, setEta] = useState(null);
+    // const [eta, setEta] = useState(null); // Unused for now, removed to fix lint
 
     // Update internal state if props change
     useEffect(() => {
@@ -65,10 +65,10 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
                 if (status === window.google.maps.DirectionsStatus.OK) {
                     setDirectionsResponse(result);
                     const leg = result.routes[0].legs[0];
-                    setEta({
+                    /* setEta({
                         time: leg.duration.text,
                         dist: leg.distance.text
-                    });
+                    }); */
                 } else {
                     console.error("Directions request failed due to " + status);
                 }

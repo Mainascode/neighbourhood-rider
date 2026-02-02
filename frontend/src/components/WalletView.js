@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { API_URL } from "../lib/config";
-import { FaMoneyBillWave, FaHistory, FaArrowUp, FaArrowDown, FaCog, FaSave, FaUniversity, FaMobileAlt } from "react-icons/fa";
+import { FaHistory, FaArrowUp, FaArrowDown, FaCog, FaSave, FaUniversity, FaMobileAlt } from "react-icons/fa";
 
 export default function WalletView({ role = "user" }) {
     const [wallet, setWallet] = useState(null);
