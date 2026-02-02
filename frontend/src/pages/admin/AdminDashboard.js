@@ -4,6 +4,7 @@ import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
 import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell, FaStore } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import WalletView from "../../components/WalletView";
 
 export default function AdminDashboard() {
   const [activeModal, setActiveModal] = useState(null); // changed from activeTab
@@ -214,6 +215,7 @@ export default function AdminDashboard() {
           <NavItem icon={<FaMoneyBillWave />} label="Live Orders" active={activeModal === "orders"} onClick={() => setActiveModal("orders")} />
           <NavItem icon={<FaQuestionCircle />} label="FAQs" active={activeModal === "faqs"} onClick={() => setActiveModal("faqs")} />
           <NavItem icon={<FaComments />} label="Inquiries" active={activeModal === "inquiries"} onClick={() => setActiveModal("inquiries")} />
+          <NavItem icon={<FaMoneyBillWave />} label="Wallet" active={activeModal === "wallet"} onClick={() => setActiveModal("wallet")} />
         </nav>
 
         <div className="mt-auto w-full px-3 relative z-10">
@@ -535,6 +537,15 @@ export default function AdminDashboard() {
                     </div>
                   ))
                 )}
+              </div>
+            </DashboardModal>
+          )}
+
+          {/* 💰 WALLET MODAL */}
+          {activeModal === "wallet" && (
+            <DashboardModal title="Company Wallet" onClose={() => setActiveModal(null)}>
+              <div className="max-w-4xl mx-auto">
+                <WalletView role="admin" />
               </div>
             </DashboardModal>
           )}

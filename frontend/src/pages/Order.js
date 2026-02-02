@@ -70,11 +70,34 @@ export default function Order() {
         if (!user) return alert("Please login first!"); // Replace with notify later
         if (cart.length === 0) return;
 
-        // Get location (Mock for now or use previous logic)
+        // Get location
         const locationConfirmed = window.confirm("Use your current profile location for delivery?");
         if (!locationConfirmed) return;
 
         try {
+            // Get Geolocation
+            const getPosition = () => {
+                return new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject(new Error("Geolocation is not supported by your browser"));
+                    } else {
+                        navigator.geolocation.getCurrentPosition(resolve, reject);
+                    }
+                });
+            };
+
+            let coords = { lat: -1.2921, lng: 36.8219 }; // Default Nairobi
+            try {
+                const position = await getPosition();
+                coords = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+            } catch (geoError) {
+                console.warn("Geolocation failed: ", geoError);
+                alert("Could not access location. Using default/profile address.");
+            }
+
             const res = await fetch(`${API_URL}/api/orders/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
@@ -85,7 +108,9 @@ export default function Order() {
                     address: "My Profile Address", // Backend should handle or fetch from user
                     pickupLng: selectedVendor.location.coordinates[0],
                     pickupLat: selectedVendor.location.coordinates[1],
-                    dropoff: { address: "User Location" } // Mock
+                    dropoff: { address: "User Device Location" },
+                    dropoffLat: coords.lat,
+                    dropoffLng: coords.lng
                 })
             });
 

@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const user = requireAuth(req);
   await connectDB();
 
-  const { pickupLng, pickupLat, address, dropoff } = req.body;
+  const { pickupLng, pickupLat, address, dropoff, dropoffLat, dropoffLng } = req.body;
 
   /* New: Handle Vendor Order */
   const { vendorId, items } = req.body;
@@ -21,10 +21,10 @@ export default async function handler(req, res) {
   const goodsTotal = items ? items.reduce((sum, i) => sum + i.price, 0) : 0;
 
   // Create pricing breakdown
-  const { pricing, distribution } = calculateOrderPricing(
+  const { pricing, distribution } = await calculateOrderPricing(
     goodsTotal,
     { lat: pickupLat, lng: pickupLng },
-    dropoff.location?.coordinates ? { lat: dropoff.location.coordinates[1], lng: dropoff.location.coordinates[0] } : { lat: -1.2921, lng: 36.8219 } // Fallback or geocode mock
+    { lat: dropoffLat || -1.2921, lng: dropoffLng || 36.8219 } // Use provided dropoff or fallback
   );
 
   const orderData = {
@@ -38,7 +38,13 @@ export default async function handler(req, res) {
         coordinates: [pickupLng, pickupLat]
       }
     },
-    dropoff,
+    dropoff: {
+      address: typeof dropoff === 'string' ? dropoff : (dropoff?.address || "Client Location"),
+      location: {
+        type: "Point",
+        coordinates: [dropoffLng || 36.8219, dropoffLat || -1.2921]
+      }
+    },
     status: vendorId ? "pending_vendor" : "pending",
 
     // Financials

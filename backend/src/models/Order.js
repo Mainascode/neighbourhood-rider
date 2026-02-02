@@ -14,7 +14,17 @@ const OrderSchema = new mongoose.Schema({
     }
   },
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
-  dropoff: String,
+  dropoff: {
+    address: String,
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point"
+      },
+      coordinates: [Number]
+    }
+  },
   items: [],
   status: {
     type: String,

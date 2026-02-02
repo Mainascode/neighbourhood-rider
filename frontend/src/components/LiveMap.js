@@ -13,13 +13,17 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
     const [map, setMap] = useState(null);
     const [directionsResponse, setDirectionsResponse] = useState(null);
     const [riderPos, setRiderPos] = useState(riderLocation || null);
-    const [userPos] = useState(deliveryLocation || { lat: -1.2921, lng: 36.8219 });
+    const [userPos, setUserPos] = useState(deliveryLocation || { lat: -1.2921, lng: 36.8219 });
     const [eta, setEta] = useState(null);
 
     // Update internal state if props change
     useEffect(() => {
         if (riderLocation) setRiderPos(riderLocation);
     }, [riderLocation]);
+
+    useEffect(() => {
+        if (deliveryLocation) setUserPos(deliveryLocation);
+    }, [deliveryLocation]);
 
     // 1. Rider Logic: Send Location
     useEffect(() => {
@@ -131,38 +135,7 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
                 {!directionsResponse && userPos && <Marker position={userPos} />}
             </GoogleMap>
 
-            {/* Uber-style Floating Status Card */}
-            <div className="absolute top-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-xl z-[100] border border-gray-100/50 flex flex-col gap-2 transition-all">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                            {role === "rider" ? "Your Status" : "Arriving In"}
-                        </p>
-                        <h2 className="text-2xl font-black text-gray-800 tracking-tight">
-                            {eta ? eta.time : "Calculated..."}
-                        </h2>
-                    </div>
-                    {/* Icon Circle */}
-                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-2xl animate-pulse">
-                        🏍️
-                    </div>
-                </div>
 
-                {eta && (
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-500 border-t border-gray-100 pt-2 mt-1">
-                        <span>📏 {eta.dist} away</span>
-                        <span>•</span>
-                        <span>📍 On the way</span>
-                    </div>
-                )}
-
-                {/* Loading Bar */}
-                {!eta && (
-                    <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden mt-1">
-                        <div className="h-full bg-riderBlue w-1/3 animate-loading-bar"></div>
-                    </div>
-                )}
-            </div>
 
             {/* Recenter Button */}
             <button

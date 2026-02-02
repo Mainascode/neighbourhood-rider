@@ -49,4 +49,23 @@ router.post("/withdraw", requireAuth, async (req, res) => {
     }
 });
 
+// Update Payout Details
+router.post("/payout", requireAuth, async (req, res) => {
+    try {
+        const { provider, accountNumber, accountName } = req.body;
+        if (!provider || !accountNumber) {
+            return res.status(400).json({ message: "Provider and Account Number required" });
+        }
+
+        const wallet = await ensureWallet(req.user._id, req.user.role);
+        wallet.payoutDetails = { provider, accountNumber, accountName };
+        await wallet.save();
+
+        res.json({ success: true, wallet });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error updating payout details" });
+    }
+});
+
 export default router;
