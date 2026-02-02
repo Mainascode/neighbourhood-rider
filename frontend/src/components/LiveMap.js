@@ -64,7 +64,7 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
             }, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
                     setDirectionsResponse(result);
-                    const leg = result.routes[0].legs[0];
+                    // const leg = result.routes[0].legs[0];
                     /* setEta({
                         time: leg.duration.text,
                         dist: leg.distance.text
