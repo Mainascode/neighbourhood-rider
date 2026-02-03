@@ -10,12 +10,15 @@ export default function Wallet() {
     const [withdrawAmount, setWithdrawAmount] = useState("");
     const [loading, setLoading] = useState(false);
 
+    const [error, setError] = useState("");
+
     useEffect(() => {
         fetchWalletData();
     }, []);
 
     const fetchWalletData = async () => {
         try {
+            setError("");
             const res = await fetch(`${API_URL}/api/wallet/me`, {
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });
@@ -23,9 +26,12 @@ export default function Wallet() {
             if (res.ok) {
                 setWallet(data.wallet);
                 setTransactions(data.transactions);
+            } else {
+                setError(data.message || "Failed to load wallet.");
             }
         } catch (err) {
             console.error(err);
+            setError("Network error. Please try again.");
         }
     };
 
@@ -57,7 +63,14 @@ export default function Wallet() {
         }
     };
 
-    if (!wallet) return <div className="text-center pt-24">Loading Wallet...</div>;
+    if (error) return (
+        <div className="min-h-screen pt-24 flex flex-col items-center justify-center text-red-500">
+            <p className="text-xl font-bold mb-4">{error}</p>
+            <button onClick={fetchWalletData} className="bg-riderBlue text-white px-6 py-2 rounded-xl">Retry</button>
+        </div>
+    );
+
+    if (!wallet) return <div className="text-center pt-24 font-bold text-gray-500">Loading Wallet...</div>;
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-24 px-4">

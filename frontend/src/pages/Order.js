@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import GooglePayButton from "@google-pay/button-react";
+import ReviewForm from "../components/ReviewForm";
+
+import Footer from "../components/Footer";
 
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +14,8 @@ import { API_URL } from "../lib/config";
 
 export default function Order() {
     const { user } = useAuth();
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewTarget, setReviewTarget] = useState(null); // { id, role, orderId }
 
     const [showFaq, setShowFaq] = useState(false);
     const [faqs] = useState([]);
@@ -460,12 +465,41 @@ export default function Order() {
                             </p>
                         </div>
 
-                        {/* OTP Display - Only show if fee is paid */}
-                        {activeOrder.completionOtp && (
-                            <div className="mb-6 bg-white border-2 border-dashed border-riderBlue/30 p-4 rounded-2xl text-center">
-                                <p className="text-xs text-uppercase text-gray-500 font-bold tracking-widest mb-1">DELIVERY CODE</p>
-                                <p className="text-4xl font-mono font-black text-riderBlue tracking-[0.5em]">{activeOrder.completionOtp}</p>
-                                <p className="text-xs text-gray-400 mt-2">Give this code to the rider <strong>after</strong> you receive your items.</p>
+                        {/* Confirm Receipt Button - Replaces OTP */}
+                        {activeOrder.status === 'delivered' && !activeOrder.isReceived && (
+                            <div className="mb-6 bg-white border-2 border-dashed border-riderBlue/30 p-6 rounded-2xl text-center shadow-sm">
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">Have you received your order?</h3>
+                                <p className="text-sm text-gray-500 mb-4">Please confirm only after you have physically received your items.</p>
+                                <button
+                                    onClick={async () => {
+                                        if (window.confirm("Are you sure you have received these items?")) {
+                                            try {
+                                                const res = await fetch(`${API_URL}/api/orders/confirm-receipt`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                                                    body: JSON.stringify({ orderId: activeOrder._id })
+                                                });
+                                                const data = await res.json();
+                                                if (res.ok) {
+                                                    alert("Receipt Confirmed! The rider can now complete the order.");
+                                                    setActiveOrder(prev => ({ ...prev, isReceived: true }));
+                                                } else {
+                                                    alert(data.message || "Error confirming receipt");
+                                                }
+                                            } catch (err) { console.error(err); alert("Connection error"); }
+                                        }
+                                    }}
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all animate-pulse"
+                                >
+                                    ✅ I Have Received My Order
+                                </button>
+                            </div>
+                        )}
+
+                        {activeOrder.isReceived && (
+                            <div className="mb-6 bg-green-50 border border-green-200 p-4 rounded-2xl text-center">
+                                <p className="text-green-700 font-bold">You have confirmed receipt! 🎉</p>
+                                <p className="text-xs text-gray-500">Waiting for rider to close the order.</p>
                             </div>
                         )}
 
@@ -506,6 +540,32 @@ export default function Order() {
                                 lng: activeOrder.pickup.location.coordinates[0]
                             } : null}
                         />
+
+                        {/* Review Triggers */}
+                        {(activeOrder.status === 'delivered' || activeOrder.status === 'completed') && !activeOrder.isReviewed && (
+                            <div className="mt-6 flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setReviewTarget({ id: activeOrder.vendorId._id || activeOrder.vendorId, role: 'vendor', name: 'Vendor', orderId: activeOrder._id });
+                                        setShowReviewModal(true);
+                                    }}
+                                    className="flex-1 bg-white border border-gray-200 text-riderLight font-bold py-3 px-4 rounded-xl shadow-sm hover:bg-gray-50 transition-all font-mono"
+                                >
+                                    ★ Review Vendor
+                                </button>
+                                {activeOrder.riderId && (
+                                    <button
+                                        onClick={() => {
+                                            setReviewTarget({ id: activeOrder.riderId._id || activeOrder.riderId, role: 'rider', name: 'Rider', orderId: activeOrder._id });
+                                            setShowReviewModal(true);
+                                        }}
+                                        className="flex-1 bg-riderBlue text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-blue-600 transition-all font-mono"
+                                    >
+                                        ★ Review Rider
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -538,6 +598,36 @@ export default function Order() {
                                 <p className="text-sm text-gray-500">Still need help? Chat with our support team!</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* REVIEW MODAL */}
+            {showReviewModal && reviewTarget && (
+                <div className="fixed inset-0 bg-riderBlack/90 z-[110] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-6 relative">
+                        <button
+                            onClick={() => setShowReviewModal(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold"
+                        >
+                            ✕
+                        </button>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">
+                            Rate your {reviewTarget.role === 'vendor' ? 'Service' : 'Delivery'}
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                            How was your experience with {reviewTarget.name}?
+                        </p>
+
+                        <ReviewForm
+                            orderId={reviewTarget.orderId}
+                            targetId={reviewTarget.id}
+                            targetRole={reviewTarget.role}
+                            onReviewSubmit={() => {
+                                setShowReviewModal(false);
+                                alert("Thanks for your review!");
+                                // Optionally refresh order state
+                            }}
+                        />
                     </div>
                 </div>
             )}

@@ -483,9 +483,20 @@ export default function VendorDashboard() {
                     </div>
                 )}
 
+                {/* REVIEWS TAB */}
+                {activeTab === 'reviews' && vendor && (
+                    <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xl shadow-riderBlue/5">
+                            <h2 className="text-2xl font-bold mb-4">Customer Reviews</h2>
+                            <ReviewList targetId={vendor._id} type="vendor" />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+
+import ReviewList from "../../components/ReviewList";
 
 /* StatCard removed as unused */

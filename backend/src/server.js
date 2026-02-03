@@ -33,6 +33,7 @@ import deliverOrder from "./api/orders/deliver.js";
 import payOrder from "./api/orders/pay.js";
 import payDeliveryFee from "./api/orders/payDelivery.js";
 import { confirmGoodsPayment } from "./api/vendors/orders.js";
+import confirmReceipt from "./api/orders/receipt.js";
 
 /* riders */
 import riderRegister from "./api/riders/register.js";
@@ -58,6 +59,7 @@ import adminVendors from "./api/admin/vendors.js";
 import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
 import pushRoute from "./api/notifications/push.js";
+import financeRoute from "./api/admin/finance.js";
 
 /* middleware */
 import requireAuth from "./middleware/requireAuth.js";
@@ -105,6 +107,7 @@ async function startServer() {
   app.post("/api/orders/deliver", requireAuth, deliverOrder);
   app.post("/api/orders/pay", requireAuth, payOrder);
   app.post("/api/orders/pay-delivery", requireAuth, payDeliveryFee);
+  app.post("/api/orders/confirm-receipt", requireAuth, confirmReceipt);
 
   /* riders */
   app.post("/api/riders/register", requireAuth, riderRegister);
@@ -194,10 +197,15 @@ async function startServer() {
   app.patch("/api/admin/vendors/:id/approve", requireAuth, requireAdmin, adminVendors.updateVendorStatus);
 
   app.use("/api/admin/orders", requireAuth, requireAdmin, adminOrders);
+  app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
   app.use("/api/faqs", adminFaqs); // Public read, admin write
 
   /* chat */
   app.use("/api/chat", chatRoute);
+
+  /* reviews */
+  const reviewRoutes = (await import("./api/reviews/routes.js")).default;
+  app.use("/api/reviews", reviewRoutes);
 
   /* notifications */
   app.use("/api/notifications", pushRoute);

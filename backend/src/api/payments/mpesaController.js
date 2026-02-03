@@ -84,23 +84,61 @@ export const handleMpesaCallback = async (req, res) => {
             const metadata = Body.stkCallback.CallbackMetadata.Item;
             const amount = metadata.find(o => o.Name === 'Amount').Value;
             const mpesaReceiptNumber = metadata.find(o => o.Name === 'MpesaReceiptNumber').Value;
-            const phoneNumber = metadata.find(o => o.Name === 'PhoneNumber').Value;
 
-            // Find Order logic here needed? Or we can't link easily without AccountReference passed back (not always reliable in callback body directly without DB mapping).
-            // Actually, we usually save the CheckoutRequestID to the specific order when initiating, so we can look it up now.
+            console.log(`[M-Pesa] Payment Successful: ${mpesaReceiptNumber} - KES ${amount}`);
 
-            console.log(`Payment Successful: ${mpesaReceiptNumber} - ${amount}`);
+            // Update Order
+            // Find order by checkout ID
+            const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
+            const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
 
-            // TODO: Update Order status in DB
-            // const order = await Order.findOne({ mpesaCheckoutRequestId: Body.stkCallback.CheckoutRequestID });
-            // if(order) {
-            //    order.isDeliveryFeePaid = true;
-            //    order.paymentData = req.body;
-            //    await order.save();
-            // }
+            if (order) {
+                // Determine what exactly was paid for
+                // If amount matches 'amount' (Total), then full payment
+                // If matches 'deliveryFee', then only delivery fee
+                // Ideally, we should have a flag or logic. For MVP, assuming if order.paid is false and amount matches total, it's full payment.
+
+                // NOTE: The previous flow seemed to separate goods vs delivery fee. 
+                // The prompt says "User Payment... User pays via M-Pesa STK Push... All credits start as pending".
+                // This implies a single payment flow for the MVP or handling both.
+
+                // Let's assume this handles the main full payment or delivery fee payment based on context. 
+                // Checks:
+                if (Math.abs(order.amount - amount) < 10) {
+                    order.paid = true;
+                    order.goodsPaid = true;
+                    order.isDeliveryFeePaid = true;
+                    order.status = 'assigned'; // Ready for rider assignment if not already
+                } else if (Math.abs(order.deliveryFee - amount) < 10) {
+                    order.isDeliveryFeePaid = true;
+                }
+
+                order.paymentData = {
+                    mpesaReceiptNumber,
+                    amount,
+                    phoneNumber: metadata.find(o => o.Name === 'PhoneNumber')?.Value,
+                    date: new Date()
+                };
+
+                await order.save();
+
+                // DISTRIBUTE FUNDS (Pending)
+                // Import dynamically to avoid circular dependency issues if any, or just import at top if safe.
+                // We'll import at top.
+                const { distributeOrderFunds } = await import("../../lib/wallet.js");
+                await distributeOrderFunds(order);
+
+                console.log(`[M-Pesa] Funds distributed (pending) for order ${order._id}`);
+
+                // Real-time notification socket?
+                // const io = req.app.get("io");
+                // if(io) io.emit... 
+            } else {
+                console.error(`[M-Pesa] Order not found for CheckoutID: ${checkoutRequestId}`);
+            }
 
         } else {
-            console.log("Payment Failed/Cancelled");
+            console.log(`[M-Pesa] Payment Failed/Cancelled: ${Body.stkCallback.ResultDesc}`);
         }
 
         res.status(200).json({ message: "Callback received" });

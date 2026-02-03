@@ -102,21 +102,24 @@ export default function RiderDashboard({ tab = "orders" }) {
 
 
 
-    const handleCompleteOrder = async (orderId, amount) => {
+    const handleCompleteOrder = async (order, amount) => {
+        const orderId = order._id;
         // Strict Confirmation
         /* const confirmPayment = window.confirm(`💰 HANDLE CASH: Have you received KES ${amount} from the client?\n\nClick OK only if you have the money in hand.`);
         if (!confirmPayment) return; */
 
-        // Prompt for OTP
-        const otp = prompt(`🔐 SECURITY CHECK\n\nAsk the client for the 4-digit DELIVERY CODE.\n\nEnter Code to confirm receipt of KES ${amount}:`);
-        if (!otp) return;
+        // Check if user confirmed receipt
+        if (!order.isReceived) {
+            alert("⚠️ The client has NOT confirmed receipt yet.\n\nPlease ask them to open their app and click 'I Have Received My Order'.");
+            return;
+        }
 
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/api/orders/pay`, { // Re-using Pay endpoint as it marks completed & paid
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId, otp }),
+                body: JSON.stringify({ orderId }),
                 credentials: "include"
             });
             const data = await res.json();
@@ -188,7 +191,7 @@ export default function RiderDashboard({ tab = "orders" }) {
             </div>
 
             <div className="flex gap-4 mb-8 border-b border-riderBlue/10 pb-2 overflow-x-auto">
-                {["orders", activeOrder ? "map" : null, "wallet", "profile", "faqs"].filter(Boolean).map((t) => (
+                {["orders", activeOrder ? "map" : null, "wallet", "reviews", "profile", "faqs"].filter(Boolean).map((t) => (
                     <button
                         key={t}
                         onClick={() => setActiveTab(t)}
@@ -197,7 +200,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                             : "text-gray-600 hover:text-riderLight"
                             }`}
                     >
-                        {t === "orders" ? "Assigned Orders" : t === "map" ? "Live Map" : t === "wallet" ? "My Wallet" : t === "profile" ? "My Profile" : "FAQs"}
+                        {t === "orders" ? "Assigned Orders" : t === "map" ? "Live Map" : t === "wallet" ? "My Wallet" : t === "reviews" ? "My Reviews" : t === "profile" ? "My Profile" : "FAQs"}
                     </button>
                 ))}
             </div>
@@ -325,7 +328,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                                                         <p className="text-sm text-gray-600 mb-2">Collect <strong>Delivery Fee</strong> Only.</p>
                                                         <p className="text-2xl font-black text-riderMaroon mb-4">KES {order.deliveryFee || 200}</p>
                                                         <button
-                                                            onClick={() => handleCompleteOrder(order._id, order.deliveryFee || 200)}
+                                                            onClick={() => handleCompleteOrder(order, order.deliveryFee || 200)}
                                                             className="bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-green-700 transition-all w-full animate-pulse"
                                                         >
                                                             I Have Received KES {order.deliveryFee || 200}
@@ -336,7 +339,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                                                     <>
                                                         <p className="text-sm text-gray-600 mb-4">Client should pay you <strong>KES {order.amount}</strong> now.</p>
                                                         <button
-                                                            onClick={() => handleCompleteOrder(order._id, order.amount)}
+                                                            onClick={() => handleCompleteOrder(order, order.amount)}
                                                             className="bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-green-700 transition-all w-full animate-pulse"
                                                         >
                                                             I Have Received KES {order.amount}
@@ -431,6 +434,15 @@ export default function RiderDashboard({ tab = "orders" }) {
                 </div>
             )}
 
+            {/* REVIEWS TAB */}
+            {activeTab === "reviews" && riderProfile && (
+                <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4">
+                    <div className="bg-riderDark/50 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-riderBlue/10">
+                        <ReviewList targetId={riderProfile._id} type="rider" />
+                    </div>
+                </div>
+            )}
+
             {activeTab === "faqs" && (
                 <div className="max-w-3xl mx-auto space-y-4">
                     {faqs.map(faq => (
@@ -445,3 +457,5 @@ export default function RiderDashboard({ tab = "orders" }) {
         </div>
     );
 }
+
+import ReviewList from "../components/ReviewList";

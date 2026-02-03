@@ -39,7 +39,9 @@ const OrderSchema = new mongoose.Schema({
   isDeliveryFeePaid: { type: Boolean, default: false }, // Delivery Fee Payment Status
   riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
   isBotOrder: { type: Boolean, default: false },
-  completionOtp: { type: String }, // OTP to verify delivery
+  isReviewed: { type: Boolean, default: false },
+  isReceived: { type: Boolean, default: false }, // User confirmed receipt
+  completionOtp: { type: String }, // OTP to verify delivery (Legacy/Optional)
   mpesaCheckoutRequestId: { type: String }, // For tracking Mpesa STK Push
   paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'cash' },
   paymentData: { type: Object }, // Store full callback data

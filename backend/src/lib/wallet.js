@@ -6,9 +6,16 @@ import mongoose from "mongoose";
 // Ensure a user has a wallet
 export const ensureWallet = async (userId, role) => {
     let wallet = await Wallet.findOne({ userId });
+
     if (!wallet) {
+        console.log(`[Wallet] Creating new wallet for user ${userId} with role ${role}`);
         wallet = await Wallet.create({ userId, role });
+    } else if (wallet.role !== role) {
+        console.log(`[Wallet] Updating wallet role for user ${userId} from ${wallet.role} to ${role}`);
+        wallet.role = role;
+        await wallet.save();
     }
+
     return wallet;
 };
 
@@ -21,21 +28,25 @@ export const processTransaction = async ({ userId, role, type, amount, descripti
         walletId: wallet._id,
         type,
         amount,
-        status: "completed",
+        status: metadata?.status || "completed", // Allow overriding status
         description,
         referenceId,
         metadata
     });
 
     // Update Wallet Balance
-    if (type === "deposit" || type === "earning") {
-        wallet.balance += amount;
-    } else if (type === "withdrawal" || type === "commission_deduction" || type === "service_fee") {
-        // Check balance for withdrawals
-        if (type === 'withdrawal' && wallet.balance < amount) {
-            throw new Error("Insufficient funds");
+    if (metadata?.status === "pending") {
+        wallet.pendingBalance += amount;
+    } else {
+        if (type === "deposit" || type === "earning") {
+            wallet.balance += amount;
+        } else if (type === "withdrawal" || type === "commission_deduction" || type === "service_fee") {
+            // Check balance for withdrawals
+            if (type === 'withdrawal' && wallet.balance < amount) {
+                throw new Error("Insufficient funds");
+            }
+            wallet.balance -= amount;
         }
-        wallet.balance -= amount;
     }
 
     await wallet.save();
@@ -71,8 +82,9 @@ export const distributeOrderFunds = async (order) => {
                 role: "vendor",
                 type: "earning",
                 amount: vendorPayout,
-                description: `Order Payout #${order._id}`,
-                referenceId: order._id.toString()
+                description: `Order Payout #${order._id} (Pending)`,
+                referenceId: order._id.toString(),
+                metadata: { status: "pending" }
             });
         }
     }
@@ -87,8 +99,9 @@ export const distributeOrderFunds = async (order) => {
                 role: "rider",
                 type: "earning",
                 amount: riderPayout,
-                description: `Delivery Payout #${order._id}`,
-                referenceId: order._id.toString()
+                description: `Delivery Payout #${order._id} (Pending)`,
+                referenceId: order._id.toString(),
+                metadata: { status: "pending" }
             });
         }
     }
@@ -101,8 +114,44 @@ export const distributeOrderFunds = async (order) => {
             role: "admin",
             type: "earning",
             amount: adminRevenue,
-            description: `Commission & Fees #${order._id}`,
-            referenceId: order._id.toString()
+            description: `Commission & Fees #${order._id} (Pending)`,
+            referenceId: order._id.toString(),
+            metadata: { status: "pending" }
         });
+    }
+};
+
+// Release Pending Funds for an Order
+export const releasePendingFunds = async (orderId) => {
+    // Find all pending transactions for this order
+    const transactions = await Transaction.find({
+        referenceId: orderId.toString(),
+        status: "pending"
+    });
+
+    if (transactions.length === 0) {
+        console.log(`[Wallet] No pending funds to release for order ${orderId}`);
+        return;
+    }
+
+    for (const trx of transactions) {
+        const wallet = await Wallet.findById(trx.walletId);
+        if (wallet) {
+            // Move from Pending to Available
+            if (wallet.pendingBalance >= trx.amount) {
+                wallet.pendingBalance -= trx.amount;
+            } else {
+                // Safety net: if pending balance is somehow less (shouldn't happen), reset to 0
+                wallet.pendingBalance = 0;
+            }
+            wallet.balance += trx.amount;
+            await wallet.save();
+
+            // Mark Transaction as Completed
+            trx.status = "completed";
+            await trx.save();
+
+            console.log(`[Wallet] Released KES ${trx.amount} for wallet ${wallet._id} (Order ${orderId})`);
+        }
     }
 };

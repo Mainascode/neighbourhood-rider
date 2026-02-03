@@ -8,13 +8,19 @@ const router = express.Router();
 // Get Wallet Balance & Transactions
 router.get("/me", requireAuth, async (req, res) => {
     try {
+        if (!req.user || !req.user._id) {
+            console.error("[Wallet] No user found in request");
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        console.log(`[Wallet] Fetching wallet for user: ${req.user._id}, role: ${req.user.role}`);
         const wallet = await ensureWallet(req.user._id, req.user.role);
         const transactions = await Transaction.find({ walletId: wallet._id }).sort({ createdAt: -1 }).limit(50);
 
         res.json({ wallet, transactions });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error fetching wallet" });
+        console.error("[Wallet] Error fetching wallet:", error);
+        res.status(500).json({ message: "Error fetching wallet: " + error.message });
     }
 });
 
