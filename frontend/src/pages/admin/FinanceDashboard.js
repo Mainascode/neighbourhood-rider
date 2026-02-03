@@ -100,6 +100,7 @@ const FinanceDashboard = () => {
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Finance & Payouts 💸</h1>
+            {loading && <p className="text-gray-500 animate-pulse">Loading data...</p>}
 
             {/* Tabs */}
             <div className="flex gap-4 mb-6">

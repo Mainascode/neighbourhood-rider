@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { API_URL } from "../lib/config";
-import { useAuth } from "../context/AuthContext";
+// import { useAuth } from "../context/AuthContext"; // Unused
 
 export default function ReviewForm({ orderId, targetId, targetRole, onReviewSubmit }) {
-    const { user } = useAuth();
+    // const { user } = useAuth(); // Unused
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
     const [loading, setLoading] = useState(false);

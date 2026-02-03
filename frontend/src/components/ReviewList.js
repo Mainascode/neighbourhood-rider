@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "../lib/config";
 
 import { socket } from "../lib/socket";
@@ -7,6 +7,30 @@ export default function ReviewList({ targetId, type }) {
     const [reviews, setReviews] = useState([]);
     const [stats, setStats] = useState({ averageRating: 0, totalReviews: 0 });
     const [loading, setLoading] = useState(true);
+
+    const fetchReviews = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/reviews/${targetId}`);
+            if (res.ok) {
+                setReviews(await res.json());
+            }
+        } catch (err) {
+            console.error("Error fetching reviews:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [targetId]);
+
+    const fetchStats = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/reviews/stats/${targetId}`);
+            if (res.ok) {
+                setStats(await res.json());
+            }
+        } catch (err) {
+            console.error("Error fetching stats:", err);
+        }
+    }, [targetId]);
 
     useEffect(() => {
         if (targetId) {
@@ -28,31 +52,7 @@ export default function ReviewList({ targetId, type }) {
                 socket.off(eventName, handleNewReview);
             };
         }
-    }, [targetId, type]);
-
-    const fetchReviews = async () => {
-        try {
-            const res = await fetch(`${API_URL}/api/reviews/${targetId}`);
-            if (res.ok) {
-                setReviews(await res.json());
-            }
-        } catch (err) {
-            console.error("Error fetching reviews:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchStats = async () => {
-        try {
-            const res = await fetch(`${API_URL}/api/reviews/stats/${targetId}`);
-            if (res.ok) {
-                setStats(await res.json());
-            }
-        } catch (err) {
-            console.error("Error fetching stats:", err);
-        }
-    };
+    }, [targetId, type, fetchReviews, fetchStats]);
 
     if (loading) return <div className="text-gray-400 text-sm">Loading reviews...</div>;
 
