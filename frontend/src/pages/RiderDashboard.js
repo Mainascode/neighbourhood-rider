@@ -5,6 +5,7 @@ import { socket } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
 import WalletView from "../components/WalletView";
 import { API_URL } from "../lib/config";
+import ReviewList from "../components/ReviewList";
 
 export default function RiderDashboard({ tab = "orders" }) {
     const { user } = useAuth();
@@ -458,4 +459,4 @@ export default function RiderDashboard({ tab = "orders" }) {
     );
 }
 
-import ReviewList from "../components/ReviewList";
+

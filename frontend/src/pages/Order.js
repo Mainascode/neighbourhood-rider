@@ -5,7 +5,7 @@ import ReviewForm from "../components/ReviewForm";
 
 import Footer from "../components/Footer";
 
-import Footer from "../components/Footer";
+
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../lib/socket";
 import LiveMap from "../components/LiveMap";

@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { API_URL } from "../../lib/config";
 import { useNavigate } from "react-router-dom";
 import { useNotify } from "../../context/NotificationContext";
+import ReviewList from "../../components/ReviewList";
 
 import { socket } from "../../lib/socket"; // Ensure socket imported
 
@@ -497,6 +498,6 @@ export default function VendorDashboard() {
     );
 }
 
-import ReviewList from "../../components/ReviewList";
+
 
 /* StatCard removed as unused */
