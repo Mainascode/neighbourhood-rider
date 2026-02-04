@@ -200,98 +200,89 @@ export default function WalletView({ role = "user" }) {
                         <h1 className="text-5xl font-black tracking-tighter">
                             KES {wallet.balance.toLocaleString()}
                         </h1>
-                        <p className="text-sm text-gray-300 mt-2 flex items-center gap-2 justify-center md:justify-start">
-                            {isAdmin ? <span>Total Platform Earnings</span> : <span>Available to Withdraw</span>}
-                        </p>
-                    </div>
+                        {isAdmin ? <span>Total Platform Earnings</span> : <span>Available to Withdraw</span>}
+                    </p>
+                    {wallet.pendingBalance > 0 && (
+                        <div className="mt-3 bg-white/10 px-3 py-1 rounded-lg inline-block md:block backdrop-blur-sm border border-white/5">
+                            <p className="text-xs text-gray-300 uppercase tracking-wider font-bold">Pending Clearance</p>
+                            <p className="text-lg font-bold text-yellow-300">KES {wallet.pendingBalance.toLocaleString()}</p>
+                        </div>
+                    )}
+                </div>
 
-                    {!isAdmin && !isEditing && hasSetup && (
-                        <form onSubmit={handleWithdraw} className="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/10 w-full md:w-auto">
-                            <label className="block text-xs font-bold text-gray-200 mb-2 uppercase">Amount (KES)</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="number"
-                                    placeholder="Amount"
-                                    className="bg-black/40 border border-white/20 text-white placeholder-gray-400 rounded-xl px-4 py-2 w-full md:w-40 focus:outline-none focus:border-white transition-colors"
-                                    value={withdrawAmount}
-                                    onChange={e => setWithdrawAmount(e.target.value)}
-                                    max={wallet.balance}
-                                    min="10"
-                                    required
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={loading || wallet.balance < 10}
-                                    className="bg-white text-riderBlue font-bold px-6 py-2 rounded-xl hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                                >
-                                    {loading ? "..." : "Withdraw"}
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-gray-300 mt-2 text-center md:text-left">
-                                To: {wallet.payoutDetails?.accountNumber} • Min KES 10
+                {!isAdmin && (
+                    <div className="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/10 w-full md:w-auto">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-xs text-gray-300 font-bold uppercase tracking-wider">next payout</p>
+                            <p className="text-xl font-bold flex items-center gap-2">
+                                ⏱️ Today 9:00 PM
                             </p>
-                        </form>
-                    )}
-
-                    {!isAdmin && !hasSetup && !isEditing && (
-                        <div className="bg-orange-500/20 p-4 rounded-xl border border-orange-500/30 text-orange-200 text-sm font-bold">
-                            ⚠️ Setup wallet to withdraw
+                            <p className="text-[10px] text-gray-300 mt-1 max-w-[200px]">
+                                Automated payout to {wallet.payoutDetails?.accountNumber || "your account"}. Balance resets after payout.
+                            </p>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
-                {/* Background Decor */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+                {!isAdmin && !hasSetup && !isEditing && (
+                    <div className="bg-orange-500/20 p-4 rounded-xl border border-orange-500/30 text-orange-200 text-sm font-bold">
+                        ⚠️ Setup wallet to withdraw
+                    </div>
+                )}
             </div>
 
-            {/* Transactions List */}
-            <div className="bg-white/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-xl overflow-hidden flex-1 min-h-[400px]">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/40">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <FaHistory className="text-riderBlue" /> Transaction History
-                    </h2>
-                </div>
-
-                <div className="overflow-y-auto max-h-[500px] custom-scrollbar">
-                    {transactions.length === 0 ? (
-                        <div className="p-12 text-center text-gray-400 flex flex-col items-center gap-3">
-                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-2xl">💸</div>
-                            <p>No transactions found.</p>
-                        </div>
-                    ) : (
-                        <div className="divide-y divide-gray-100">
-                            {transactions.map(tx => (
-                                <div key={tx._id} className="p-5 flex justify-between items-center hover:bg-white/60 transition-colors group">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${tx.type === 'withdrawal' || tx.type.includes('deduction')
-                                            ? 'bg-red-50 text-red-500'
-                                            : 'bg-green-50 text-green-500'
-                                            }`}>
-                                            {tx.type === 'withdrawal' || tx.type.includes('deduction') ? <FaArrowUp className="rotate-45" /> : <FaArrowDown className="rotate-45" />}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-800 capitalize text-sm md:text-base">
-                                                {tx.description || tx.type.replace(/_/g, ' ')}
-                                            </p>
-                                            <p className="text-xs text-gray-500 font-medium mt-0.5">
-                                                {new Date(tx.createdAt).toLocaleString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className={`font-black font-mono text-lg ${tx.type === 'withdrawal' || tx.type.includes('deduction')
-                                        ? 'text-red-500'
-                                        : 'text-green-600'
-                                        }`}>
-                                        {tx.type === 'withdrawal' || tx.type.includes('deduction') ? '-' : '+'}
-                                        KES {tx.amount.toLocaleString()}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Background Decor */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
         </div>
+
+            {/* Transactions List */ }
+    <div className="bg-white/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-xl overflow-hidden flex-1 min-h-[400px]">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/40">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <FaHistory className="text-riderBlue" /> Transaction History
+            </h2>
+        </div>
+
+        <div className="overflow-y-auto max-h-[500px] custom-scrollbar">
+            {transactions.length === 0 ? (
+                <div className="p-12 text-center text-gray-400 flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-2xl">💸</div>
+                    <p>No transactions found.</p>
+                </div>
+            ) : (
+                <div className="divide-y divide-gray-100">
+                    {transactions.map(tx => (
+                        <div key={tx._id} className="p-5 flex justify-between items-center hover:bg-white/60 transition-colors group">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${tx.type === 'withdrawal' || tx.type.includes('deduction')
+                                    ? 'bg-red-50 text-red-500'
+                                    : 'bg-green-50 text-green-500'
+                                    }`}>
+                                    {tx.type === 'withdrawal' || tx.type.includes('deduction') ? <FaArrowUp className="rotate-45" /> : <FaArrowDown className="rotate-45" />}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-gray-800 capitalize text-sm md:text-base">
+                                        {tx.description || tx.type.replace(/_/g, ' ')}
+                                    </p>
+                                    <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                        {new Date(tx.createdAt).toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className={`font-black font-mono text-lg ${tx.type === 'withdrawal' || tx.type.includes('deduction')
+                                ? 'text-red-500'
+                                : 'text-green-600'
+                                }`}>
+                                {tx.type === 'withdrawal' || tx.type.includes('deduction') ? '-' : '+'}
+                                KES {tx.amount.toLocaleString()}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    </div>
+        </div >
     );
 }

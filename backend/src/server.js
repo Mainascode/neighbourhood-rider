@@ -67,9 +67,24 @@ import requireAdmin from "./middleware/requireAdmin.js";
 
 
 
+import cron from "node-cron";
+import { runDailyPayouts } from "./api/payments/payouts.js";
+
 async function startServer() {
   const app = express();
   const server = http.createServer(app);
+
+  /* Cron Jobs */
+  // Schedule Daily Payouts at 9 PM (21:00)
+  cron.schedule("0 21 * * *", async () => {
+    console.log("⏰ Running Daily Payout Job (9 PM)...");
+    try {
+      const result = await runDailyPayouts();
+      console.log(`✅ Daily Payouts Complete: Processed ${result.processedCount}, Total KES ${result.totalPayout}`);
+    } catch (err) {
+      console.error("❌ Daily Payout Job Failed:", err);
+    }
+  });
 
   app.set("trust proxy", 1);
 

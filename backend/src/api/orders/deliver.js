@@ -1,6 +1,8 @@
 import Order from "../../models/Order.js";
 import { sendPushNotification } from "../../lib/push.js";
 
+import { releasePendingFunds } from "../../lib/wallet.js";
+
 export default async function deliverOrder(req, res) {
     const { orderId } = req.body;
 
@@ -12,6 +14,12 @@ export default async function deliverOrder(req, res) {
 
     order.status = "delivered";
     await order.save();
+
+    // Release Pending Funds (If order was prepaid)
+    if (order.paid) {
+        console.log(`[Order] Releasing funds for prepaid order ${order._id}`);
+        await releasePendingFunds(order._id);
+    }
 
 
 

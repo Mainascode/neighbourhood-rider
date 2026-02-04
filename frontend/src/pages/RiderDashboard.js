@@ -149,7 +149,11 @@ export default function RiderDashboard({ tab = "orders" }) {
             });
             const data = await res.json();
             if (data.success) {
-                notify("Order Delivered! Waiting for payment...", "success");
+                if (order.paid || order.goodsPaid) {
+                    notify(`Order Delivered! KES ${order.deliveryFee} earned ✅`, "success");
+                } else {
+                    notify("Order Delivered! Waiting for payment...", "success");
+                }
                 fetchAssignments();
             } else {
                 notify(data.error || "Failed to mark delivered", "error");
