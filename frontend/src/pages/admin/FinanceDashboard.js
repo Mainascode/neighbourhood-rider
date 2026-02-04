@@ -14,7 +14,8 @@ const FinanceDashboard = () => {
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/api/admin/finance/queue`, {
-                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                credentials: "include"
             });
             if (res.ok) {
                 const data = await res.json();
@@ -33,7 +34,8 @@ const FinanceDashboard = () => {
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/api/admin/finance/batches`, {
-                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                credentials: "include"
             });
             if (res.ok) {
                 const data = await res.json();
@@ -47,7 +49,8 @@ const FinanceDashboard = () => {
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/api/admin/finance/history`, {
-                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                credentials: "include"
             });
             if (res.ok) {
                 const data = await res.json();
