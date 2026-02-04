@@ -16,10 +16,17 @@ const FinanceDashboard = () => {
             const res = await fetch(`${API_URL}/api/admin/finance/queue`, {
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });
-            const data = await res.json();
-            setQueue(data);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+            if (res.ok) {
+                const data = await res.json();
+                setQueue(Array.isArray(data) ? data : []);
+            } else {
+                console.error("Fetch Queue Failed:", res.status);
+                setQueue([]);
+            }
+        } catch (e) {
+            console.error(e);
+            setQueue([]);
+        } finally { setLoading(false); }
     }, []);
 
     const fetchBatches = useCallback(async () => {
@@ -28,8 +35,10 @@ const FinanceDashboard = () => {
             const res = await fetch(`${API_URL}/api/admin/finance/batches`, {
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });
-            const data = await res.json();
-            setBatches(data);
+            if (res.ok) {
+                const data = await res.json();
+                setBatches(Array.isArray(data) ? data : []);
+            }
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     }, []);
@@ -40,8 +49,10 @@ const FinanceDashboard = () => {
             const res = await fetch(`${API_URL}/api/admin/finance/history`, {
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });
-            const data = await res.json();
-            setHistory(data);
+            if (res.ok) {
+                const data = await res.json();
+                setHistory(Array.isArray(data) ? data : []);
+            }
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     }, []);
