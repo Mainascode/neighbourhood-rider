@@ -56,6 +56,7 @@ import adminDashboard from "./api/admin/dashboard.js";
 import adminRiders from "./api/admin/riders.js";
 import adminOrders from "./api/admin/orders.js";
 import adminVendors from "./api/admin/vendors.js";
+import adminSettings from "./api/admin/settings.js";
 import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
 import pushRoute from "./api/notifications/push.js";
@@ -213,6 +214,12 @@ async function startServer() {
 
   app.use("/api/admin/orders", requireAuth, requireAdmin, adminOrders);
   app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
+  app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
+
+  /* admin settings */
+  app.get("/api/admin/settings", requireAuth, requireAdmin, adminSettings.getSystemSettings);
+  app.put("/api/admin/settings", requireAuth, requireAdmin, adminSettings.updateSystemSettings);
+
   app.use("/api/faqs", adminFaqs); // Public read, admin write
 
   /* chat */

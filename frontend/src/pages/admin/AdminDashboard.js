@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../lib/config";
 import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
-import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell, FaStore } from "react-icons/fa";
+import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell, FaStore, FaCog } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import WalletView from "../../components/WalletView";
+import WalletView from "../../components/WalletView";
 import FinanceDashboard from "./FinanceDashboard";
+import SystemSettings from "./SystemSettings";
 
 export default function AdminDashboard() {
   const [activeModal, setActiveModal] = useState(null); // changed from activeTab
@@ -217,6 +219,7 @@ export default function AdminDashboard() {
           <NavItem icon={<FaQuestionCircle />} label="FAQs" active={activeModal === "faqs"} onClick={() => setActiveModal("faqs")} />
           <NavItem icon={<FaComments />} label="Inquiries" active={activeModal === "inquiries"} onClick={() => setActiveModal("inquiries")} />
           <NavItem icon={<FaMoneyBillWave />} label="Finance & Payouts" active={activeModal === "finance"} onClick={() => setActiveModal("finance")} />
+          <NavItem icon={<FaCog />} label="System Settings" active={activeModal === "settings"} onClick={() => setActiveModal("settings")} />
           <NavItem icon={<FaMoneyBillWave />} label="Wallet" active={activeModal === "wallet"} onClick={() => setActiveModal("wallet")} />
         </nav>
 
@@ -556,6 +559,13 @@ export default function AdminDashboard() {
               <div className="max-w-4xl mx-auto">
                 <WalletView role="admin" />
               </div>
+            </DashboardModal>
+          )}
+
+          {/* ⚙️ SETTINGS MODAL */}
+          {activeModal === "settings" && (
+            <DashboardModal title="System Configuration" onClose={() => setActiveModal(null)}>
+              <SystemSettings notify={notify} />
             </DashboardModal>
           )}
 

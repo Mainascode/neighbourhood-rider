@@ -65,7 +65,7 @@ export const getAdminWallet = async () => {
 // Distribute Order Funds
 export const distributeOrderFunds = async (order) => {
     // Expect order.distribution to be present
-    const { vendorPayout, riderPayout, adminRevenue } = order.distribution || {};
+    const { vendorPayout, vendorGross, vendorCommission, riderPayout, adminRevenue } = order.distribution || {};
 
     if (vendorPayout === undefined) {
         console.error("Order missing distribution data.");
@@ -77,15 +77,30 @@ export const distributeOrderFunds = async (order) => {
         const Vendor = mongoose.model("Vendor");
         const vendorProfile = await Vendor.findById(order.vendorId);
         if (vendorProfile) {
+            // A. Credit Gross Earning
+            const grossAmount = vendorGross || vendorPayout; // Fallback for old orders
             await processTransaction({
                 userId: vendorProfile.userId,
                 role: "vendor",
                 type: "earning",
-                amount: vendorPayout,
-                description: `Order Payout #${order._id} (Pending)`,
+                amount: grossAmount,
+                description: `Order Revenue #${order._id}`,
                 referenceId: order._id.toString(),
                 metadata: { status: "pending" }
             });
+
+            // B. Deduct Commission (if applicable)
+            if (vendorCommission && vendorCommission > 0) {
+                await processTransaction({
+                    userId: vendorProfile.userId,
+                    role: "vendor",
+                    type: "commission_deduction",
+                    amount: vendorCommission,
+                    description: `Platform Commission #${order._id}`,
+                    referenceId: order._id.toString(),
+                    metadata: { status: "pending" }
+                });
+            }
         }
     }
 
@@ -99,7 +114,7 @@ export const distributeOrderFunds = async (order) => {
                 role: "rider",
                 type: "earning",
                 amount: riderPayout,
-                description: `Delivery Payout #${order._id} (Pending)`,
+                description: `Delivery Payout #${order._id}`,
                 referenceId: order._id.toString(),
                 metadata: { status: "pending" }
             });
@@ -114,7 +129,7 @@ export const distributeOrderFunds = async (order) => {
             role: "admin",
             type: "earning",
             amount: adminRevenue,
-            description: `Commission & Fees #${order._id} (Pending)`,
+            description: `Commission & Fees #${order._id}`,
             referenceId: order._id.toString(),
             metadata: { status: "pending" }
         });

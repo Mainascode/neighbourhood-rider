@@ -227,15 +227,19 @@ export default function WalletView({ role = "user" }) {
                                             ? 'bg-red-50 text-red-500'
                                             : 'bg-green-50 text-green-500'
                                             }`}>
-                                            {tx.type === 'withdrawal' || tx.type.includes('deduction') ? <FaArrowUp className="rotate-45" /> : <FaArrowDown className="rotate-45" />}
+                                            {tx.type === 'commission_deduction' ? <FaCog className="animate-spin-slow" /> :
+                                                (tx.type === 'withdrawal' || tx.type.includes('deduction') ? <FaArrowUp className="rotate-45" /> : <FaArrowDown className="rotate-45" />)
+                                            }
                                         </div>
                                         <div>
                                             <p className="font-bold text-gray-800 capitalize text-sm md:text-base">
                                                 {tx.description || tx.type.replace(/_/g, ' ')}
                                             </p>
-                                            <p className="text-xs text-gray-500 font-medium mt-0.5">
-                                                {new Date(tx.createdAt).toLocaleString()}
-                                            </p>
+                                            <div className="flex gap-2 text-xs text-gray-500 font-medium mt-0.5">
+                                                <span>{new Date(tx.createdAt).toLocaleString()}</span>
+                                                {tx.type === 'earning' && <span className="text-green-600 bg-green-50 px-1.5 rounded-md">Gross</span>}
+                                                {tx.type === 'commission_deduction' && <span className="text-red-500 bg-red-50 px-1.5 rounded-md">Fee</span>}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className={`font-black font-mono text-lg ${tx.type === 'withdrawal' || tx.type.includes('deduction')
