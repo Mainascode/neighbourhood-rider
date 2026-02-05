@@ -196,7 +196,7 @@ export default function WalletView({ role = "user" }) {
                     <div className="text-center md:text-left">
                         <div className="text-gray-300 font-bold uppercase tracking-widest text-xs mb-2">
                             {isAdmin ? "Company Revenue" : "Available Balance"}
-                        </p>
+                        </div>
                         <h1 className="text-5xl font-black tracking-tighter">
                             KES {wallet.balance.toLocaleString()}
                         </h1>
@@ -230,61 +230,61 @@ export default function WalletView({ role = "user" }) {
                     ⚠️ Setup wallet to withdraw
                 </div>
             )}
-        </div>
 
-            {/* Background Decor */ }
+
+            {/* Background Decor */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
 
 
-    {/* Transactions List */ }
-    <div className="bg-white/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-xl overflow-hidden flex-1 min-h-[400px]">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/40">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <FaHistory className="text-riderBlue" /> Transaction History
-            </h2>
-        </div>
-
-        <div className="overflow-y-auto max-h-[500px] custom-scrollbar">
-            {transactions.length === 0 ? (
-                <div className="p-12 text-center text-gray-400 flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-2xl">💸</div>
-                    <p>No transactions found.</p>
+            {/* Transactions List */}
+            <div className="bg-white/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-xl overflow-hidden flex-1 min-h-[400px]">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/40">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <FaHistory className="text-riderBlue" /> Transaction History
+                    </h2>
                 </div>
-            ) : (
-                <div className="divide-y divide-gray-100">
-                    {transactions.map(tx => (
-                        <div key={tx._id} className="p-5 flex justify-between items-center hover:bg-white/60 transition-colors group">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${tx.type === 'withdrawal' || tx.type.includes('deduction')
-                                    ? 'bg-red-50 text-red-500'
-                                    : 'bg-green-50 text-green-500'
-                                    }`}>
-                                    {tx.type === 'withdrawal' || tx.type.includes('deduction') ? <FaArrowUp className="rotate-45" /> : <FaArrowDown className="rotate-45" />}
-                                </div>
-                                <div>
-                                    <p className="font-bold text-gray-800 capitalize text-sm md:text-base">
-                                        {tx.description || tx.type.replace(/_/g, ' ')}
-                                    </p>
-                                    <p className="text-xs text-gray-500 font-medium mt-0.5">
-                                        {new Date(tx.createdAt).toLocaleString()}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className={`font-black font-mono text-lg ${tx.type === 'withdrawal' || tx.type.includes('deduction')
-                                ? 'text-red-500'
-                                : 'text-green-600'
-                                }`}>
-                                {tx.type === 'withdrawal' || tx.type.includes('deduction') ? '-' : '+'}
-                                KES {tx.amount.toLocaleString()}
-                            </div>
+
+                <div className="overflow-y-auto max-h-[500px] custom-scrollbar">
+                    {transactions.length === 0 ? (
+                        <div className="p-12 text-center text-gray-400 flex flex-col items-center gap-3">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-2xl">💸</div>
+                            <p>No transactions found.</p>
                         </div>
-                    ))}
+                    ) : (
+                        <div className="divide-y divide-gray-100">
+                            {transactions.map(tx => (
+                                <div key={tx._id} className="p-5 flex justify-between items-center hover:bg-white/60 transition-colors group">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${tx.type === 'withdrawal' || tx.type.includes('deduction')
+                                            ? 'bg-red-50 text-red-500'
+                                            : 'bg-green-50 text-green-500'
+                                            }`}>
+                                            {tx.type === 'withdrawal' || tx.type.includes('deduction') ? <FaArrowUp className="rotate-45" /> : <FaArrowDown className="rotate-45" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-800 capitalize text-sm md:text-base">
+                                                {tx.description || tx.type.replace(/_/g, ' ')}
+                                            </p>
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                                {new Date(tx.createdAt).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={`font-black font-mono text-lg ${tx.type === 'withdrawal' || tx.type.includes('deduction')
+                                        ? 'text-red-500'
+                                        : 'text-green-600'
+                                        }`}>
+                                        {tx.type === 'withdrawal' || tx.type.includes('deduction') ? '-' : '+'}
+                                        KES {tx.amount.toLocaleString()}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
-    </div>
+            </div>
 
-    </div >
+        </div >
     );
 }
