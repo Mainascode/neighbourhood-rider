@@ -2,6 +2,8 @@ import express from "express";
 import Order from "../../models/Order.js";
 import Rider from "../../models/Rider.js";
 import Payment from "../../models/Payment.js";
+import Vendor from "../../models/Vendor.js";
+import User from "../../models/User.js";
 
 const router = express.Router();
 
@@ -17,6 +19,10 @@ router.get("/", async (req, res) => {
     });
 
     const activeRiders = await Rider.countDocuments({ online: true });
+    const totalRiders = await Rider.countDocuments(); // Total registered riders
+    const totalVendors = await Vendor.countDocuments(); // Total registered vendors
+    const totalUsers = await User.countDocuments({ role: "user" }); // Total customers
+
     const totalRevenue = await Payment.aggregate([
       { $match: { status: "PAID" } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -26,6 +32,9 @@ router.get("/", async (req, res) => {
       totalOrders,
       unpaidOrders,
       activeRiders,
+      totalRiders,
+      totalVendors,
+      totalUsers,
       totalRevenue: totalRevenue[0]?.total || 0,
     });
   } catch (err) {

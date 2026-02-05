@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from "@react-google-maps/api";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 
 const LIBRARIES = ["places"];
 
@@ -56,33 +56,56 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
     }, [role, order, socket]);
 
     // 2. Calculate Directions
+    const directionsRendererRef = useRef(null);
+
+    // 2. Initialize Directions Service & Renderer ONCE
     useEffect(() => {
-        if (isLoaded && riderPos && userPos) {
+        if (map && window.google) {
+            // Initialize Renderer once
+            if (!directionsRendererRef.current) {
+                directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+                    suppressMarkers: false, // User requested this be false in Step 2
+                    preserveViewport: true,
+                });
+                directionsRendererRef.current.setMap(map);
+            }
+        }
+    }, [map]);
+
+    // 3. Calculate Directions & Update Renderer
+    const lastRoutedRef = useRef(null);
+
+    useEffect(() => {
+        if (isLoaded && riderPos && userPos && directionsRendererRef.current) {
             if (!window.google) return;
+
+            // Step 4: Optimization - Do NOT re-call DirectionsService every GPS update
+            // simple distance check (approx 50m threshold to re-route)
+            if (lastRoutedRef.current) {
+                const latDiff = Math.abs(riderPos.lat - lastRoutedRef.current.lat);
+                const lngDiff = Math.abs(riderPos.lng - lastRoutedRef.current.lng);
+                // 0.0005 degrees is roughly 50 meters
+                if (latDiff < 0.0005 && lngDiff < 0.0005) {
+                    return; // Skip re-routing, just update marker (handled by React state)
+                }
+            }
+
             const directionsService = new window.google.maps.DirectionsService();
 
             directionsService.route({
                 origin: riderPos,
                 destination: userPos,
-                travelMode: window.google.maps.TravelMode.DRIVING,
+                travelMode: window.google.maps.TravelMode.BICYCLING,
             }, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
-                    setDirectionsResponse(prev => {
-                        // Only update if routes differ significantly to avoid redraws? 
-                        // Actually React Google Maps handles diffing, but let's ensure we update state.
-                        return result;
-                    });
-                    // const leg = result.routes[0].legs[0];
-                    /* setEta({
-                        time: leg.duration.text,
-                        dist: leg.distance.text
-                    }); */
+                    directionsRendererRef.current.setDirections(result);
+                    lastRoutedRef.current = riderPos;
                 } else {
-                    console.error("Directions request failed due to " + status);
+                    console.error("Directions error:", status);
                 }
             });
         }
-    }, [isLoaded, riderPos, userPos]);
+    }, [isLoaded, riderPos, userPos, map]);
 
 
     const onLoad = useCallback(function callback(map) {
@@ -108,38 +131,11 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
                 onLoad={onLoad}
                 onUnmount={onUnmount}
                 options={{
-                    zoomControl: false,
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: false,
-                    styles: [
-                        { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-                        { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-                        { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-                        {
-                            featureType: "administrative.locality",
-                            elementType: "labels.text.fill",
-                            stylers: [{ color: "#d59563" }],
-                        },
-                        // Add more custom styles here for "Uber-like" look if needed
-                    ]
+                    mapTypeId: "roadmap",
+                    disableDefaultUI: true,
                 }}
             >
-                {/* Directions Renderer with Enhanced Route Style */}
-                {directionsResponse && (
-                    <DirectionsRenderer
-                        options={{
-                            directions: directionsResponse,
-                            polylineOptions: {
-                                strokeColor: "#2563EB", // Rider Blue
-                                strokeWeight: 6,
-                                strokeOpacity: 0.9,
-                            },
-                            suppressMarkers: true, // We will render custom markers
-                            preserveViewport: true, // IMPORTANT: Prevents map from resetting zoom on every update
-                        }}
-                    />
-                )}
+                {/* Custom Markers handled below */}
 
                 {/* 🏠 User Location Marker (Home) */}
                 {userPos && (

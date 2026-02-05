@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { socket } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
-import WalletView from "../components/WalletView";
+
 import { API_URL } from "../lib/config";
 import ReviewList from "../components/ReviewList";
 
@@ -196,7 +196,7 @@ export default function RiderDashboard({ tab = "orders" }) {
             </div>
 
             <div className="flex gap-4 mb-8 border-b border-riderBlue/10 pb-2 overflow-x-auto">
-                {["orders", activeOrder ? "map" : null, "wallet", "reviews", "profile", "faqs"].filter(Boolean).map((t) => (
+                {["orders", activeOrder ? "map" : null, "reviews", "profile", "faqs"].filter(Boolean).map((t) => (
                     <button
                         key={t}
                         onClick={() => setActiveTab(t)}
@@ -205,7 +205,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                             : "text-gray-600 hover:text-riderLight"
                             }`}
                     >
-                        {t === "orders" ? "Assigned Orders" : t === "map" ? "Live Map" : t === "wallet" ? "My Wallet" : t === "reviews" ? "My Reviews" : t === "profile" ? "My Profile" : "FAQs"}
+                        {t === "orders" ? "Assigned Orders" : t === "map" ? "Live Map" : t === "reviews" ? "My Reviews" : t === "profile" ? "My Profile" : "FAQs"}
                     </button>
                 ))}
             </div>
@@ -392,11 +392,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                 </div>
             )}
 
-            {activeTab === "wallet" && (
-                <div className="max-w-2xl mx-auto">
-                    <WalletView role="rider" />
-                </div>
-            )}
+
 
             {activeTab === "profile" && riderProfile && (
                 <div className="bg-riderDark/50 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-riderBlue/10 max-w-2xl mx-auto">

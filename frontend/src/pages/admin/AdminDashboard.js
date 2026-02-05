@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../lib/config";
 import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
-import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaBell, FaStore, FaCog } from "react-icons/fa";
+import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaBell, FaStore, FaCog, FaUsers } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import FinanceDashboard from "./FinanceDashboard";
 import SystemSettings from "./SystemSettings";
@@ -19,6 +19,9 @@ export default function AdminDashboard() {
     totalOrders: 0,
     unpaidOrders: 0,
     activeRiders: 0,
+    totalRiders: 0,
+    totalVendors: 0,
+    totalUsers: 0,
     totalRevenue: 0,
   });
 
@@ -274,11 +277,25 @@ export default function AdminDashboard() {
               onClick={() => setActiveModal("orders")}
             />
             <StatCard
+              title="Total Users"
+              value={stats.totalUsers}
+              icon={<FaUsers className="text-white text-2xl" />}
+              color="bg-gradient-to-br from-orange-400 to-red-500"
+              onClick={() => { }}
+            />
+            <StatCard
               title="Active Riders"
-              value={stats.activeRiders}
+              value={`${stats.activeRiders} / ${stats.totalRiders}`}
               icon={<FaMotorcycle className="text-white text-2xl" />}
               color="bg-gradient-to-br from-blue-400 to-indigo-600"
               onClick={() => setActiveModal("riders")}
+            />
+            <StatCard
+              title="Total Vendors"
+              value={stats.totalVendors}
+              icon={<FaStore className="text-white text-2xl" />}
+              color="bg-gradient-to-br from-teal-400 to-cyan-600"
+              onClick={() => setActiveModal("vendors")}
             />
             <StatCard
               title="Total Orders"

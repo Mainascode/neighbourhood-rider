@@ -561,9 +561,12 @@ export default function Order() {
                             role="user"
                             socket={socket}
                             order={activeOrder}
-                            deliveryLocation={activeOrder?.pickup?.location?.coordinates ? {
-                                lat: activeOrder.pickup.location.coordinates[1],
-                                lng: activeOrder.pickup.location.coordinates[0]
+                            deliveryLocation={activeOrder?.dropoff?.location?.coordinates ? {
+                                lat: activeOrder.dropoff.location.coordinates[1],
+                                lng: activeOrder.dropoff.location.coordinates[0]
+                            } : activeOrder?.dropoffLat ? { // Fallback if regular fields used
+                                lat: activeOrder.dropoffLat,
+                                lng: activeOrder.dropoffLng
                             } : null}
                         />
 
