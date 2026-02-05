@@ -10,7 +10,7 @@ dotenv.config();
 const seedVendor = async () => {
     try {
         const uri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/neighbourhoodrider";
-        await mongoose.connect(uri);
+        await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
         console.log(`✅ Connected to MongoDB at ${uri}`);
 
         // 1. Create/Update User
@@ -37,7 +37,7 @@ const seedVendor = async () => {
 
         // 2. Create/Update Vendor Profile
         const vendorData = {
-            user: user._id,
+            userId: user._id,
             storeName: "Neighbourhood Supermarket",
             description: "Your one-stop shop for daily essentials, fresh produce, and household items.",
             logo: "https://placehold.co/400x400/F97316/ffffff?text=NS", // Orange placeholder
@@ -52,11 +52,18 @@ const seedVendor = async () => {
             isOpen: true,
             status: 'approved', // Auto-approve for testing
             rating: 4.8,
-            deliveryTime: "15-30 min"
+            deliveryTime: "15-30 min",
+            inventory: [
+                { name: "Fresh Milk 500ml", price: 65, image: "https://placehold.co/200x200?text=Milk", inStock: true },
+                { name: "Bread 400g", price: 80, image: "https://placehold.co/200x200?text=Bread", inStock: true },
+                { name: "Tray of Eggs (30pcs)", price: 450, image: "https://placehold.co/200x200?text=Eggs", inStock: true },
+                { name: "Cooking Oil 1L", price: 300, image: "https://placehold.co/200x200?text=Oil", inStock: true },
+                { name: "Maize Flour 2kg", price: 230, image: "https://placehold.co/200x200?text=Unga", inStock: true }
+            ]
         };
 
         const vendor = await Vendor.findOneAndUpdate(
-            { user: user._id },
+            { userId: user._id },
             vendorData,
             { upsert: true, new: true }
         );
