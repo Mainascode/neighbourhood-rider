@@ -11,7 +11,7 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
     });
 
     const [map, setMap] = useState(null);
-    const [directionsResponse, setDirectionsResponse] = useState(null);
+
     const [riderPos, setRiderPos] = useState(riderLocation || null);
     const [userPos, setUserPos] = useState(deliveryLocation || { lat: -1.2921, lng: 36.8219 });
     // const [eta, setEta] = useState(null); // Unused for now, removed to fix lint
