@@ -4,7 +4,6 @@ import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
 import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell, FaStore, FaCog } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-import WalletView from "../../components/WalletView";
 import FinanceDashboard from "./FinanceDashboard";
 import SystemSettings from "./SystemSettings";
 
