@@ -138,13 +138,13 @@ export default function RiderDashboard({ tab = "orders" }) {
     };
 
 
-    const handleDeliverOrder = async (orderId) => {
+    const handleDeliverOrder = async (order) => {
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/api/orders/deliver`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId }),
+                body: JSON.stringify({ orderId: order._id }),
                 credentials: "include"
             });
             const data = await res.json();
@@ -314,7 +314,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                                                 Navigate 🗺️
                                             </a>
                                             <button
-                                                onClick={() => handleDeliverOrder(order._id)}
+                                                onClick={() => handleDeliverOrder(order)}
                                                 disabled={loading}
                                                 className="bg-riderMaroon text-riderLight font-bold py-3 rounded-xl shadow-lg hover:shadow-pink-500/30 transition-all active:scale-95 disabled:opacity-50"
                                             >

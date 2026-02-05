@@ -202,41 +202,42 @@ export default function WalletView({ role = "user" }) {
                         </h1>
                         {isAdmin ? <span>Total Platform Earnings</span> : <span>Available to Withdraw</span>}
                     </p>
-                    {wallet.pendingBalance > 0 && (
-                        <div className="mt-3 bg-white/10 px-3 py-1 rounded-lg inline-block md:block backdrop-blur-sm border border-white/5">
-                            <p className="text-xs text-gray-300 uppercase tracking-wider font-bold">Pending Clearance</p>
-                            <p className="text-lg font-bold text-yellow-300">KES {wallet.pendingBalance.toLocaleString()}</p>
-                        </div>
-                    )}
                 </div>
-
-                {!isAdmin && (
-                    <div className="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/10 w-full md:w-auto">
-                        <div className="flex flex-col gap-1">
-                            <p className="text-xs text-gray-300 font-bold uppercase tracking-wider">next payout</p>
-                            <p className="text-xl font-bold flex items-center gap-2">
-                                ⏱️ Today 9:00 PM
-                            </p>
-                            <p className="text-[10px] text-gray-300 mt-1 max-w-[200px]">
-                                Automated payout to {wallet.payoutDetails?.accountNumber || "your account"}. Balance resets after payout.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {!isAdmin && !hasSetup && !isEditing && (
-                    <div className="bg-orange-500/20 p-4 rounded-xl border border-orange-500/30 text-orange-200 text-sm font-bold">
-                        ⚠️ Setup wallet to withdraw
+                {wallet.pendingBalance > 0 && (
+                    <div className="mt-3 bg-white/10 px-3 py-1 rounded-lg inline-block md:block backdrop-blur-sm border border-white/5">
+                        <p className="text-xs text-gray-300 uppercase tracking-wider font-bold">Pending Clearance</p>
+                        <p className="text-lg font-bold text-yellow-300">KES {wallet.pendingBalance.toLocaleString()}</p>
                     </div>
                 )}
             </div>
 
-            {/* Background Decor */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+            {!isAdmin && (
+                <div className="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/10 w-full md:w-auto">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-xs text-gray-300 font-bold uppercase tracking-wider">next payout</p>
+                        <p className="text-xl font-bold flex items-center gap-2">
+                            ⏱️ Today 9:00 PM
+                        </p>
+                        <p className="text-[10px] text-gray-300 mt-1 max-w-[200px]">
+                            Automated payout to {wallet.payoutDetails?.accountNumber || "your account"}. Balance resets after payout.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {!isAdmin && !hasSetup && !isEditing && (
+                <div className="bg-orange-500/20 p-4 rounded-xl border border-orange-500/30 text-orange-200 text-sm font-bold">
+                    ⚠️ Setup wallet to withdraw
+                </div>
+            )}
         </div>
 
-            {/* Transactions List */ }
+            {/* Background Decor */ }
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+
+
+    {/* Transactions List */ }
     <div className="bg-white/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-xl overflow-hidden flex-1 min-h-[400px]">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/40">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -283,6 +284,6 @@ export default function WalletView({ role = "user" }) {
             )}
         </div>
     </div>
-        </div >
+
     );
 }
