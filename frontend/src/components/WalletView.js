@@ -194,14 +194,14 @@ export default function WalletView({ role = "user" }) {
                 }`}>
                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
                     <div className="text-center md:text-left">
-                        <p className="text-gray-300 font-bold uppercase tracking-widest text-xs mb-2">
+                        <div className="text-gray-300 font-bold uppercase tracking-widest text-xs mb-2">
                             {isAdmin ? "Company Revenue" : "Available Balance"}
                         </p>
                         <h1 className="text-5xl font-black tracking-tighter">
                             KES {wallet.balance.toLocaleString()}
                         </h1>
                         {isAdmin ? <span>Total Platform Earnings</span> : <span>Available to Withdraw</span>}
-                    </p>
+                    </div>
                 </div>
                 {wallet.pendingBalance > 0 && (
                     <div className="mt-3 bg-white/10 px-3 py-1 rounded-lg inline-block md:block backdrop-blur-sm border border-white/5">
@@ -285,5 +285,6 @@ export default function WalletView({ role = "user" }) {
         </div>
     </div>
 
+    </div >
     );
 }
