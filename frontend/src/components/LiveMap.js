@@ -43,8 +43,12 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
                         lng: longitude,
                     });
                 },
-                (err) => console.error(err),
-                { enableHighAccuracy: true }
+                (err) => console.error("Geo Error:", err),
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0, // Force fresh location
+                    timeout: 10000 // Wait 10s max
+                }
             );
 
             return () => navigator.geolocation.clearWatch(watchId);
@@ -63,7 +67,11 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
                 travelMode: window.google.maps.TravelMode.DRIVING,
             }, (result, status) => {
                 if (status === window.google.maps.DirectionsStatus.OK) {
-                    setDirectionsResponse(result);
+                    setDirectionsResponse(prev => {
+                        // Only update if routes differ significantly to avoid redraws? 
+                        // Actually React Google Maps handles diffing, but let's ensure we update state.
+                        return result;
+                    });
                     // const leg = result.routes[0].legs[0];
                     /* setEta({
                         time: leg.duration.text,
@@ -117,22 +125,55 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
                     ]
                 }}
             >
-                {/* Directions Renderer handles the route line and markers automatically mostly, but we can customize */}
+                {/* Directions Renderer with Enhanced Route Style */}
                 {directionsResponse && (
                     <DirectionsRenderer
                         options={{
                             directions: directionsResponse,
                             polylineOptions: {
-                                strokeColor: "#2563EB",
-                                strokeWeight: 5,
+                                strokeColor: "#2563EB", // Rider Blue
+                                strokeWeight: 6,
+                                strokeOpacity: 0.9,
                             },
-                            suppressMarkers: false, // We can suppress and use custom markers if we want
+                            suppressMarkers: true, // We will render custom markers
+                            preserveViewport: true, // IMPORTANT: Prevents map from resetting zoom on every update
                         }}
                     />
                 )}
 
-                {!directionsResponse && riderPos && <Marker position={riderPos} />}
-                {!directionsResponse && userPos && <Marker position={userPos} />}
+                {/* 🏠 User Location Marker (Home) */}
+                {userPos && (
+                    <Marker
+                        position={userPos}
+                        icon={{
+                            path: window.google?.maps?.SymbolPath?.CIRCLE,
+                            scale: 8,
+                            fillColor: "#DC2626", // Red for Destination
+                            fillOpacity: 1,
+                            strokeColor: "white",
+                            strokeWeight: 2,
+                        }}
+                        label={{ text: "🏠", fontSize: "20px", className: "map-label" }} // Emoji label
+                    />
+                )}
+
+                {/* 🏍️ Rider Location Marker (Moto) */}
+                {riderPos && (
+                    <Marker
+                        position={riderPos}
+                        icon={{
+                            path: window.google?.maps?.SymbolPath?.FORWARD_CLOSED_ARROW,
+                            scale: 6,
+                            fillColor: "#2563EB", // Blue for Rider
+                            fillOpacity: 1,
+                            strokeColor: "white",
+                            strokeWeight: 2,
+                            rotation: 0, // In future we can pass bearing/heading here
+                        }}
+                        label={{ text: "🏍️", fontSize: "24px", className: "map-label" }} // Emoji label
+                        zIndex={100} // Keep rider on top
+                    />
+                )}
             </GoogleMap>
 
 

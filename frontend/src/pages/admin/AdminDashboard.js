@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../lib/config";
 import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
-import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaComments, FaBell, FaStore, FaCog } from "react-icons/fa";
+import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaBell, FaStore, FaCog } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import FinanceDashboard from "./FinanceDashboard";
 import SystemSettings from "./SystemSettings";
@@ -13,7 +13,7 @@ export default function AdminDashboard() {
   const [riders, setRiders] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [faqs, setFaqs] = useState([]);
-  const [inquiries, setInquiries] = useState([]); // In future this would fetch from backend history
+
 
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -116,13 +116,7 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   }, []);
 
-  const fetchInquiries = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/admin/inquiries`, { credentials: "include" });
-      const data = await res.json();
-      setInquiries(data);
-    } catch (err) { console.error(err); }
-  }, []);
+
 
   const fetchVendors = useCallback(async () => {
     try {
@@ -138,8 +132,8 @@ export default function AdminDashboard() {
     if (activeModal === "vendors") fetchVendors();
     if (activeModal === "orders") fetchOrders();
     if (activeModal === "faqs") fetchFaqs();
-    if (activeModal === "inquiries") fetchInquiries();
-  }, [activeModal, fetchDashboard, fetchRiders, fetchOrders, fetchFaqs, fetchInquiries, fetchVendors]);
+    if (activeModal === "faqs") fetchFaqs();
+  }, [activeModal, fetchDashboard, fetchRiders, fetchOrders, fetchFaqs, fetchVendors]);
 
 
   /* 🛠️ Actions */
@@ -215,7 +209,7 @@ export default function AdminDashboard() {
           <NavItem icon={<FaStore />} label="Vendors" active={activeModal === "vendors"} onClick={() => setActiveModal("vendors")} />
           <NavItem icon={<FaMoneyBillWave />} label="Live Orders" active={activeModal === "orders"} onClick={() => setActiveModal("orders")} />
           <NavItem icon={<FaQuestionCircle />} label="FAQs" active={activeModal === "faqs"} onClick={() => setActiveModal("faqs")} />
-          <NavItem icon={<FaComments />} label="Inquiries" active={activeModal === "inquiries"} onClick={() => setActiveModal("inquiries")} />
+
           <NavItem icon={<FaMoneyBillWave />} label="Finance & Payouts" active={activeModal === "finance"} onClick={() => setActiveModal("finance")} />
           <NavItem icon={<FaCog />} label="System Settings" active={activeModal === "settings"} onClick={() => setActiveModal("settings")} />
 
@@ -507,48 +501,7 @@ export default function AdminDashboard() {
             </DashboardModal>
           )}
 
-          {/* 💬 INQUIRIES MODAL */}
-          {activeModal === "inquiries" && (
-            <DashboardModal title="Inquiries" onClose={() => setActiveModal(null)}>
-              <div className="space-y-4 max-w-4xl">
-                {inquiries.length === 0 ? (
-                  <div className="text-center py-20 text-gray-500 bg-riderDark/40 backdrop-blur-md rounded-2xl border border-riderBlue/10">
-                    <FaComments className="text-5xl mx-auto mb-4 opacity-50" />
-                    <h3 className="text-xl font-bold">Inquiries Log</h3>
-                    <p>No inquiries found.</p>
-                  </div>
-                ) : (
-                  inquiries.map(inq => (
-                    <div key={inq._id} className="bg-riderDark/40 backdrop-blur-md p-6 rounded-2xl border border-riderBlue/10 hover:border-riderBlue/30 transition-colors flex flex-col md:flex-row gap-4 justify-between">
-                      <div>
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${inq.status === "unread" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
-                            {inq.status}
-                          </span>
-                          <span className="text-gray-600 text-xs">{new Date(inq.timestamp).toLocaleString()}</span>
-                        </div>
-                        <h4 className="font-bold text-lg text-riderLight mb-1">{inq.subject || "Inquiry"}</h4>
-                        <p className="text-sm text-riderBlue mb-3">{inq.email || "No Email"}</p>
 
-                        {inq.message ? (
-                          <p className="text-gray-700 bg-riderDark/50 p-3 rounded-lg">{inq.message}</p>
-                        ) : (
-                          <div className="text-gray-700 bg-riderDark/50 p-3 rounded-lg">
-                            <p><strong>Items:</strong> {inq.items?.join(", ")}</p>
-                            <p><strong>Location:</strong> {inq.location}</p>
-                          </div>
-                        )}
-                      </div>
-                      {/* Actions (Future: Reply via Email, Mark as Read) */}
-                      <div className="flex items-start">
-                        {/* Placeholder for future actions */}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </DashboardModal>
-          )}
 
           {/* 💸 FINANCE MODAL */}
           {activeModal === "finance" && (
