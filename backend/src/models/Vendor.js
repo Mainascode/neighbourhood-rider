@@ -24,7 +24,9 @@ const VendorSchema = new mongoose.Schema({
         default: "pochi"
     },
     mpesaNumber: { type: String }, // The Till Number or Phone Number
-    isOpen: { type: Boolean, default: false },
+    openingTime: { type: String, default: "08:00" }, // 24hr format
+    closingTime: { type: String, default: "20:00" },
+    isOpen: { type: Boolean, default: true },
     status: {
         type: String,
         enum: ["pending", "approved", "rejected"],

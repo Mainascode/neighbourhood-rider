@@ -219,7 +219,7 @@ export default function AdminDashboard() {
           <NavItem icon={<FaComments />} label="Inquiries" active={activeModal === "inquiries"} onClick={() => setActiveModal("inquiries")} />
           <NavItem icon={<FaMoneyBillWave />} label="Finance & Payouts" active={activeModal === "finance"} onClick={() => setActiveModal("finance")} />
           <NavItem icon={<FaCog />} label="System Settings" active={activeModal === "settings"} onClick={() => setActiveModal("settings")} />
-          <NavItem icon={<FaMoneyBillWave />} label="Wallet" active={activeModal === "wallet"} onClick={() => setActiveModal("wallet")} />
+
         </nav>
 
         <div className="mt-auto w-full px-3 relative z-10">
@@ -316,6 +316,7 @@ export default function AdminDashboard() {
                     <th className="p-4">Rider</th>
                     <th className="p-4">Phone</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4">Online</th>
                     <th className="p-4">Action</th>
                   </tr>
                 </thead>
@@ -325,6 +326,11 @@ export default function AdminDashboard() {
                       <td className="p-4 font-medium">{r.name}</td>
                       <td className="p-4 text-gray-600">{r.phone}</td>
                       <td className="p-4"><StatusBadge status={r.status} /></td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${r.isAvailable ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-500"}`}>
+                          {r.isAvailable ? "Online" : "Offline"}
+                        </span>
+                      </td>
                       <td className="p-4">
                         <button onClick={() => setSelectedRider(r)} className="text-blue-400 hover:text-blue-300 font-medium">Manage</button>
                       </td>
@@ -552,14 +558,7 @@ export default function AdminDashboard() {
             </DashboardModal>
           )}
 
-          {/* 💰 WALLET MODAL */}
-          {activeModal === "wallet" && (
-            <DashboardModal title="Company Wallet" onClose={() => setActiveModal(null)}>
-              <div className="max-w-4xl mx-auto">
-                <WalletView role="admin" />
-              </div>
-            </DashboardModal>
-          )}
+
 
           {/* ⚙️ SETTINGS MODAL */}
           {activeModal === "settings" && (

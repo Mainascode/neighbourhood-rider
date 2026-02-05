@@ -226,18 +226,44 @@ export default function Order() {
                                             alt={vendor.storeName}
                                             className="w-full h-full object-cover"
                                         />
-                                        {!vendor.isOpen && (
-                                            <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-sm">
-                                                <span className="text-red-500 font-bold uppercase text-xs border border-red-500 px-3 py-1 rounded-full bg-white">Closed</span>
-                                            </div>
-                                        )}
+
+                                        {/* Status Badge based on time */}
+                                        {(() => {
+                                            const now = new Date();
+                                            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                                            const [openH, openM] = (vendor.openingTime || "08:00").split(':').map(Number);
+                                            const [closeH, closeM] = (vendor.closingTime || "20:00").split(':').map(Number);
+                                            const openMinutes = openH * 60 + openM;
+                                            const closeMinutes = closeH * 60 + closeM;
+                                            const isTimeOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+
+                                            if (!isTimeOpen || !vendor.isOpen) {
+                                                return (
+                                                    <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center backdrop-blur-sm p-4 text-center z-10">
+                                                        <span className="text-red-500 font-bold uppercase text-xs border border-red-500 px-3 py-1 rounded-full bg-white mb-2">
+                                                            Currently Closed
+                                                        </span>
+                                                        <p className="text-xs font-bold text-gray-600">
+                                                            Hours: {vendor.openingTime} - {vendor.closingTime}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                     <div className="p-5">
                                         <div className="flex justify-between items-start mb-2">
                                             <h3 className="font-bold text-riderLight text-lg truncate">{vendor.storeName}</h3>
                                             <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded">4.8 ★</span>
                                         </div>
-                                        <p className="text-sm text-gray-500 truncate mb-4">{vendor.address || "Nearby"}</p>
+                                        <p className="text-sm text-gray-500 truncate mb-1">{vendor.address || "Nearby"}</p>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded border border-gray-200">
+                                                🕒 {vendor.openingTime || "08:00"} - {vendor.closingTime || "20:00"}
+                                            </span>
+                                            {/* Logic to show Open/Closed text if needed, but the overlay covers it if closed */}
+                                        </div>
                                         <button className="w-full bg-white border border-gray-200 text-riderLight font-bold py-2 rounded-xl text-sm group-hover:bg-riderBlue group-hover:text-white group-hover:border-riderBlue transition-colors">
                                             Visit Shop
                                         </button>

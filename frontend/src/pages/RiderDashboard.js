@@ -20,7 +20,7 @@ export default function RiderDashboard({ tab = "orders" }) {
         setActiveTab(tab);
     }, [tab]);
 
-    const activeOrder = Array.isArray(assignments) ? assignments.find(a => a.status === 'delivering') || assignments[0] : null;
+    const activeOrder = Array.isArray(assignments) ? assignments.find(a => ['picking_up', 'delivering'].includes(a.status)) : null;
 
     const fetchAssignments = useCallback(async () => {
         try {
@@ -383,6 +383,9 @@ export default function RiderDashboard({ tab = "orders" }) {
                             deliveryLocation={activeOrder?.dropoff?.location?.coordinates ? {
                                 lat: activeOrder.dropoff.location.coordinates[1],
                                 lng: activeOrder.dropoff.location.coordinates[0]
+                            } : activeOrder?.location?.coordinates ? { // Fallback for direct location objects
+                                lat: activeOrder.location.coordinates[1],
+                                lng: activeOrder.location.coordinates[0]
                             } : null}
                         />
                     </div>
