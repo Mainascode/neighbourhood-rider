@@ -5,7 +5,7 @@ import { FaHistory, FaArrowUp, FaArrowDown, FaCog, FaSave, FaUniversity, FaMobil
 export default function WalletView({ role = "user" }) {
     const [wallet, setWallet] = useState(null);
     const [transactions, setTransactions] = useState([]);
-    const [withdrawAmount, setWithdrawAmount] = useState("");
+
     const [loading, setLoading] = useState(false);
     const [txLoading, setTxLoading] = useState(true);
 
@@ -72,40 +72,7 @@ export default function WalletView({ role = "user" }) {
         }
     };
 
-    const handleWithdraw = async (e) => {
-        e.preventDefault();
-        if (!withdrawAmount || Number(withdrawAmount) < 10) return;
 
-        setLoading(true);
-        try {
-            const res = await fetch(`${API_URL}/api/wallet/withdraw`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`
-                },
-                // Use stored account number as the "phone" or destination
-                body: JSON.stringify({
-                    amount: Number(withdrawAmount),
-                    phone: wallet.payoutDetails?.accountNumber
-                })
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                alert(`Withdrawal Initiated to ${wallet.payoutDetails.provider.toUpperCase()} (${wallet.payoutDetails.accountNumber}).`);
-                setWithdrawAmount("");
-                fetchWalletData();
-            } else {
-                alert("Failed: " + data.message);
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Error processing withdrawal.");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     if (!wallet && txLoading) return <div className="p-8 text-center text-gray-500">Loading Wallet...</div>;
     if (!wallet) return <div className="p-8 text-center text-red-500">Wallet not found. Contact Support.</div>;
