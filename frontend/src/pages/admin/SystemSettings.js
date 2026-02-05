@@ -39,7 +39,7 @@ export default function SystemSettings({ notify }) { // Pass notify from parent
                 credentials: "include",
                 body: JSON.stringify(settings)
             });
-            const data = await res.json();
+            // const data = await res.json(); // Unused
             if (res.ok) {
                 notify("Settings updated successfully! ✅", "success");
             } else {
