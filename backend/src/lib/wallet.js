@@ -40,7 +40,7 @@ export const processTransaction = async ({ userId, role, type, amount, descripti
     } else {
         if (type === "deposit" || type === "earning") {
             wallet.balance += amount;
-        } else if (type === "withdrawal" || type === "commission_deduction" || type === "service_fee") {
+        } else if (type === "withdrawal" || type === "commission_deduction" || type === "service_fee" || type === "purchase") {
             // Check balance for withdrawals
             if (type === 'withdrawal' && wallet.balance < amount) {
                 throw new Error("Insufficient funds");

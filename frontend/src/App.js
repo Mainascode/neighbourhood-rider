@@ -13,7 +13,6 @@ import Parcel from "./pages/Parcel";
 import MyOrders from "./pages/MyOrders";
 import PrivateRoute from "./components/PrivateRoute";
 import Faqs from "./pages/Faqs";
-import Wallet from "./pages/Wallet";
 
 
 // Admin
@@ -43,7 +42,6 @@ export default function App() {
         <Route path="/order" element={<PrivateRoute><Order /></PrivateRoute>} />
         <Route path="/orders" element={<PrivateRoute><MyOrders /></PrivateRoute>} />
         <Route path="/parcel" element={<PrivateRoute><Parcel /></PrivateRoute>} />
-        <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
 
         {/* 🏍️ Rider */}
         <Route path="/join" element={<PrivateRoute><JoinRider /></PrivateRoute>} />
