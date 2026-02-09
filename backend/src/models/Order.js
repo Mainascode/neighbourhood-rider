@@ -28,8 +28,12 @@ const OrderSchema = new mongoose.Schema({
   items: [],
   status: {
     type: String,
-    enum: ["pending", "pending_vendor", "assigned", "picking_up", "delivering", "delivered", "completed", "cancelled"],
+    enum: ["pending", "pending_vendor", "preparing", "ready_for_pickup", "assigned", "picking_up", "delivering", "delivered", "completed", "cancelled", "payment_pending", "payment_failed"],
     default: "pending",
+  },
+  vendorCancelReason: {
+    type: String,
+    enum: ["OUT_OF_STOCK", "TOO_BUSY", "STORE_CLOSED", "SYSTEM_ERROR"],
   },
   paid: { type: Boolean, default: false }, // Overall Payment (legacy / rider)
   goodsPaid: { type: Boolean, default: false }, // Vendor Payment Status
@@ -45,6 +49,10 @@ const OrderSchema = new mongoose.Schema({
   mpesaCheckoutRequestId: { type: String }, // For tracking Mpesa STK Push
   paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'cash' },
   paymentData: { type: Object }, // Store full callback data
+
+  // Scheduling
+  scheduledFor: { type: Date }, // If set, order is for future
+  isScheduled: { type: Boolean, default: false },
 
   // Detailed Pricing Breakdown
   pricing: {

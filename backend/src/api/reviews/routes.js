@@ -1,16 +1,17 @@
 import express from "express";
 import requireAuth from "../../middleware/requireAuth.js";
-import Review from "../../models/Review.js";
+import Rating from "../../models/Rating.js";
 import Order from "../../models/Order.js";
 import User from "../../models/User.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
-// Create a Review
+// Create a Rating
 router.post("/", requireAuth, async (req, res) => {
     try {
-        const { orderId, targetId, targetRole, rating, comment } = req.body;
-        const reviewerId = req.user._id;
+        const { orderId, targetId, role, rating, comment } = req.body; // role = 'vendor' or 'rider'
+        const userId = req.user._id;
 
         // Validation
         if (!rating || rating < 1 || rating > 5) {
@@ -24,41 +25,60 @@ router.post("/", requireAuth, async (req, res) => {
         }
 
         // Check if user is the one who placed the order
-        if (order.userId.toString() !== reviewerId) {
+        if (order.userId.toString() !== userId) {
             return res.status(403).json({ message: "Unauthorized to review this order" });
         }
 
-        // Check for existing review
-        const existingReview = await Review.findOne({ orderId, targetId });
-        if (existingReview) {
-            return res.status(400).json({ message: "Review already submitted for this order" });
+        // Check for existing rating
+        const existingRating = await Rating.findOne({ orderId, role });
+        if (existingRating) {
+            return res.status(400).json({ message: "Rating already submitted for this target" });
         }
 
-        const review = await Review.create({
+        const newRating = await Rating.create({
             orderId,
-            reviewerId,
-            targetId,
-            targetRole,
+            userId,
+            vendorId: role === 'vendor' ? targetId : undefined,
+            riderId: role === 'rider' ? targetId : undefined,
+            role,
             rating,
             comment
         });
 
-        // Mark order as reviewed (optional, or just rely on Review existence)
-        order.isReviewed = true;
+        // Mark order as reviewed
+        // If both vendor and rider are reviewed, we might want to mark 'isReviewed' as true? 
+        // Or specific flags? For now, 'isReviewed' is a simple flag in Order.js
+        if (role === 'vendor') order.isReviewed = true;
         await order.save();
 
-        // Real-time Notification
-        const io = req.app.get("io");
-        if (io) {
-            // E.g., vendor:review:VENDOR_ID
-            io.emit(`${targetRole}:review:${targetId}`, review);
+
+        // --- Update Average Rating for Vendor/Rider ---
+        const Model = role === 'vendor' ? require("../../models/Vendor.js").default : require("../../models/Rider.js").default;
+
+        // Calculate new Average
+        const stats = await Rating.aggregate([
+            { $match: { [role === 'vendor' ? 'vendorId' : 'riderId']: new mongoose.Types.ObjectId(targetId) } },
+            {
+                $group: {
+                    _id: null,
+                    averageRating: { $avg: "$rating" },
+                    totalRatings: { $sum: 1 }
+                }
+            }
+        ]);
+
+        if (stats.length > 0) {
+            await Model.findByIdAndUpdate(targetId, {
+                'metrics.rating': parseFloat(stats[0].averageRating.toFixed(2)),
+                'metrics.ratingCount': stats[0].totalRatings
+            });
         }
 
-        res.status(201).json({ success: true, review });
+        res.status(201).json({ success: true, rating: newRating });
 
     } catch (error) {
-        console.error("[Review] Error creating review:", error);
-        res.status(500).json({ message: "Failed to submit review" });
+        console.error("[Rating] Error creating rating:", error);
+        res.status(500).json({ message: "Failed to submit rating" });
     }
 });
 

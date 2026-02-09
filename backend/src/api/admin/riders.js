@@ -20,7 +20,7 @@ router.patch("/:id/approve", async (req, res) => {
         const { status } = req.body; // "approved" or "rejected"
         const rider = await Rider.findByIdAndUpdate(
             req.params.id,
-            { status },
+            { approvalStatus: status },
             { new: true }
         );
 

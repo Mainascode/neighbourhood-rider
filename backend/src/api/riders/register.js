@@ -19,7 +19,7 @@ export default async function riderRegister(req, res) {
       idNumber,
       vehicleType,
       plateNumber,
-      status: "pending",
+      approvalStatus: "pending",
     });
 
     res.json(rider);

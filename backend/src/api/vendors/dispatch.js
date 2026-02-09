@@ -18,6 +18,16 @@ export default async function handler(req, res) {
 
     const { orderId } = req.body;
 
+    /* Time Validation */
+    const now = new Date();
+    const currentHour = now.getHours();
+    if (currentHour < 6 || currentHour >= 21) {
+        return res.status(400).json({
+            message: "System closed. Operating hours: 06:00 - 21:00.",
+            systemClosed: true
+        });
+    }
+
     // Verify Vendor Ownership
     const vendor = await Vendor.findOne({ userId: user.id });
     if (!vendor) return res.status(403).json({ message: "Not a vendor" });

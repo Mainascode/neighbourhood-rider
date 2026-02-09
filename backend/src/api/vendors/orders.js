@@ -17,6 +17,16 @@ export async function confirmGoodsPayment(req, res) {
     await connectDB();
     const { id } = req.params;
 
+    /* Time Validation */
+    const now = new Date();
+    const currentHour = now.getHours();
+    if (currentHour < 6 || currentHour >= 21) {
+        return res.status(400).json({
+            message: "System closed. Operating hours: 06:00 - 21:00.",
+            systemClosed: true
+        });
+    }
+
     try {
         // Verify Vendor Ownership
         const vendor = await Vendor.findOne({ userId: user.id });

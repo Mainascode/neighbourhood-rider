@@ -170,3 +170,49 @@ export const releasePendingFunds = async (orderId) => {
         }
     }
 };
+
+// Refund Order (Cancel pending transactions and Credit User)
+export const refundOrder = async (order, reason) => {
+    // 1. Void Pending Transactions (Vendor, Rider, Admin)
+    const transactions = await Transaction.find({
+        referenceId: order._id.toString(),
+        status: "pending"
+    });
+
+    for (const trx of transactions) {
+        const wallet = await Wallet.findById(trx.walletId);
+        if (wallet) {
+            // Remove from pending balance
+            if (wallet.pendingBalance >= trx.amount) {
+                wallet.pendingBalance -= trx.amount;
+            } else {
+                wallet.pendingBalance = 0;
+            }
+            await wallet.save();
+
+            trx.status = "cancelled";
+            await trx.save();
+            console.log(`[Wallet] Cancelled pending transaction ${trx._id} for wallet ${wallet._id}`);
+        }
+    }
+
+    // 2. Credit User Wallet (Full Refund)
+    if (order.paid || order.isDeliveryFeePaid) {
+        let refundAmount = 0;
+        if (order.paid) refundAmount = order.amount;
+        else if (order.isDeliveryFeePaid) refundAmount = order.deliveryFee;
+
+        if (refundAmount > 0) {
+            await processTransaction({
+                userId: order.userId,
+                role: "user",
+                type: "deposit",
+                amount: refundAmount,
+                description: `Refund for Order #${order._id} (${reason})`,
+                referenceId: order._id.toString(),
+                metadata: { status: "completed", reason }
+            });
+            console.log(`[Wallet] Refunded KES ${refundAmount} to User ${order.userId}`);
+        }
+    }
+};

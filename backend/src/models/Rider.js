@@ -8,10 +8,15 @@ const RiderSchema = new mongoose.Schema({
   idPicture: String, // URL or Base64
   riderPicture: String, // URL or Base64
   isAvailable: { type: Boolean, default: true },
-  status: {
+  approvalStatus: {
     type: String,
     enum: ["pending", "approved", "rejected"],
     default: "pending",
+  },
+  status: {
+    type: String,
+    enum: ["OFFLINE", "ONLINE_AVAILABLE", "ONLINE_BUSY"],
+    default: "OFFLINE",
   },
   vehicleType: {
     type: String,
@@ -19,10 +24,14 @@ const RiderSchema = new mongoose.Schema({
     default: "electric_motorcycle"
   },
   location: {
-    type: { type: String, enum: ["Point"], default: "Point" },
-    coordinates: [Number],
+    type: { type: String, enum: ["Point"] },
+    coordinates: [Number], // [lng, lat]
   },
+  lastSeen: Date,
+  isVerified: { type: Boolean, default: false },
 }, { timestamps: true });
+
+RiderSchema.index({ location: "2dsphere" });
 
 export default mongoose.models.Rider ||
   mongoose.model("Rider", RiderSchema);

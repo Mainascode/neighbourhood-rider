@@ -130,15 +130,50 @@ export const handleMpesaCallback = async (req, res) => {
 
                 console.log(`[M-Pesa] Funds distributed (pending) for order ${order._id}`);
 
-                // Real-time notification socket?
-                // const io = req.app.get("io");
-                // if(io) io.emit... 
+                // Update Status to pending_vendor if it was payment_pending
+                if (order.status === 'payment_pending' || order.status === 'pending') {
+                    order.status = 'pending_vendor';
+                    await order.save();
+
+                    // NOTIFY VENDOR
+                    const io = req.app.get("io");
+                    if (order.vendorId) {
+                        const Vendor = (await import("../../models/Vendor.js")).default;
+                        const vendorProfile = await Vendor.findById(order.vendorId);
+                        const { sendPushNotification } = await import("../../lib/push.js"); // Dynamic import
+
+                        if (vendorProfile && io) {
+                            io.to(`vendor:${vendorProfile.userId}`).emit("vendor:order:new", order);
+                            await sendPushNotification(
+                                vendorProfile.userId,
+                                "New Shop Order! 🛍️",
+                                `Order #${order._id.slice(-6)} Paid & Received. Amount: KES ${order.amount}`,
+                                "/vendor/dashboard"
+                            );
+                        }
+                    }
+                }
+
+                // Real-time notification socket for User
+                const io = req.app.get("io");
+                if (io) io.to(`order:${order._id}`).emit("order:update", order);
+
             } else {
                 console.error(`[M-Pesa] Order not found for CheckoutID: ${checkoutRequestId}`);
             }
 
         } else {
             console.log(`[M-Pesa] Payment Failed/Cancelled: ${Body.stkCallback.ResultDesc}`);
+            const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
+            const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
+            if (order) {
+                order.status = 'payment_failed';
+                await order.save();
+
+                // Notify User via Socket
+                const io = req.app.get("io");
+                if (io) io.to(`order:${order._id}`).emit("order:update", order);
+            }
         }
 
         res.status(200).json({ message: "Callback received" });

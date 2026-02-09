@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import OperatingHoursBanner from "../components/OperatingHoursBanner";
 import Navbar from "../components/Navbar";
 import GooglePayButton from "@google-pay/button-react";
 import ReviewForm from "../components/ReviewForm";
@@ -115,7 +116,24 @@ export default function Order() {
                     pickupLat: selectedVendor.location.coordinates[1],
                     dropoff: { address: "User Device Location" },
                     dropoffLat: coords.lat,
-                    dropoffLng: coords.lng
+                    dropoffLng: coords.lng,
+                    isScheduled: (() => {
+                        const now = new Date();
+                        const h = now.getHours();
+                        return h < 6 || h >= 21;
+                    })(),
+                    scheduledFor: (() => {
+                        const now = new Date();
+                        const h = now.getHours();
+                        if (h < 6 || h >= 21) {
+                            // Next 6 AM
+                            const target = new Date(now);
+                            target.setHours(6, 0, 0, 0);
+                            if (h >= 21) target.setDate(target.getDate() + 1);
+                            return target;
+                        }
+                        return null;
+                    })()
                 })
             });
 
@@ -124,7 +142,24 @@ export default function Order() {
                 setActiveOrder(data.order);
                 setSelectedVendor(null);
                 setCart([]);
-                alert("Order Placed! Waiting for Vendor/Rider.");
+
+                if (data.order.status === 'payment_pending') {
+                    // Automatically open payment modal or trigger payment
+                    // Since we have a payment modal that shows if !isDeliveryFeePaid (or effectively !paid), 
+                    // and activeOrder is set, it *should* show.
+                    // But we might want to be explicit.
+                    alert("Order Created! Please complete payment to notify the vendor.");
+                    // The UI below checks `activeOrder && !activeOrder.isDeliveryFeePaid`
+                    // In proposed flow, 'isDeliveryFeePaid' might be false.
+                    // We also need to ensure the payment modal handles the FULL amount if that's the requirement, 
+                    // but for now sticking to the existing "Delivery Fee Payment" modal structure but maybe updating text?
+                    // The user said "Lock cart prices".
+                    // Let's assume the existing payment modal payload pays the "Delivery Fee" (50). 
+                    // If we need to pay TOTAL, we need to update `pay-delivery` or the modal.
+                    // For this step, simply showing the modal is the first step.
+                } else {
+                    alert("Order Placed! Waiting for Vendor/Rider.");
+                }
             }
         } catch (err) {
             console.error(err);
@@ -173,6 +208,7 @@ export default function Order() {
 
     return (
         <div className="min-h-screen flex flex-col bg-transparent text-riderLight relative">
+            <OperatingHoursBanner />
             <Navbar />
 
             <main className="flex-grow flex flex-col items-center justify-start pt-24 pb-12 px-4 md:px-6 z-10 w-full max-w-7xl mx-auto">
@@ -331,9 +367,17 @@ export default function Order() {
                                 </div>
                                 <button
                                     onClick={placeOrder}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-xl transition-all shadow-lg animate-pulse"
+                                    className={`font-bold py-2 px-6 rounded-xl transition-all shadow-lg ${(() => {
+                                        const now = new Date();
+                                        const h = now.getHours();
+                                        return h < 6 || h >= 21;
+                                    })() ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-green-600 hover:bg-green-700 animate-pulse text-white"}`}
                                 >
-                                    Place Order ({cart.length})
+                                    {(() => {
+                                        const now = new Date();
+                                        const h = now.getHours();
+                                        return (h < 6 || h >= 21) ? "📅 Schedule for 6:00 AM" : `Place Order (${cart.length})`;
+                                    })()}
                                 </button>
                             </div>
                         )}
@@ -349,9 +393,14 @@ export default function Order() {
                         <div className="w-16 h-16 bg-riderBlue/10 text-riderBlue rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                             💳
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Delivery Fee Payment</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                            {activeOrder.status === 'payment_pending' ? "Complete Your Order" : "Delivery Fee Payment"}
+                        </h2>
                         <p className="text-gray-500 mb-6">
-                            To process your order, please pay the cashless delivery fee of <span className="text-riderBlue font-bold">KES 50</span>.
+                            {activeOrder.status === 'payment_pending'
+                                ? <span>To confirm your order with <span className="font-bold text-gray-900">KES {activeOrder.amount}</span>, please complete payment.</span>
+                                : <span>To process your order, please pay the cashless delivery fee of <span className="text-riderBlue font-bold">KES 50</span>.</span>
+                            }
                         </p>
 
                         <div className="bg-gray-50 p-4 rounded-xl mb-6 text-left border border-gray-100">

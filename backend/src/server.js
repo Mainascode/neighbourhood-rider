@@ -34,11 +34,14 @@ import payOrder from "./api/orders/pay.js";
 import payDeliveryFee from "./api/orders/payDelivery.js";
 import { confirmGoodsPayment } from "./api/vendors/orders.js";
 import confirmReceipt from "./api/orders/receipt.js";
+import { getOrderStatus } from "./api/orders/status.js";
 
 /* riders */
 import riderRegister from "./api/riders/register.js";
 import nearbyRiders from "./api/riders/nearby.js";
 import riderMe from "./api/riders/me.js";
+import { goOnline, goOffline, heartbeat } from "./api/riders/status.js";
+import { acceptOrder, rejectOrder } from "./api/riders/orders.js";
 
 /* payments */
 /* payments */
@@ -70,6 +73,8 @@ import requireAdmin from "./middleware/requireAdmin.js";
 
 import cron from "node-cron";
 import { runDailyPayouts } from "./api/payments/payouts.js";
+import { startRiderCleanupJob } from "./jobs/rider-cleanup.js";
+import { startVendorScheduleJobs } from "./jobs/vendor-schedule.js";
 
 async function startServer() {
   const app = express();
@@ -86,6 +91,9 @@ async function startServer() {
       console.error("❌ Daily Payout Job Failed:", err);
     }
   });
+
+  /* Start Rider Cleanup Job */
+  startRiderCleanupJob();
 
   app.set("trust proxy", 1);
 
@@ -124,11 +132,17 @@ async function startServer() {
   app.post("/api/orders/pay", requireAuth, payOrder);
   app.post("/api/orders/pay-delivery", requireAuth, payDeliveryFee);
   app.post("/api/orders/confirm-receipt", requireAuth, confirmReceipt);
+  app.get("/api/orders/:id/status", requireAuth, getOrderStatus);
 
   /* riders */
   app.post("/api/riders/register", requireAuth, riderRegister);
   app.use("/api/riders/nearby", requireAuth, nearbyRiders);
   app.get("/api/riders/me", requireAuth, riderMe);
+  app.post("/api/riders/go-online", requireAuth, goOnline);
+  app.post("/api/riders/go-offline", requireAuth, goOffline);
+  app.post("/api/riders/heartbeat", requireAuth, heartbeat);
+  app.post("/api/riders/accept-order", requireAuth, acceptOrder);
+  app.post("/api/riders/reject-order", requireAuth, rejectOrder);
 
   /* vendors */
   app.post("/api/vendors/register", requireAuth, vendorRegister);
@@ -142,7 +156,10 @@ async function startServer() {
 
   // Vendor Order Management
 
+  import vendorCancelOrder from "./api/vendors/cancel.js";
+
   app.patch("/api/orders/:id/confirm-goods", requireAuth, confirmGoodsPayment);
+  app.post("/api/vendors/orders/:id/cancel", requireAuth, vendorCancelOrder);
 
   /* public vendor routes */
   app.get("/api/vendors/nearby", vendorPublic.listPublicVendors);

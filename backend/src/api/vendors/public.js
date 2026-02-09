@@ -8,8 +8,27 @@ import Vendor from "../../models/Vendor.js";
  */
 export async function listPublicVendors(req, res) {
     try {
-        const vendors = await Vendor.find({ status: "approved", isOpen: true }).populate("userId", "name");
-        res.json(vendors);
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        // Check System Hours (06:00 - 21:00)
+        if (currentHour < 6 || currentHour >= 21) {
+            return res.json({
+                systemClosed: true,
+                message: "Vendors operate between 6:00 AM and 9:00 PM",
+                vendors: []
+            });
+        }
+
+        // Virtuals cannot be queried in MongoDB, so we fetch all approved and filter in JS
+        const vendors = await Vendor.find({ status: "approved" }).populate("userId", "name");
+
+        // Filter by the virtual 'isOpen' property logic (redundant if system is open, but good for safety)
+        // Actually, if system is open, all valid vendors should be "open" based on the fix hours logic.
+        // But we'll keep the filter just in case logic changes.
+        const openVendors = vendors.filter(v => v.isOpen);
+
+        res.json({ systemClosed: false, vendors: openVendors });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Failed to fetch vendors" });

@@ -1,7 +1,5 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
-import { assignBestRider } from "../../lib/matchRider.js";
-import { findNearestRiders } from "../../lib/matchRider.js";
 import requireAuth from "../../middleware/auth.js";
 import { sendPushNotification } from "../../lib/push.js";
 
@@ -12,6 +10,17 @@ export default async function handler(req, res) {
   await connectDB();
 
   const { pickupLng, pickupLat, address, dropoff, dropoffLat, dropoffLng } = req.body;
+
+  /* Time Validation */
+  const now = new Date();
+  const currentHour = now.getHours();
+  // Operating Hours: 06:00 - 21:00
+  if ((currentHour < 6 || currentHour >= 21) && !req.body.isScheduled) {
+    return res.status(400).json({
+      error: "Vendors operate between 6:00 AM and 9:00 PM",
+      systemClosed: true
+    });
+  }
 
   /* New: Handle Vendor Order */
   const { vendorId, items } = req.body;
@@ -45,7 +54,7 @@ export default async function handler(req, res) {
         coordinates: [dropoffLng || 36.8219, dropoffLat || -1.2921]
       }
     },
-    status: vendorId ? "pending_vendor" : "pending",
+    status: "payment_pending",
 
     // Financials
     pricing,
@@ -60,44 +69,27 @@ export default async function handler(req, res) {
 
   const order = await Order.create(orderData);
 
-  // If Vendor Order -> Notify Vendor, DO NOT Auto-Assign Rider yet (Vendor calls rider)
-  const io = req.app.get("io");
-  if (vendorId) {
-    // Find Vendor's UserId to notify them personally
-    // We need to fetch the vendor document to get the userId
-    const Vendor = (await import("../../models/Vendor.js")).default;
-    const vendorProfile = await Vendor.findById(vendorId);
+  // NOTE: Vendor Notification is DEFERRED until Payment is Confirmed.
+  // See: api/payments/mpesaController.js -> handleMpesaCallback
 
-    if (vendorProfile && io) {
-      io.to(`vendor:${vendorProfile.userId}`).emit("vendor:order:new", order);
-      await sendPushNotification(
-        vendorProfile.userId,
-        "New Shop Order! 🛍️",
-        `Order #${order._id.slice(-6)} received. Amount: KES ${order.amount}`,
-        "/vendor/dashboard"
-      );
-    }
+  const matchResult = await matchOrder(order._id, { lat: pickupLat, lng: pickupLng }, 1, [], io);
 
-    return res.status(201).json({ order, message: "Sent to Vendor" });
-  }
+  let assignedRiderName = null;
+  if (matchResult.success && matchResult.rider) {
+    assignedRiderName = matchResult.rider.name;
 
-  // Legacy/Chatbot Flow -> Auto Assign Rider
-  const riders = await findNearestRiders(pickupLng, pickupLat);
-  const assignedRider = await assignBestRider(order);
-
-  if (assignedRider) {
-    if (io) {
-      io.to(`order:${order._id}`).emit("order:update", order);
-      io.emit(`rider:order:${assignedRider.userId}`, order);
-    }
-
+    // Send Push Notification (matchOrder emits socket, but push is good too)
     await sendPushNotification(
-      assignedRider.userId,
+      matchResult.rider.userId,
       "New Delivery Request! 📦",
       "Generic errand request. Tap to accept.",
       "/rider/orders"
     );
   }
 
-  res.status(201).json({ order, suggestedRiders: riders, assignedTo: assignedRider?.name });
+  // We can still return suggested riders if needed, but matchOrder finds the best one.
+  // We'll leave suggestedRiders empty or fetch them if strictly required for UI (but UI seems to rely on assignment status now)
+  const riders = [];
+
+  res.status(201).json({ order, suggestedRiders: riders, assignedTo: assignedRiderName });
 }

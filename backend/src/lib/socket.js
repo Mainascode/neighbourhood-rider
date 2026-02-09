@@ -59,6 +59,32 @@ export default function setupSocket(io) {
       }
     });
 
+    socket.on("rider:online", async () => {
+      if (socket.user.role.toLowerCase() !== "rider") return;
+      try {
+        await import("../models/Rider.js").then(async ({ default: Rider }) => {
+          await Rider.findOneAndUpdate(
+            { userId: socket.user._id },
+            { status: "ONLINE_AVAILABLE", isAvailable: true }
+          );
+        });
+        console.log(`Rider ${socket.user.name} is ONLINE`);
+      } catch (err) {
+        console.error("Error setting rider online via socket:", err);
+      }
+    });
+
+    socket.on("rider:accept", async ({ orderId }) => {
+      // Logic handled via API usually, but if socket only:
+      // For now, let's keep logic in API (POST /accept-order) and use socket for notifications.
+      // If client emits this, we can log or trigger lightweight updates.
+      console.log(`Socket: Rider ${socket.user.name} accepted order ${orderId}`);
+    });
+
+    socket.on("rider:reject", async ({ orderId }) => {
+      console.log(`Socket: Rider ${socket.user.name} rejected order ${orderId}`);
+    });
+
     /* mark delivered */
     socket.on("order:delivered", async ({ orderId }) => {
       if (socket.user.role.toLowerCase() !== "rider") return;
