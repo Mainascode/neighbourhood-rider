@@ -26,7 +26,6 @@ import resetPasswordRoute from "./api/auth/reset-password.js";
 /* orders */
 import createOrder from "./api/orders/create.js";
 import assignOrder from "./api/orders/assign.js";
-import acceptOrder from "./api/orders/accept.js";
 import myOrders from "./api/orders/my-orders.js";
 import botCreateOrder from "./api/orders/bot-create.js";
 import deliverOrder from "./api/orders/deliver.js";
@@ -74,8 +73,7 @@ import requireAdmin from "./middleware/requireAdmin.js";
 import cron from "node-cron";
 import { runDailyPayouts } from "./api/payments/payouts.js";
 import { startRiderCleanupJob } from "./jobs/rider-cleanup.js";
-import { startVendorScheduleJobs } from "./jobs/vendor-schedule.js";
-
+import vendorCancelOrder from "./api/vendors/cancel.js";
 async function startServer() {
   const app = express();
   const server = http.createServer(app);
@@ -156,7 +154,7 @@ async function startServer() {
 
   // Vendor Order Management
 
-  import vendorCancelOrder from "./api/vendors/cancel.js";
+  
 
   app.patch("/api/orders/:id/confirm-goods", requireAuth, confirmGoodsPayment);
   app.post("/api/vendors/orders/:id/cancel", requireAuth, vendorCancelOrder);
