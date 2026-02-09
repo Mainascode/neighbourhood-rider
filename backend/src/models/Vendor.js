@@ -32,11 +32,6 @@ const VendorSchema = new mongoose.Schema({
         default: "pending",
     },
     inventory: [{
-        name: String,
-        price: Number,
-        image: String,
-        inStock: { type: Boolean, default: true }
-    inventory: [{
             name: String,
             price: Number,
             image: String,
