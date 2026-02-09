@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const OperatingHoursBanner = () => {
     const [isClosed, setIsClosed] = useState(false);
-    const [timeLeft, setTimeLeft] = useState('');
+    
 
     useEffect(() => {
         const checkTime = () => {
