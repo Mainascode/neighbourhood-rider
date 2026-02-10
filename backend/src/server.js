@@ -101,7 +101,6 @@ async function startServer() {
 
   /* Start Rider Cleanup Job */
   startRiderCleanupJob();
-  startOrderRecoveryJob(io);
 
   app.set("trust proxy", 1);
 
@@ -292,6 +291,7 @@ async function startServer() {
 
   app.set("io", io);
   setupSocket(io);
+  startOrderRecoveryJob(io);
 
   /* 404 */
   app.use((_, res) => {
