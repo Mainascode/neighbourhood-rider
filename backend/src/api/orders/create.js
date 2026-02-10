@@ -1,7 +1,7 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
 import requireAuth from "../../middleware/auth.js";
-import { sendPushNotification } from "../../lib/push.js";
+import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
@@ -12,15 +12,7 @@ export default async function handler(req, res) {
   const { pickupLng, pickupLat, address, dropoff, dropoffLat, dropoffLng } = req.body;
 
   /* Time Validation */
-  const now = new Date();
-  const currentHour = now.getHours();
-  // Operating Hours: 06:00 - 21:00
-  if ((currentHour < 6 || currentHour >= 21) && !req.body.isScheduled) {
-    return res.status(400).json({
-      error: "Vendors operate between 6:00 AM and 9:00 PM",
-      systemClosed: true
-    });
-  }
+  // Late orders are allowed; no blocking here.
 
   /* New: Handle Vendor Order */
   const { vendorId, items } = req.body;
@@ -30,11 +22,25 @@ export default async function handler(req, res) {
   const goodsTotal = items ? items.reduce((sum, i) => sum + i.price, 0) : 0;
 
   // Create pricing breakdown
+  const now = new Date();
+  const isLate = now.getHours() >= 21;
+  const pricingOverrides = isLate ? { baseFee: 80, perKmFee: 50 } : {};
+
   const { pricing, distribution } = await calculateOrderPricing(
     goodsTotal,
     { lat: pickupLat, lng: pickupLng },
-    { lat: dropoffLat || -1.2921, lng: dropoffLng || 36.8219 } // Use provided dropoff or fallback
+    { lat: dropoffLat || -1.2921, lng: dropoffLng || 36.8219 }, // Use provided dropoff or fallback
+    pricingOverrides
   );
+
+  const Vendor = (await import("../../models/Vendor.js")).default;
+  const vendorProfile = vendorId ? await Vendor.findById(vendorId) : null;
+  if (vendorProfile?.isManuallyClosed) {
+    return res.status(400).json({ error: "Vendor is currently closed for orders." });
+  }
+  if (!isLate && vendorProfile && !vendorProfile.isOpen) {
+    return res.status(400).json({ error: "Vendor is currently closed for orders." });
+  }
 
   const orderData = {
     userId: user.id,
@@ -54,7 +60,7 @@ export default async function handler(req, res) {
         coordinates: [dropoffLng || 36.8219, dropoffLat || -1.2921]
       }
     },
-    status: "payment_pending",
+    status: ORDER_STATUS.CREATED,
 
     // Financials
     pricing,
@@ -62,6 +68,8 @@ export default async function handler(req, res) {
     goodsTotal: pricing.goodsTotal,
     deliveryFee: pricing.deliveryFee,
     amount: pricing.totalCost,
+    etaMinutes: pricing.etaMinutes,
+    lateOrder: isLate,
 
     isDeliveryFeePaid: false,
     completionOtp: Math.floor(1000 + Math.random() * 9000).toString()
@@ -69,27 +77,17 @@ export default async function handler(req, res) {
 
   const order = await Order.create(orderData);
 
+  await updateOrderStatus({
+    orderId: order._id,
+    fromStatusRaw: order.status,
+    toStatus: ORDER_STATUS.PAYMENT_PENDING,
+    actor: { id: user.id, role: user.role, name: user.name },
+    source: "orders.create",
+    io: req.app.get("io"),
+  });
+
   // NOTE: Vendor Notification is DEFERRED until Payment is Confirmed.
   // See: api/payments/mpesaController.js -> handleMpesaCallback
 
-  const matchResult = await matchOrder(order._id, { lat: pickupLat, lng: pickupLng }, 1, [], io);
-
-  let assignedRiderName = null;
-  if (matchResult.success && matchResult.rider) {
-    assignedRiderName = matchResult.rider.name;
-
-    // Send Push Notification (matchOrder emits socket, but push is good too)
-    await sendPushNotification(
-      matchResult.rider.userId,
-      "New Delivery Request! 📦",
-      "Generic errand request. Tap to accept.",
-      "/rider/orders"
-    );
-  }
-
-  // We can still return suggested riders if needed, but matchOrder finds the best one.
-  // We'll leave suggestedRiders empty or fetch them if strictly required for UI (but UI seems to rely on assignment status now)
-  const riders = [];
-
-  res.status(201).json({ order, suggestedRiders: riders, assignedTo: assignedRiderName });
+  res.status(201).json({ order, suggestedRiders: [], assignedTo: null });
 }

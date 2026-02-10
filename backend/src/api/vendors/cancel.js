@@ -2,7 +2,7 @@ import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
 import Vendor from "../../models/Vendor.js";
 import { refundOrder } from "../../lib/wallet.js";
-import { sendPushNotification } from "../../lib/push.js";
+import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 /**
  * POST /api/vendors/orders/:id/cancel
@@ -40,7 +40,13 @@ export default async function handler(req, res) {
         }
 
         // Rule: Only allow cancellation if pending_vendor or preparing
-        const allowedStatuses = ["pending_vendor", "preparing", "payment_pending", "pending"];
+        const allowedStatuses = [
+            ORDER_STATUS.CREATED,
+            ORDER_STATUS.PAYMENT_PENDING,
+            ORDER_STATUS.PAYMENT_CONFIRMED,
+            ORDER_STATUS.VENDOR_ACCEPTED,
+            ORDER_STATUS.PREPARING,
+        ];
         // Note: payment_pending might not have vendor attached properly or vendor shouldn't see it yet, 
         // but if they do (e.g. system error), they can cancel.
 
@@ -51,25 +57,34 @@ export default async function handler(req, res) {
         }
 
         // Execute Cancellation
-        order.status = "cancelled";
         order.vendorCancelReason = reason;
-        await order.save();
+        await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.CANCELLED,
+            actor: { id: user.id, role: user.role, name: user.name },
+            source: "vendors.cancel",
+            reason,
+            io: req.app.get("io"),
+        });
 
         // Process Refund
         await refundOrder(order, reason);
+        await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: ORDER_STATUS.CANCELLED,
+            toStatus: ORDER_STATUS.REFUNDED,
+            actor: { id: user.id, role: user.role, name: user.name },
+            source: "vendors.cancel",
+            reason,
+            io: req.app.get("io"),
+        });
 
         // Notify User
         const io = req.app.get("io");
         if (io) {
             io.to(`order:${order._id}`).emit("order:update", order);
         }
-
-        await sendPushNotification(
-            order.userId,
-            "Order Cancelled 😞",
-            `Your order was cancelled by the vendor: ${reason.replace(/_/g, ' ')}. Refund processed.`,
-            `/orders/${order._id}`
-        );
 
         res.json({ success: true, message: "Order cancelled and refunded", order });
 

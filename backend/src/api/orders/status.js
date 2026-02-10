@@ -1,5 +1,6 @@
 
 import Order from "../../models/Order.js";
+import { normalizeOrderStatus } from "../../lib/orderStatus.js";
 
 /**
  * GET /api/orders/:id/status
@@ -19,10 +20,18 @@ export async function getOrderStatus(req, res) {
 
         // Searching if pending and NOT assigned
         // Statuses like 'assigned', 'picking_up' etc mean searching is done.
-        const searching = !isAssigned && ["pending", "pending_vendor"].includes(order.status);
+        const normalizedStatus = normalizeOrderStatus(order.status);
+        const searching = !isAssigned && [
+            "CREATED",
+            "PAYMENT_PENDING",
+            "PAYMENT_CONFIRMED",
+            "VENDOR_ACCEPTED",
+            "PREPARING",
+            "READY_FOR_PICKUP"
+        ].includes(normalizedStatus);
 
         const response = {
-            status: order.status,
+            status: normalizedStatus,
             searching: searching,
             riderAssigned: isAssigned,
         };

@@ -31,6 +31,8 @@ const VendorSchema = new mongoose.Schema({
         enum: ["pending", "approved", "rejected"],
         default: "pending",
     },
+    isManuallyClosed: { type: Boolean, default: false },
+    manualClosedAt: { type: Date },
     inventory: [{
             name: String,
             price: Number,

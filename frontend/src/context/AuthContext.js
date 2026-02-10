@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { API_URL } from "../lib/config";
+import { socket } from "../lib/socket";
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -37,6 +38,9 @@ export function AuthProvider({ children }) {
         if (res.ok) {
           const data = await res.json();
           setUser(data.user);
+          if (data.user) {
+            if (!socket.connected) socket.connect();
+          }
         } else {
           setUser(null);
         }
@@ -76,6 +80,7 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.message || "Login failed");
 
     setUser(data.user);
+    if (data.user && !socket.connected) socket.connect();
   };
 
   /* ───── register ───── */
@@ -97,6 +102,7 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.message || "Registration failed");
 
     setUser(data.user);
+    if (data.user && !socket.connected) socket.connect();
   };
 
   /* ───── logout ───── */
@@ -106,6 +112,7 @@ export function AuthProvider({ children }) {
       credentials: "include",
     });
     setUser(null);
+    if (socket.connected) socket.disconnect();
   };
 
   const isAdmin = user?.role === "admin";

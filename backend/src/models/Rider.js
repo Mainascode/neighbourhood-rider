@@ -29,6 +29,22 @@ const RiderSchema = new mongoose.Schema({
   },
   lastSeen: Date,
   isVerified: { type: Boolean, default: false },
+  metrics: {
+    rating: { type: Number, default: 5.0 },
+    ratingCount: { type: Number, default: 0 },
+  },
+  penalties: {
+    latePickupCount: { type: Number, default: 0 },
+    lateDeliveryCount: { type: Number, default: 0 },
+    overdueDeliveryCount: { type: Number, default: 0 },
+    rejectionCount: { type: Number, default: 0 },
+    assignmentCount: { type: Number, default: 0 },
+    rejectionRate: { type: Number, default: 0 },
+    isDisabled: { type: Boolean, default: false },
+    disabledAt: { type: Date },
+    disabledReason: { type: String },
+    lastPenaltyAt: { type: Date },
+  },
 }, { timestamps: true });
 
 RiderSchema.index({ location: "2dsphere" });

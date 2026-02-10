@@ -1,5 +1,7 @@
 
 import Rider from "../models/Rider.js";
+import { recordAssignment } from "../lib/penalties.js";
+import { ORDER_STATUS, updateOrderStatus } from "../lib/orderStatus.js";
 import Order from "../models/Order.js";
 
 /**
@@ -51,7 +53,7 @@ export async function findNearestAvailableRider(pickupLocation, excludeRiderIds 
  * @param {Object} rider - The rider document to assign
  * @returns {Promise<Object>} - The result object { success, rider, order, error }
  */
-export async function assignRiderToOrder(orderId, pickupLocation, rider) {
+export async function assignRiderToOrder(orderId, pickupLocation, rider, io) {
     try {
         // Atomic update to ensure rider is still available
         const updatedRider = await Rider.findOneAndUpdate(
@@ -67,17 +69,21 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider) {
             return { success: false, error: "RIDER_UNAVAILABLE" };
         }
 
-        // Assign to order - ATOMIC CHECK: status must be 'pending' or 'pending_vendor'
+        // Assign to order - ATOMIC CHECK: status must be READY_FOR_PICKUP
         // We generally only assign if it's not already assigned.
-        const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId, riderId: { $exists: false } }, // Ensure no rider is assigned
-            {
-                riderId: updatedRider._id, // Store Rider document ID
-                status: "assigned",
-                riderAssignedAt: new Date()
+        const updatedOrder = await updateOrderStatus({
+            orderId,
+            fromStatusRaw: ORDER_STATUS.READY_FOR_PICKUP,
+            toStatus: ORDER_STATUS.RIDER_ASSIGNED,
+            actor: { role: "system", name: "matching_service" },
+            source: "services.matching",
+            io,
+            preconditions: { riderId: { $exists: false } },
+            set: {
+                riderId: updatedRider._id,
+                riderAssignedAt: new Date(),
             },
-            { new: true }
-        );
+        });
 
         if (!updatedOrder) {
             // Rollback rider status if order was already taken
@@ -85,6 +91,7 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider) {
             return { success: false, error: "ORDER_ALREADY_ASSIGNED" };
         }
 
+        await recordAssignment(updatedRider._id);
         return { success: true, rider: updatedRider, order: updatedOrder };
 
     } catch (err) {
@@ -102,17 +109,33 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider) {
  * @param {Array<string>} excludeRiderIds - List of riders to exclude (rejected or timed out)
  * @param {Object} io - Socket.io instance
  */
-export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRiderIds = [], io) {
-    const MAX_ATTEMPTS = 3;
-    const RESPONSE_TIMEOUT_MS = 15000; // 15 seconds
+export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRiderIds = [], io, startedAt = Date.now()) {
+    const RESPONSE_TIMEOUT_MS = 15000; // 15 seconds per attempt
+    const TOTAL_RETRY_WINDOW_MS = 4 * 60 * 1000; // 4 minutes total
+    const deadlineAt = startedAt + TOTAL_RETRY_WINDOW_MS;
 
     console.log(`Requesting match for Order ${orderId}, Attempt ${attempt}, Exclude:`, excludeRiderIds);
 
-    if (attempt > MAX_ATTEMPTS) {
-        console.log(`Max attempts reached for Order ${orderId}. No riders found.`);
+    if (Date.now() > deadlineAt) {
+        console.log(`Retry window exceeded for Order ${orderId}. Cancelling.`);
+        const order = await Order.findById(orderId);
+        if (order && order.status !== ORDER_STATUS.CANCELLED) {
+            try {
+                await updateOrderStatus({
+                    orderId,
+                    fromStatusRaw: order.status,
+                    toStatus: ORDER_STATUS.CANCELLED,
+                    actor: { role: "system", name: "matching_service" },
+                    source: "services.matching",
+                    reason: "NO_RIDER_ACCEPTED",
+                    io,
+                });
+            } catch (err) {
+                console.error("Failed to cancel order after retry window:", err);
+            }
+        }
         if (io) io.to(`order:${orderId}`).emit("order:no_riders_available");
-        // Optionally update order status to 'cancelled' or 'manual_intervention'
-        return { success: false, error: "MAX_ATTEMPTS_REACHED" };
+        return { success: false, error: "RETRY_WINDOW_EXCEEDED" };
     }
 
     if (io) io.to(`order:${orderId}`).emit("order:searching");
@@ -122,19 +145,23 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
 
         if (!rider) {
             console.log(`No available riders found for Order ${orderId} on attempt ${attempt}.`);
-            // Either retry immediately with same exclusions (unlikely to help unless someone comes online)
-            // or fail. For now, we fail if 0 riders found.
-            if (io) io.to(`order:${orderId}`).emit("order:no_riders_available");
+            if (Date.now() + RESPONSE_TIMEOUT_MS <= deadlineAt) {
+                setTimeout(() => {
+                    matchOrder(orderId, pickupLocation, attempt + 1, excludeRiderIds, io, startedAt);
+                }, RESPONSE_TIMEOUT_MS);
+            } else {
+                if (io) io.to(`order:${orderId}`).emit("order:no_riders_available");
+            }
             return { success: false, error: "NO_RIDERS_AVAILABLE" };
         }
 
-        const assignResult = await assignRiderToOrder(orderId, pickupLocation, rider);
+        const assignResult = await assignRiderToOrder(orderId, pickupLocation, rider, io);
 
         if (!assignResult.success) {
             // If rider unavailable or order taken, retry immediately
             // If RIDER_UNAVAILABLE, exclude this rider and retry
             if (assignResult.error === "RIDER_UNAVAILABLE") {
-                return matchOrder(orderId, pickupLocation, attempt, [...excludeRiderIds, rider._id], io);
+                return matchOrder(orderId, pickupLocation, attempt, [...excludeRiderIds, rider._id], io, startedAt);
             }
             return { success: false, error: assignResult.error }; // Generic error or order taken
         }
@@ -167,15 +194,20 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
         setTimeout(async () => {
             // Check if order is still 'assigned' (not 'picking_up' which means accepted)
             const checkOrder = await Order.findById(orderId);
-            if (checkOrder && checkOrder.status === "assigned" && checkOrder.riderId.toString() === assignedRider._id.toString()) {
+            if (checkOrder && checkOrder.status === ORDER_STATUS.RIDER_ASSIGNED && checkOrder.riderId.toString() === assignedRider._id.toString()) {
                 console.log(`Rider ${assignedRider.name} timed out for Order ${orderId}. Reassigning...`);
 
-                // 1. Unassign
-                checkOrder.riderId = null;
-                // Don't reset to pending here if we want to keep "searching" state, but logic needs pending?
-                // assignRiderToOrder checks for { riderId: { $exists: false } }.
-                // So we must clear riderId.
-                await checkOrder.save();
+                await updateOrderStatus({
+                    orderId,
+                    fromStatusRaw: checkOrder.status,
+                    toStatus: ORDER_STATUS.READY_FOR_PICKUP,
+                    actor: { role: "system", name: "matching_service" },
+                    source: "services.matching",
+                    reason: "RIDER_TIMEOUT",
+                    io,
+                    preconditions: { riderId: assignedRider._id },
+                    set: { riderId: null },
+                });
 
                 // 2. Set rider to available again (or maybe penalty?)
                 // Assuming they just missed it, set available.
@@ -183,7 +215,7 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
 
                 // 3. Retry with exclusion
                 // recursive call
-                matchOrder(orderId, pickupLocation, attempt + 1, [...excludeRiderIds, assignedRider._id], io);
+                matchOrder(orderId, pickupLocation, attempt + 1, [...excludeRiderIds, assignedRider._id], io, startedAt);
             }
         }, RESPONSE_TIMEOUT_MS);
 

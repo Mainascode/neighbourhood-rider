@@ -3,7 +3,7 @@ import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 
 const LIBRARIES = ["places"];
 
-export default function LiveMap({ role, order, socket, riderLocation, deliveryLocation }) {
+export default function LiveMap({ role, order, socket, riderLocation, deliveryLocation, userLocation }) {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
@@ -24,6 +24,10 @@ export default function LiveMap({ role, order, socket, riderLocation, deliveryLo
     useEffect(() => {
         if (deliveryLocation) setUserPos(deliveryLocation);
     }, [deliveryLocation]);
+
+    useEffect(() => {
+        if (userLocation) setUserPos(userLocation);
+    }, [userLocation]);
 
     // 1. Rider Logic: Send Location
     useEffect(() => {

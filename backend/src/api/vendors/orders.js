@@ -2,6 +2,7 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
 import Vendor from "../../models/Vendor.js";
+import { updateOrderStatus, ORDER_STATUS, normalizeOrderStatus } from "../../lib/orderStatus.js";
 
 /**
  * PATCH /api/orders/:id/confirm-goods
@@ -39,9 +40,39 @@ export async function confirmGoodsPayment(req, res) {
             return res.status(403).json({ message: "Unauthorized order access" });
         }
 
-        order.goodsPaid = true;
-        // Optionally update status if needed, but pending_vendor is fine until rider assigned
-        await order.save();
+        const currentStatus = normalizeOrderStatus(order.status);
+        if (currentStatus === ORDER_STATUS.PAYMENT_CONFIRMED) {
+            const io = req.app.get("io");
+            const vendorActor = { id: user.id, role: user.role, name: user.name };
+            const first = await updateOrderStatus({
+                orderId: order._id,
+                fromStatusRaw: order.status,
+                toStatus: ORDER_STATUS.VENDOR_ACCEPTED,
+                actor: vendorActor,
+                source: "vendors.confirm-goods",
+                io,
+                set: { goodsPaid: true },
+            });
+            const second = await updateOrderStatus({
+                orderId: order._id,
+                fromStatusRaw: first.status,
+                toStatus: ORDER_STATUS.PREPARING,
+                actor: vendorActor,
+                source: "vendors.confirm-goods",
+                io,
+            });
+            await updateOrderStatus({
+                orderId: order._id,
+                fromStatusRaw: second.status,
+                toStatus: ORDER_STATUS.READY_FOR_PICKUP,
+                actor: vendorActor,
+                source: "vendors.confirm-goods",
+                io,
+            });
+        } else {
+            order.goodsPaid = true;
+            await order.save();
+        }
 
         // Notify User via Socket?
         const io = req.app.get("io");

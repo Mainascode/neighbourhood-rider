@@ -49,6 +49,7 @@ export default function App() {
         <Route path="/rider/map" element={<PrivateRoute><RiderDashboard tab="map" /></PrivateRoute>} />
         <Route path="/rider/orders" element={<PrivateRoute><RiderDashboard tab="orders" /></PrivateRoute>} />
         <Route path="/rider/faqs" element={<PrivateRoute><RiderDashboard tab="faqs" /></PrivateRoute>} />
+        <Route path="/rider/settings" element={<PrivateRoute><RiderDashboard tab="profile" /></PrivateRoute>} />
 
 
         {/* 🔐 Admin (email restricted later) */}
@@ -57,6 +58,7 @@ export default function App() {
         {/* 🏪 Vendor */}
         <Route path="/join-vendor" element={<PrivateRoute><JoinVendor /></PrivateRoute>} />
         <Route path="/vendor/dashboard" element={<PrivateRoute><VendorDashboard /></PrivateRoute>} />
+        <Route path="/vendor/settings" element={<PrivateRoute><VendorDashboard initialTab="settings" /></PrivateRoute>} />
       </Routes>
     </Router>
   );

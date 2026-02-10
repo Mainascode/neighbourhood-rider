@@ -21,16 +21,123 @@ export default function Order() {
     const [showFaq, setShowFaq] = useState(false);
     const [faqs] = useState([]);
     const [activeOrder, setActiveOrder] = useState(null);
+    const [timeline, setTimeline] = useState([]);
+    const [paymentConfirmed, setPaymentConfirmed] = useState(false);
     const [vendors, setVendors] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [cart, setCart] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [paymentMethod, setPaymentMethod] = useState('mpesa');
     const [mpesaPhone, setMpesaPhone] = useState('');
+    const [serverHour, setServerHour] = useState(null);
+    const [serverMinute, setServerMinute] = useState(0);
+    const [wishlistItems, setWishlistItems] = useState([]);
+    const [wishlistLoading, setWishlistLoading] = useState(false);
+    const [recommendations, setRecommendations] = useState([]);
 
     useEffect(() => {
         if (user?.phone) setMpesaPhone(user.phone);
     }, [user]);
+
+    useEffect(() => {
+        const fetchWishlist = async () => {
+            if (!user) return;
+            setWishlistLoading(true);
+            try {
+                const res = await fetch(`${API_URL}/api/wishlist`, {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setWishlistItems(Array.isArray(data) ? data : []);
+                }
+            } catch (e) { }
+            finally { setWishlistLoading(false); }
+        };
+
+        const fetchRecommendations = async () => {
+            if (!user) return;
+            try {
+                const res = await fetch(`${API_URL}/api/orders/recommendations`, {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setRecommendations(Array.isArray(data.items) ? data.items : []);
+                }
+            } catch (e) { }
+        };
+
+        fetchWishlist();
+        fetchRecommendations();
+    }, [user]);
+
+    useEffect(() => {
+        if (!activeOrder?._id) return;
+        socket.emit("join:order", activeOrder._id);
+        const handleOrderUpdate = (order) => {
+            if (order?._id === activeOrder._id) {
+                setActiveOrder(order);
+            }
+        };
+        socket.on("order:update", handleOrderUpdate);
+        return () => {
+            socket.off("order:update", handleOrderUpdate);
+        };
+    }, [activeOrder?._id]);
+
+    useEffect(() => {
+        if (!activeOrder?._id) return;
+        const shareStatuses = ["RIDER_ASSIGNED", "ON_THE_WAY"];
+        if (!shareStatuses.includes(activeOrder.status)) return;
+        if (!navigator.geolocation) return;
+
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                socket.emit("user:location", {
+                    orderId: activeOrder._id,
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude
+                });
+            },
+            () => { },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+        );
+
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, [activeOrder?._id, activeOrder?.status]);
+
+    useEffect(() => {
+        setPaymentConfirmed(activeOrder?.status === "PAYMENT_CONFIRMED");
+    }, [activeOrder?.status]);
+
+    useEffect(() => {
+        const fetchTimeline = async () => {
+            if (!activeOrder?._id) return;
+            try {
+                const res = await fetch(`${API_URL}/api/orders/${activeOrder._id}/timeline`, {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setTimeline(Array.isArray(data.timeline) ? data.timeline : []);
+                }
+            } catch (e) { }
+        };
+        fetchTimeline();
+    }, [activeOrder?._id]);
+
+    useEffect(() => {
+        const fetchServerTime = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/system/time`);
+                const data = await res.json();
+                if (typeof data.hour === "number") setServerHour(data.hour);
+                if (typeof data.minute === "number") setServerMinute(data.minute);
+            } catch (e) { }
+        };
+        fetchServerTime();
+    }, []);
 
     // Wait, Order.js doesn't import useNotify. Let me fix imports first in next call. 
     // For now I'll use simple alert or console if notify missing, but better to add it.
@@ -47,7 +154,17 @@ export default function Order() {
                 const data = await res.json();
                 if (data && data.length > 0) {
                     // Find active order
-                    const active = data.find(o => o.status === 'DELIVERING' || o.status === 'PENDING' || o.status === 'ASSIGNED');
+                    const active = data.find(o => [
+                        'CREATED',
+                        'PAYMENT_PENDING',
+                        'PAYMENT_CONFIRMED',
+                        'VENDOR_ACCEPTED',
+                        'PREPARING',
+                        'READY_FOR_PICKUP',
+                        'RIDER_ASSIGNED',
+                        'ON_THE_WAY',
+                        'DELIVERED'
+                    ].includes(o.status));
                     if (active) setActiveOrder(active);
                 }
             } catch (e) { }
@@ -59,7 +176,7 @@ export default function Order() {
         try {
             const res = await fetch(`${API_URL}/api/vendors/nearby`);
             const data = await res.json();
-            setVendors(data);
+            setVendors(Array.isArray(data) ? data : (data.vendors || []));
         } catch (err) { console.error(err); }
     };
 
@@ -72,9 +189,104 @@ export default function Order() {
         setCart(prev => [...prev, item]);
     };
 
+    const isWishlisted = (vendorId, item) => {
+        const itemId = item?._id;
+        return wishlistItems.some(w =>
+            w.vendorId === vendorId &&
+            (itemId ? w.itemId === itemId : w.name === item?.name)
+        );
+    };
+
+    const saveToWishlist = async (vendor, item) => {
+        if (!user) return alert("Please login first!");
+        try {
+            const res = await fetch(`${API_URL}/api/wishlist`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                },
+                body: JSON.stringify({
+                    vendorId: vendor._id,
+                    vendorName: vendor.storeName,
+                    itemId: item._id,
+                    name: item.name,
+                    price: item.price,
+                    image: item.image
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setWishlistItems(prev => {
+                    if (prev.some(w => w._id === data._id)) return prev;
+                    return [data, ...prev];
+                });
+            }
+        } catch (e) { }
+    };
+
+    const removeWishlistItem = async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+            });
+            if (res.ok) {
+                setWishlistItems(prev => prev.filter(w => w._id !== id));
+            }
+        } catch (e) { }
+    };
+
+    const addWishlistItemToCart = async (wish) => {
+        let vendor = vendors.find(v => v._id === wish.vendorId);
+        if (!vendor && wish.vendorId) {
+            try {
+                const res = await fetch(`${API_URL}/api/vendors/${wish.vendorId}/public`);
+                if (res.ok) {
+                    vendor = await res.json();
+                    setVendors(prev => prev.some(v => v._id === vendor._id) ? prev : [...prev, vendor]);
+                }
+            } catch (e) { }
+        }
+
+        if (!vendor) return alert("Vendor is not available.");
+
+        const differentVendor = selectedVendor && selectedVendor._id !== vendor._id;
+        if (differentVendor) setCart([]);
+        setSelectedVendor(vendor);
+        setCart(prev => (differentVendor ? [] : prev).concat({
+            _id: wish.itemId,
+            name: wish.name,
+            price: wish.price,
+            image: wish.image
+        }));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
     const placeOrder = async () => {
         if (!user) return alert("Please login first!"); // Replace with notify later
         if (cart.length === 0) return;
+
+        const isLate = typeof serverHour === "number" && serverHour >= 21;
+        const vendorIsOpen = (selectedVendor?.isOpen !== false) && !selectedVendor?.isManuallyClosed;
+        if (!vendorIsOpen) {
+            return alert("Vendor is currently closed. Please try again later.");
+        }
+
+        const closingTime = selectedVendor?.closingTime || "21:00";
+        const [closeH, closeM] = closingTime.split(":").map(Number);
+        const closingMinutes = (Number.isFinite(closeH) ? closeH : 21) * 60 + (Number.isFinite(closeM) ? closeM : 0);
+        const prepMinutes = selectedVendor?.prepTimeMinutes || 20;
+        const deliveryMinutes = selectedVendor?.etaMinutes || 30;
+        const totalMinutes = prepMinutes + deliveryMinutes;
+        if (typeof serverHour === "number") {
+            const currentMinutes = serverHour * 60 + (serverMinute || 0);
+            const minutesUntilClose = Math.max(0, closingMinutes - currentMinutes);
+            if (minutesUntilClose > 0 && totalMinutes > minutesUntilClose) {
+                const proceed = window.confirm("Vendor may close before delivery completes. Do you want to proceed?");
+                if (!proceed) return;
+            }
+        }
 
         // Get location
         const locationConfirmed = window.confirm("Use your current profile location for delivery?");
@@ -143,12 +355,12 @@ export default function Order() {
                 setSelectedVendor(null);
                 setCart([]);
 
-                if (data.order.status === 'payment_pending') {
+                if (data.order.status === 'PAYMENT_PENDING') {
                     // Automatically open payment modal or trigger payment
                     // Since we have a payment modal that shows if !isDeliveryFeePaid (or effectively !paid), 
                     // and activeOrder is set, it *should* show.
                     // But we might want to be explicit.
-                    alert("Order Created! Please complete payment to notify the vendor.");
+                    alert("Order Created! Please complete payment to proceed.");
                     // The UI below checks `activeOrder && !activeOrder.isDeliveryFeePaid`
                     // In proposed flow, 'isDeliveryFeePaid' might be false.
                     // We also need to ensure the payment modal handles the FULL amount if that's the requirement, 
@@ -189,17 +401,17 @@ export default function Order() {
             });
             const data = await res.json();
 
-            if (data.success) {
-                if (method === 'mpesa') {
-                    alert("STK Push Sent! Check your phone.");
-                    // In a real app, you'd poll for status or listen to socket here.
+                if (data.success) {
+                    if (method === 'mpesa') {
+                        alert("STK Push Sent! Check your phone.");
+                        // In a real app, you'd poll for status or listen to socket here.
+                    } else {
+                        setActiveOrder(data.order);
+                        setPaymentConfirmed(true);
+                    }
                 } else {
-                    setActiveOrder(data.order);
-                    alert("Payment Successful! Rider will be assigned.");
+                    alert("Payment failed: " + data.message);
                 }
-            } else {
-                alert("Payment failed: " + data.message);
-            }
         } catch (err) {
             console.error(err);
             alert("Payment error.");
@@ -246,6 +458,106 @@ export default function Order() {
                         ))}
                     </div>
 
+                    {typeof serverHour === "number" && serverHour >= 21 && (
+                        <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 rounded-xl px-4 py-3 text-sm font-semibold">
+                            Late order in progress
+                            <div className="text-xs mt-1">Delivery continues as normal</div>
+                        </div>
+                    )}
+
+                    {user && (
+                        <div className="mb-8">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-lg font-bold text-riderLight">Recommended for you</h2>
+                            </div>
+                            {recommendations.length === 0 ? (
+                                <div className="bg-riderDark/30 border border-white/10 rounded-xl p-4 text-sm text-gray-500">
+                                    No recommendations yet. Order a few items to personalize this section.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {recommendations.map((item, idx) => (
+                                        <div key={`${item.vendorId}-${item.name}-${idx}`} className="bg-riderDark/30 p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+                                            <div className="aspect-square bg-black/20 rounded-lg overflow-hidden">
+                                                {item.image ? (
+                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-3xl">⭐</div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm truncate">{item.name}</h4>
+                                                <p className="text-[11px] text-gray-400 truncate">{item.vendorName || "Vendor"}</p>
+                                                <div className="flex justify-between items-center mt-2">
+                                                    <span className="text-riderBlue font-bold text-sm">{typeof item.price === "number" ? `KES ${item.price}` : " "}</span>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => addWishlistItemToCart(item)}
+                                                            className="bg-riderBlue hover:bg-blue-600 text-white text-[11px] px-2 py-1 rounded"
+                                                        >
+                                                            Add
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {user && (
+                        <div className="mb-8">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-lg font-bold text-riderLight">Wishlist</h2>
+                            </div>
+                            {wishlistLoading ? (
+                                <div className="bg-riderDark/30 border border-white/10 rounded-xl p-4 text-sm text-gray-500">
+                                    Loading wishlist...
+                                </div>
+                            ) : wishlistItems.length === 0 ? (
+                                <div className="bg-riderDark/30 border border-white/10 rounded-xl p-4 text-sm text-gray-500">
+                                    Save items to come back to later.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {wishlistItems.map(item => (
+                                        <div key={item._id} className="bg-riderDark/30 p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+                                            <div className="aspect-square bg-black/20 rounded-lg overflow-hidden">
+                                                {item.image ? (
+                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-3xl">📌</div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm truncate">{item.name}</h4>
+                                                <p className="text-[11px] text-gray-400 truncate">{item.vendorName || "Vendor"}</p>
+                                                <div className="flex justify-between items-center mt-2">
+                                                    <span className="text-riderBlue font-bold text-sm">{typeof item.price === "number" ? `KES ${item.price}` : " "}</span>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => addWishlistItemToCart(item)}
+                                                            className="bg-riderBlue hover:bg-blue-600 text-white text-[11px] px-2 py-1 rounded"
+                                                        >
+                                                            Add
+                                                        </button>
+                                                        <button
+                                                            onClick={() => removeWishlistItem(item._id)}
+                                                            className="bg-white/10 hover:bg-white/20 text-gray-200 text-[11px] px-2 py-1 rounded"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
                         {vendors.filter(v => selectedCategory === 'all' || v.category === selectedCategory).length === 0 ? (
                             <p className="col-span-full text-gray-400 py-10 text-center italic">No shops found in this category.</p>
@@ -266,14 +578,18 @@ export default function Order() {
                                         {/* Status Badge based on time */}
                                         {(() => {
                                             const now = new Date();
-                                            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                                            const currentMinutes = typeof serverHour === "number"
+                                                ? serverHour * 60 + (serverMinute || 0)
+                                                : now.getHours() * 60 + now.getMinutes();
                                             const [openH, openM] = (vendor.openingTime || "08:00").split(':').map(Number);
                                             const [closeH, closeM] = (vendor.closingTime || "20:00").split(':').map(Number);
                                             const openMinutes = openH * 60 + openM;
                                             const closeMinutes = closeH * 60 + closeM;
                                             const isTimeOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
 
-                                            if (!isTimeOpen || !vendor.isOpen) {
+                                            const isLate = typeof serverHour === "number" && serverHour >= 21;
+                                            const manualClosed = vendor.isManuallyClosed;
+                                            if (manualClosed || (!isLate && (!isTimeOpen || !vendor.isOpen))) {
                                                 return (
                                                     <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center backdrop-blur-sm p-4 text-center z-10">
                                                         <span className="text-red-500 font-bold uppercase text-xs border border-red-500 px-3 py-1 rounded-full bg-white mb-2">
@@ -291,7 +607,16 @@ export default function Order() {
                                     <div className="p-5">
                                         <div className="flex justify-between items-start mb-2">
                                             <h3 className="font-bold text-riderLight text-lg truncate">{vendor.storeName}</h3>
-                                            <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded">4.8 ★</span>
+                                            <div className="flex items-center gap-2">
+                                                {typeof serverHour === "number" && serverHour >= 21 && (vendor.status === "approved") && (
+                                                    <span title="Delivery continues as normal." className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                                                        Late Order
+                                                    </span>
+                                                )}
+                                                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded">
+                                                    {(vendor.metrics?.vendorScore ?? vendor.metrics?.rating ?? 0).toFixed(1)} ★
+                                                </span>
+                                            </div>
                                         </div>
                                         <p className="text-sm text-gray-500 truncate mb-1">{vendor.address || "Nearby"}</p>
                                         <div className="flex justify-between items-center mb-4">
@@ -318,6 +643,12 @@ export default function Order() {
                         {/* Header */}
                         <div className="p-6 border-b border-riderBlue/10 flex justify-between items-center bg-riderDark/50 shrink-0">
                             <div>
+                                {typeof serverHour === "number" && serverHour >= 21 && (
+                                    <div className="mb-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 rounded-lg px-3 py-2 text-xs font-semibold">
+                                        Late order in progress
+                                        <div className="text-[11px] mt-1">Delivery continues as normal</div>
+                                    </div>
+                                )}
                                 <h2 className="text-2xl font-bold">{selectedVendor.storeName}</h2>
                                 <p className="text-sm text-gray-400">{selectedVendor.address}</p>
                             </div>
@@ -343,12 +674,26 @@ export default function Order() {
                                                 <h4 className="font-bold text-sm truncate">{item.name}</h4>
                                                 <div className="flex justify-between items-center mt-1">
                                                     <span className="text-riderBlue font-bold text-sm">KES {item.price}</span>
-                                                    <button
-                                                        onClick={() => addItemToCart(item)}
-                                                        className="bg-riderBlue hover:bg-blue-600 text-white text-xs px-2 py-1 rounded"
-                                                    >
-                                                        + Add
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        {user && (
+                                                            <button
+                                                                onClick={() => saveToWishlist(selectedVendor, item)}
+                                                                className={`text-xs px-2 py-1 rounded border ${isWishlisted(selectedVendor?._id, item)
+                                                                    ? "bg-white/10 text-gray-300 border-white/10 cursor-default"
+                                                                    : "bg-white/10 hover:bg-white/20 text-gray-200 border-white/10"
+                                                                    }`}
+                                                                disabled={isWishlisted(selectedVendor?._id, item)}
+                                                            >
+                                                                {isWishlisted(selectedVendor?._id, item) ? "Saved" : "Save"}
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => addItemToCart(item)}
+                                                            className="bg-riderBlue hover:bg-blue-600 text-white text-xs px-2 py-1 rounded"
+                                                        >
+                                                            + Add
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -367,17 +712,9 @@ export default function Order() {
                                 </div>
                                 <button
                                     onClick={placeOrder}
-                                    className={`font-bold py-2 px-6 rounded-xl transition-all shadow-lg ${(() => {
-                                        const now = new Date();
-                                        const h = now.getHours();
-                                        return h < 6 || h >= 21;
-                                    })() ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-green-600 hover:bg-green-700 animate-pulse text-white"}`}
+                                    className={`font-bold py-2 px-6 rounded-xl transition-all shadow-lg ${typeof serverHour === "number" && serverHour >= 21 ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-green-600 hover:bg-green-700 animate-pulse text-white"}`}
                                 >
-                                    {(() => {
-                                        const now = new Date();
-                                        const h = now.getHours();
-                                        return (h < 6 || h >= 21) ? "📅 Schedule for 6:00 AM" : `Place Order (${cart.length})`;
-                                    })()}
+                                    {typeof serverHour === "number" && serverHour >= 21 ? `Place Late Order (${cart.length})` : `Place Order (${cart.length})`}
                                 </button>
                             </div>
                         )}
@@ -394,14 +731,21 @@ export default function Order() {
                             💳
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            {activeOrder.status === 'payment_pending' ? "Complete Your Order" : "Delivery Fee Payment"}
+                            {activeOrder.status === 'PAYMENT_PENDING' ? "Complete Your Order" : "Delivery Fee Payment"}
                         </h2>
                         <p className="text-gray-500 mb-6">
-                            {activeOrder.status === 'payment_pending'
+                            {activeOrder.status === 'PAYMENT_PENDING'
                                 ? <span>To confirm your order with <span className="font-bold text-gray-900">KES {activeOrder.amount}</span>, please complete payment.</span>
                                 : <span>To process your order, please pay the cashless delivery fee of <span className="text-riderBlue font-bold">KES 50</span>.</span>
                             }
                         </p>
+
+                        {(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") && (
+                            <div className="mb-6 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-semibold">
+                                Payment confirmed
+                                <div className="text-xs text-green-600 mt-1">Waiting for vendor acceptance</div>
+                            </div>
+                        )}
 
                         <div className="bg-gray-50 p-4 rounded-xl mb-6 text-left border border-gray-100">
                             <div className="flex justify-between mb-2">
@@ -415,6 +759,7 @@ export default function Order() {
                         </div>
 
                         {/* Payment Method Tabs */}
+                        {!(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") && (
                         <div className="flex gap-2 mb-4">
                             <button
                                 onClick={() => setPaymentMethod('mpesa')}
@@ -435,8 +780,9 @@ export default function Order() {
                                 Google Pay
                             </button>
                         </div>
+                        )}
 
-                        {paymentMethod === 'mpesa' ? (
+                        {paymentMethod === 'mpesa' && !(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") ? (
                             <div className="animate-in fade-in">
                                 <input
                                     type="tel"
@@ -452,7 +798,7 @@ export default function Order() {
                                     Pay KES 50 (M-Pesa)
                                 </button>
                             </div>
-                        ) : (
+                        ) : !(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") && (
                             <div className="h-16 flex items-center justify-center animate-in fade-in">
                                 {/* Helper wrapper for Google Pay */}
                                 <GooglePayButton
@@ -500,7 +846,7 @@ export default function Order() {
                         )}
 
                         <p className="text-xs text-gray-400 mt-4">
-                            Secured Payment. You will pay the rider KES {activeOrder.goodsTotal} upon delivery.
+                            Secured payment. You will receive updates here.
                         </p>
                     </div>
                 </div>
@@ -514,23 +860,67 @@ export default function Order() {
                             <span className="text-3xl">📍</span> Live Delivery Map
                         </h2>
 
+                        {["CANCELLED", "REFUNDED"].includes(activeOrder.status) && (activeOrder.paid || activeOrder.isDeliveryFeePaid) && (
+                            <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm font-semibold">
+                                Refund initiated
+                                <div className="text-xs text-blue-600 mt-1">Funds will return based on your payment provider</div>
+                            </div>
+                        )}
+
+                        {(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") && (
+                            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-semibold">
+                                Payment confirmed
+                                <div className="text-xs text-green-600 mt-1">Waiting for vendor acceptance</div>
+                            </div>
+                        )}
+
+                        {activeOrder.status === "READY_FOR_PICKUP" && (
+                            <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm font-semibold">
+                                Looking for nearby rider
+                                {typeof serverHour === "number" && serverHour >= 21 && (
+                                    <div className="text-xs text-blue-600 mt-1">
+                                        Late order in progress
+                                        <div className="text-[11px] text-blue-600">Delivery continues as normal</div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {typeof serverHour === "number" && serverHour >= 21 && ["PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(activeOrder.status) && (
+                            <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl px-4 py-3 text-sm font-semibold">
+                                Late order in progress
+                                <div className="text-xs mt-1">Delivery continues as normal</div>
+                                {!["DELIVERED", "CANCELLED", "REFUNDED"].includes(activeOrder.status) && (
+                                    <button
+                                        onClick={async () => {
+                                            if (!window.confirm("Cancel this order?")) return;
+                                            try {
+                                                const res = await fetch(`${API_URL}/api/orders/${activeOrder._id}/cancel`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                                                    body: JSON.stringify({ reason: "USER_CANCELLED" })
+                                                });
+                                                if (res.ok) {
+                                                    setActiveOrder(prev => prev ? { ...prev, status: "CANCELLED" } : prev);
+                                                }
+                                            } catch (e) { }
+                                        }}
+                                        className="mt-2 text-xs bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full font-bold"
+                                    >
+                                        Cancel Order
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         {/* Payment Instruction Banner */}
-                        {activeOrder.status === 'picking_up' && (
+                        {activeOrder.status === 'RIDER_ASSIGNED' && (
                             <div className="mb-6 bg-yellow-50 border border-yellow-200 p-6 rounded-2xl text-center shadow-sm animate-in fade-in slide-in-from-top-4">
                                 <h3 className="text-xl font-extrabold text-yellow-700 mb-2">Rider is at the shop! 🏬</h3>
                                 <p className="text-gray-700 font-bold mb-4">
-                                    Please pay <span className="text-black text-xl">KES {activeOrder.goodsTotal}</span> directly to the Vendor.
+                                    Payment required to proceed with pickup.
                                 </p>
-                                {/* Vendor Details Logic would require populating vendor details in activeOrder or fetching them */}
-                                {activeOrder.vendorId && (
-                                    <div className="bg-white p-4 rounded-xl border border-yellow-100 shadow-sm max-w-xs mx-auto">
-                                        <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">VENDOR M-PESA</p>
-                                        <p className="text-2xl font-mono font-black text-gray-800 tracking-wider">
-                                            {typeof activeOrder.vendorId === 'object' ? activeOrder.vendorId.phone : "Ask Rider for Number"}
-                                        </p>
-                                    </div>
-                                )}
-                                <p className="text-sm text-gray-500 mt-4">The rider will collect your items once payment is confirmed by the vendor.</p>
+                                <p className="text-sm text-gray-500 mt-4">Complete payment to continue.</p>
                             </div>
                         )}
 
@@ -541,7 +931,7 @@ export default function Order() {
                         </div>
 
                         {/* Confirm Receipt Button - Replaces OTP */}
-                        {activeOrder.status === 'delivered' && !activeOrder.isReceived && (
+                        {activeOrder.status === 'DELIVERED' && !activeOrder.isReceived && (
                             <div className="mb-6 bg-white border-2 border-dashed border-riderBlue/30 p-6 rounded-2xl text-center shadow-sm">
                                 <h3 className="text-lg font-bold text-gray-800 mb-2">Have you received your order?</h3>
                                 <p className="text-sm text-gray-500 mb-4">Please confirm only after you have physically received your items.</p>
@@ -578,13 +968,22 @@ export default function Order() {
                             </div>
                         )}
 
-                        {activeOrder.status === 'delivered' && (
+                        {activeOrder.status === 'DELIVERED' && (
                             <div className="mb-6 bg-green-50 border border-green-200 p-6 rounded-2xl text-center shadow-sm animate-in fade-in slide-in-from-top-4">
                                 <h3 className="text-xl font-extrabold text-green-700 mb-2">Rider has Arrived! 🏁</h3>
                                 <p className="text-gray-700 font-bold mb-4">
-                                    Please pay <span className="text-black text-xl">KES {activeOrder.goodsTotal}</span> directly to the rider via M-Pesa or Cash.
+                                    Please complete payment to finish delivery.
                                 </p>
-                                <p className="text-sm text-gray-500">The rider will complete the order once payment is received.</p>
+                                <p className="text-sm text-gray-500">Payment confirmation completes the order.</p>
+                            </div>
+                        )}
+
+                        {activeOrder.status === 'DELIVERED' && (
+                            <div className="mb-6 bg-green-50 border border-green-200 p-4 rounded-2xl text-center">
+                                <p className="text-green-700 font-bold">Delivered successfully</p>
+                                {activeOrder.lateOrder && (
+                                    <p className="text-xs text-gray-500 mt-1">Delivery continues as normal</p>
+                                )}
                             </div>
                         )}
 
@@ -619,8 +1018,38 @@ export default function Order() {
                             } : null}
                         />
 
+                        {/* Order Timeline */}
+                        <div className="mt-6 bg-riderDark/50 backdrop-blur-md rounded-2xl p-4 border border-riderBlue/10">
+                            <h3 className="text-sm font-bold text-riderLight mb-3">Order Timeline</h3>
+                            {(() => {
+                                const steps = [
+                                    { key: "PAYMENT_CONFIRMED", label: "Payment confirmed" },
+                                    { key: "VENDOR_ACCEPTED", label: "Vendor accepted" },
+                                    { key: "PREPARING", label: "Preparing" },
+                                    { key: "RIDER_ASSIGNED", label: "Rider assigned" },
+                                    { key: "ON_THE_WAY", label: "On the way" },
+                                    { key: "DELIVERED", label: "Delivered" }
+                                ];
+                                const reached = new Set((timeline || []).map(t => t.toStatus));
+                                return (
+                                    <div className="space-y-2">
+                                        {steps.map(step => (
+                                            <div key={step.key} className="flex items-center justify-between text-xs">
+                                                <span className={reached.has(step.key) ? "text-green-400 font-bold" : "text-gray-500"}>
+                                                    {step.label}
+                                                </span>
+                                                <span className={reached.has(step.key) ? "text-green-400" : "text-gray-600"}>
+                                                    {reached.has(step.key) ? "✓" : "•"}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
                         {/* Review Triggers */}
-                        {(activeOrder.status === 'delivered' || activeOrder.status === 'completed') && !activeOrder.isReviewed && (
+                        {activeOrder.status === 'DELIVERED' && !activeOrder.isReviewed && (
                             <div className="mt-6 flex gap-3">
                                 <button
                                     onClick={() => {

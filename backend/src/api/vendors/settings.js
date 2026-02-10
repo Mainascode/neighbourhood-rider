@@ -8,7 +8,7 @@ import User from "../../models/User.js";
  */
 export async function updateVendor(req, res) {
     try {
-        const { storeName, description, phone, location, address, logo, coverImage } = req.body;
+        const { storeName, description, phone, location, address, logo, coverImage, isManuallyClosed } = req.body;
 
         const vendor = await Vendor.findOne({ userId: req.user.id });
 
@@ -24,7 +24,11 @@ export async function updateVendor(req, res) {
         if (logo) vendor.logo = logo;
         if (coverImage) vendor.coverImage = coverImage;
 
-        // isOpen is now handled automatically by virtual (06:00 - 21:00)
+        // Manual close overrides time-based open status
+        if (typeof isManuallyClosed === "boolean") {
+            vendor.isManuallyClosed = isManuallyClosed;
+            vendor.manualClosedAt = isManuallyClosed ? new Date() : null;
+        }
 
         // Handle location update if specific coordinates provided [lng, lat]
         if (location && Array.isArray(location) && location.length === 2) {

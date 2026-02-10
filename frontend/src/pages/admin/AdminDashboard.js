@@ -43,7 +43,7 @@ export default function AdminDashboard() {
 
       if (res.ok) {
         notify("Order assigned successfully!", "success");
-        setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: "assigned" } : o));
+        setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: "RIDER_ASSIGNED" } : o));
         setSelectedOrderForAssignment(null);
       } else {
         notify("Failed to assign order", "error");
@@ -402,10 +402,10 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-6">
                       <div className="text-right">
                         <p className="font-bold text-riderMaroon">KES {order.amount}</p>
-                        <p className={`text-xs capitalize font-bold ${order.status === "pending" ? "text-yellow-500" : "text-green-500"}`}>{order.status}</p>
+                        <p className={`text-xs capitalize font-bold ${["CREATED", "PAYMENT_PENDING"].includes(order.status) ? "text-yellow-500" : "text-green-500"}`}>{order.status}</p>
                       </div>
 
-                      {order.status === "pending" && (
+                      {order.status === "READY_FOR_PICKUP" && (
                         <button
                           onClick={() => setSelectedOrderForAssignment(order)}
                           className="bg-riderBlue hover:bg-blue-600 text-riderLight px-4 py-2 rounded-lg transition-colors font-medium text-sm"
@@ -414,7 +414,7 @@ export default function AdminDashboard() {
                         </button>
                       )}
 
-                      {order.status === "delivered" && (
+                      {order.status === "DELIVERED" && (
                         <button
                           onClick={async () => {
                             if (!window.confirm("Confirm payment to Rider? This will mark the order as Completed.")) return;

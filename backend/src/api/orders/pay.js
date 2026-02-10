@@ -1,5 +1,5 @@
 import Order from "../../models/Order.js";
-import { sendPushNotification } from "../../lib/push.js";
+import { normalizeOrderStatus, ORDER_STATUS, updateOrderStatus } from "../../lib/orderStatus.js";
 
 export default async function payOrder(req, res) {
     const { orderId } = req.body;
@@ -12,11 +12,21 @@ export default async function payOrder(req, res) {
         return res.status(400).json({ error: "Client has not confirmed receipt yet. Please ask them to click 'Received' in their app." });
     }
 
-    if (order.status !== "delivered")
+    const normalizedStatus = normalizeOrderStatus(order.status);
+    if (normalizedStatus !== ORDER_STATUS.DELIVERED)
         return res.status(400).json({ message: "Order must be delivered before payment" });
+    if (order.status !== ORDER_STATUS.DELIVERED) {
+        await updateOrderStatus({
+            orderId,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.DELIVERED,
+            actor: { id: req.user?._id, role: req.user?.role, name: req.user?.name },
+            source: "orders.pay",
+            io: req.app.get("io"),
+        });
+    }
 
-    // Mark as Completed and Goods Paid (assuming rider collected cash)
-    order.status = "completed";
+    // Mark Goods Paid (assuming rider collected cash)
     order.goodsPaid = true;
     order.paid = true; // Legacy support
     await order.save();
@@ -61,15 +71,7 @@ export default async function payOrder(req, res) {
     // But Push is nice. Let's create a TODO or skip for now to avoid breaking imports if models are circular.
     // Actually, we can import Rider at top level.
 
-    // Notify User via Push
-    await sendPushNotification(
-        order.userId,
-        "Order Delivered! 🎉",
-        "Your order has been delivered using OTP verification.",
-        `/order/${orderId}`
-    );
-
-    res.json({ success: true, message: "Payment successful, order completed" });
+    res.json({ success: true, message: "Payment successful" });
 
 
 }

@@ -4,7 +4,8 @@ import Order from "../../models/Order.js";
 import Vendor from "../../models/Vendor.js";
 import { assignBestRider, findNearestRiders } from "../../lib/matchRider.js";
 import requireAuth from "../../middleware/auth.js";
-import { sendPushNotification } from "../../lib/push.js";
+import { sendNotification } from "../../lib/notificationService.js";
+import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 /**
  * POST /api/vendors/orders/dispatch
@@ -45,8 +46,15 @@ export default async function handler(req, res) {
     const assignedRider = await assignBestRider(order);
 
     if (assignedRider) {
-        order.status = "assigned";
-        await order.save();
+        await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.RIDER_ASSIGNED,
+            actor: { id: user.id, role: user.role, name: user.name },
+            source: "vendors.dispatch",
+            io: req.app.get("io"),
+            set: { riderId: assignedRider._id, riderAssignedAt: new Date() },
+        });
 
         const io = req.app.get("io");
         if (io) {
@@ -54,12 +62,19 @@ export default async function handler(req, res) {
             io.emit(`rider:order:${assignedRider.userId}`, order);
         }
 
-        await sendPushNotification(
-            assignedRider.userId,
-            "New Delivery Request! 📦",
-            `${vendor.storeName} needs a delivery. Tap to accept.`,
-            "/rider/orders"
-        );
+        await sendNotification({
+            recipientId: assignedRider.userId,
+            recipientType: "RIDER",
+            title: "New delivery request",
+            body: `${vendor.storeName} needs a delivery. Tap to accept.`,
+            data: { orderId: String(order._id) },
+            eventType: "NEW_DELIVERY_REQUEST",
+            deepLink: "/rider/dashboard",
+            orderId: String(order._id),
+            type: "ALERT",
+            category: "orderUpdates",
+            io: req.app.get("io"),
+        });
 
         return res.json({ success: true, message: "Rider requested and assigned", assignedRider: assignedRider.name });
     } else {

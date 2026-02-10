@@ -1,12 +1,18 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import { updateOrderStatus, ORDER_STATUS } from "../lib/orderStatus.js";
 
 export default function setupSocket(io) {
   /* auth */
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
+      let token = socket.handshake.auth?.token;
+      if (!token) {
+        const cookie = socket.handshake.headers?.cookie || "";
+        const match = cookie.match(/accessToken=([^;]+)/);
+        if (match) token = decodeURIComponent(match[1]);
+      }
       if (!token) return next(new Error("Unauthorized"));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -23,6 +29,8 @@ export default function setupSocket(io) {
 
   io.on("connection", (socket) => {
     console.log("🔌 socket:", socket.user.name, socket.user.role);
+    const role = String(socket.user.role || "user").toUpperCase();
+    socket.join(`notify:${role}:${socket.user._id}`);
 
     socket.on("join:order", (orderId) => {
       socket.join(`order:${orderId}`);
@@ -59,6 +67,28 @@ export default function setupSocket(io) {
       }
     });
 
+    /* user live location sharing */
+    socket.on("user:location", async ({ orderId, lat, lng }) => {
+      if (socket.user.role.toLowerCase() !== "user") return;
+      if (!orderId) return;
+
+      try {
+        const order = await Order.findById(orderId).select("userId");
+        if (!order || order.userId?.toString() !== socket.user._id.toString()) {
+          return;
+        }
+      } catch (err) {
+        console.error("Error validating user location:", err);
+        return;
+      }
+
+      io.to(`order:${orderId}`).emit("user:location:update", {
+        lat,
+        lng,
+        userId: socket.user._id,
+      });
+    });
+
     socket.on("rider:online", async () => {
       if (socket.user.role.toLowerCase() !== "rider") return;
       try {
@@ -90,9 +120,16 @@ export default function setupSocket(io) {
       if (socket.user.role.toLowerCase() !== "rider") return;
 
       const order = await Order.findById(orderId);
-      if (!order || order.status !== "DELIVERING") return;
+      if (!order || order.status !== "ON_THE_WAY") return;
 
-      order.status = "DELIVERED";
+      await updateOrderStatus({
+        orderId: order._id,
+        fromStatusRaw: order.status,
+        toStatus: ORDER_STATUS.DELIVERED,
+        actor: { id: socket.user._id, role: socket.user.role, name: socket.user.name },
+        source: "socket.order:delivered",
+        io,
+      });
       order.paymentStatus = "UNPAID";
       await order.save();
 

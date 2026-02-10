@@ -14,7 +14,7 @@ const RatingSchema = new mongoose.Schema({
     comment: { type: String, maxLength: 500 },
 }, { timestamps: true });
 
-// Prevent duplicate ratings for same order/target
-RatingSchema.index({ orderId: 1, role: 1 }, { unique: true });
+// Prevent multiple ratings per order
+RatingSchema.index({ orderId: 1 }, { unique: true });
 
 export default mongoose.models.Rating || mongoose.model("Rating", RatingSchema);

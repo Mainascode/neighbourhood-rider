@@ -28,8 +28,8 @@ const OrderSchema = new mongoose.Schema({
   items: [],
   status: {
     type: String,
-    enum: ["pending", "pending_vendor", "preparing", "ready_for_pickup", "assigned", "picking_up", "delivering", "delivered", "completed", "cancelled", "payment_pending", "payment_failed"],
-    default: "pending",
+    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY", "DELIVERED", "CANCELLED", "REFUNDED"],
+    default: "CREATED",
   },
   vendorCancelReason: {
     type: String,
@@ -49,6 +49,15 @@ const OrderSchema = new mongoose.Schema({
   mpesaCheckoutRequestId: { type: String }, // For tracking Mpesa STK Push
   paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'cash' },
   paymentData: { type: Object }, // Store full callback data
+  riderAssignedAt: { type: Date },
+  pickedUpAt: { type: Date },
+  deliveredAt: { type: Date },
+  statusUpdatedAt: { type: Date },
+  prepTimeMinutes: { type: Number, default: 20 },
+  etaMinutes: { type: Number },
+  prepAlertedAt: { type: Date },
+  overdueFlaggedAt: { type: Date },
+  lateOrder: { type: Boolean, default: false },
 
   // Scheduling
   scheduledFor: { type: Date }, // If set, order is for future

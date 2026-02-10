@@ -8,17 +8,21 @@ import ReviewList from "../../components/ReviewList";
 
 import { socket } from "../../lib/socket"; // Ensure socket imported
 
-export default function VendorDashboard() {
+export default function VendorDashboard({ initialTab = "overview" }) {
     const { user } = useAuth();
-    const { notify } = useNotify();
+    const { notify, enableNotifications } = useNotify();
     const navigate = useNavigate();
 
     const [vendor, setVendor] = useState(null);
-    const [activeTab, setActiveTab] = useState("overview");
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [inventory, setInventory] = useState([]);
     const [orders, setOrders] = useState([]); // State for orders
     const [newItem, setNewItem] = useState({ name: "", price: "", image: "" });
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     useEffect(() => {
         if (!user) return;
@@ -58,7 +62,7 @@ export default function VendorDashboard() {
                     phone: vendor.phone,
                     description: vendor.description,
                     address: vendor.address,
-                    isOpen: vendor.isOpen
+                    isManuallyClosed: vendor.isManuallyClosed
                 })
             });
 
@@ -123,7 +127,7 @@ export default function VendorDashboard() {
             if (res.ok) {
                 notify(data.message, "success");
                 // Update local order status
-                setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'assigned' } : o));
+                setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'RIDER_ASSIGNED' } : o));
             } else {
                 notify(data.message || "Failed to find rider", "error");
             }
@@ -210,10 +214,10 @@ export default function VendorDashboard() {
                         <p className="text-gray-500 font-medium">Vendor Dashboard</p>
                     </div>
                     <div className="flex gap-4 relative z-10">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${vendor?.isOpen ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                            <span className={`w-2.5 h-2.5 rounded-full ${vendor?.isOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                            <span className={`${vendor?.isOpen ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
-                                {vendor?.isOpen ? 'Store Open' : 'Store Closed'}
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${vendor?.isOpen && !vendor?.isManuallyClosed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                            <span className={`w-2.5 h-2.5 rounded-full ${vendor?.isOpen && !vendor?.isManuallyClosed ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                            <span className={`${vendor?.isOpen && !vendor?.isManuallyClosed ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
+                                {vendor?.isOpen && !vendor?.isManuallyClosed ? 'Accepting Orders' : 'Temporarily Closed'}
                             </span>
                         </div>
                         <button onClick={() => setActiveTab('settings')} className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-bold transition-all text-gray-600">
@@ -252,10 +256,10 @@ export default function VendorDashboard() {
                                     <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
                                         <div>
                                             <span className="block font-bold text-gray-700">Store Status</span>
-                                            <span className="text-sm text-gray-500">{vendor.isOpen ? "Customers can order" : "Store is closed for orders"}</span>
+                                            <span className="text-sm text-gray-500">{vendor.isManuallyClosed ? "Not accepting orders" : "Accepting orders"}</span>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" checked={vendor.isOpen} onChange={e => setVendor({ ...vendor, isOpen: e.target.checked })} className="sr-only peer" />
+                                            <input type="checkbox" checked={!vendor.isManuallyClosed} onChange={e => setVendor({ ...vendor, isManuallyClosed: !e.target.checked })} className="sr-only peer" />
                                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                                         </label>
                                     </div>
@@ -299,6 +303,15 @@ export default function VendorDashboard() {
                                 </div>
 
                                 <button
+                                    onClick={enableNotifications}
+                                    type="button"
+                                    className="w-full bg-riderBlue text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                                >
+                                    🔔 Enable Push Notifications
+                                </button>
+                                <p className="text-xs text-gray-500 text-center">Get notified when new orders arrive.</p>
+
+                                <button
                                     disabled={loading}
                                     type="submit"
                                     className="w-full bg-riderBlue hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-riderBlue/20"
@@ -335,7 +348,7 @@ export default function VendorDashboard() {
                                         <div className="flex items-center gap-3 mb-2">
                                             <span className="bg-riderBlue text-white text-xs font-bold px-2 py-1 rounded">#{order._id.slice(-6)}</span>
                                             <span className="text-gray-400 text-xs">{new Date(order.createdAt).toLocaleTimeString()}</span>
-                                            {order.status === 'pending_vendor' && <span className="text-yellow-500 text-xs font-bold animate-pulse">● New Request</span>}
+                                            {order.status === 'PAYMENT_CONFIRMED' && <span className="text-yellow-500 text-xs font-bold animate-pulse">● New Request</span>}
                                         </div>
 
                                         <div className="mb-4">
@@ -355,7 +368,7 @@ export default function VendorDashboard() {
 
                                     <div className="flex flex-col gap-3 w-full md:w-auto">
                                         {/* Actions */}
-                                        {order.status === 'pending_vendor' && (
+                                        {order.status === 'PAYMENT_CONFIRMED' && (
                                             <div className="flex flex-col gap-2">
                                                 {!order.goodsPaid && (
                                                     <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl text-center">
@@ -389,7 +402,15 @@ export default function VendorDashboard() {
                                                 </button>
                                             </div>
                                         )}
-                                        {order.status === 'assigned' && (
+                                        {order.status === 'READY_FOR_PICKUP' && order.goodsPaid && (
+                                            <button
+                                                onClick={() => handleRequestRider(order)}
+                                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg active:scale-95 whitespace-nowrap"
+                                            >
+                                                <span>🚴</span> Request Nearby Rider
+                                            </button>
+                                        )}
+                                        {order.status === 'RIDER_ASSIGNED' && (
                                             <div className="bg-riderBlue/20 text-riderBlue border border-riderBlue/20 px-4 py-2 rounded-xl text-center">
                                                 <p className="font-bold text-sm">Rider Assigned</p>
                                                 <p className="text-xs">Waiting for pickup...</p>

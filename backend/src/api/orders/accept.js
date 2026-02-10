@@ -2,7 +2,7 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
 import Rider from "../../models/Rider.js";
-import { sendPushNotification } from "../../lib/push.js";
+import { updateOrderStatus, ORDER_STATUS, normalizeOrderStatus } from "../../lib/orderStatus.js";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).end();
@@ -34,13 +34,19 @@ export default async function handler(req, res) {
             return res.status(403).json({ error: "This order is not assigned to you" });
         }
 
-        if (order.status !== "assigned") {
+        const normalizedStatus = normalizeOrderStatus(order.status);
+        if (normalizedStatus !== ORDER_STATUS.RIDER_ASSIGNED) {
             return res.status(400).json({ error: `Order is already ${order.status}` });
         }
 
-        // 4. Update Status
-        order.status = "picking_up"; // Start Pickup Phase
-        await order.save();
+        await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.ON_THE_WAY,
+            actor: { id: user._id, role: user.role, name: user.name },
+            source: "orders.accept",
+            io: req.app.get("io"),
+        });
 
 
 
@@ -51,14 +57,6 @@ export default async function handler(req, res) {
             io.to(`order:${order._id}`).emit("order:update", order);
             io.emit("admin:order:update", order); // Notify admin dashboard
         }
-
-        // 6. Notify Customer via Push
-        await sendPushNotification(
-            order.userId,
-            "Rider Accepted Your Order! 🏍️",
-            `${user.name} is heading to the shop. Please pay the vendor directly.`,
-            "/orders"
-        );
 
         res.json({ success: true, order });
 

@@ -1,6 +1,9 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
-import { sendPushNotification } from "../../lib/push.js";
+import Vendor from "../../models/Vendor.js";
+import { sendNotification } from "../../lib/notificationService.js";
+import { PENALTY_CONFIG, recordLatePickup } from "../../lib/penalties.js";
+import { updateOrderStatus, ORDER_STATUS, normalizeOrderStatus } from "../../lib/orderStatus.js";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).end();
@@ -12,25 +15,56 @@ export default async function handler(req, res) {
         const order = await Order.findById(orderId);
         if (!order) return res.status(404).json({ message: "Order not found" });
 
-        if (order.status !== "picking_up")
-            return res.status(400).json({ message: "Order is not in pickup phase" });
+        const normalizedStatus = normalizeOrderStatus(order.status);
+        if (![ORDER_STATUS.RIDER_ASSIGNED, ORDER_STATUS.ON_THE_WAY].includes(normalizedStatus))
+            return res.status(400).json({ message: "Order is not ready for pickup" });
 
-        // Transition to Delivering
-        order.status = "delivering";
+        if (normalizedStatus === ORDER_STATUS.RIDER_ASSIGNED) {
+            await updateOrderStatus({
+                orderId: order._id,
+                fromStatusRaw: order.status,
+                toStatus: ORDER_STATUS.ON_THE_WAY,
+                actor: { id: req.user?._id, role: req.user?.role, name: req.user?.name },
+                source: "orders.pickup",
+                io: req.app.get("io"),
+            });
+        }
+
         order.goodsPaid = true; // Confirmed by Rider that user paid vendor
+        order.pickedUpAt = new Date();
         await order.save();
+
+        if (order.riderId && order.riderAssignedAt) {
+            const pickupDelayMs = order.pickedUpAt.getTime() - order.riderAssignedAt.getTime();
+            const pickupDelayMinutes = pickupDelayMs / (1000 * 60);
+            if (pickupDelayMinutes > PENALTY_CONFIG.latePickupMinutes) {
+                await recordLatePickup(order.riderId);
+            }
+        }
 
         const io = req.app.get("io");
         if (io) {
             io.to(`order:${orderId}`).emit("order:update", order);
         }
 
-        await sendPushNotification(
-            order.userId,
-            "Order Picked Up! 🛍️",
-            "Rider has collected your items and is on the way!",
-            `/order/${orderId}`
-        );
+        if (order.vendorId) {
+            const vendor = await Vendor.findById(order.vendorId).select("userId");
+            if (vendor?.userId) {
+                await sendNotification({
+                    recipientId: vendor.userId,
+                    recipientType: "VENDOR",
+                    title: "Rider arrived for pickup",
+                    body: "The rider has arrived and picked up the order.",
+                    data: { orderId: String(orderId) },
+                    eventType: "RIDER_ARRIVED",
+                    deepLink: "/vendor/dashboard",
+                    orderId: String(orderId),
+                    type: "ALERT",
+                    category: "orderUpdates",
+                    io: req.app.get("io"),
+                });
+            }
+        }
 
         res.status(200).json({ success: true, message: "Pickup confirmed", order });
     } catch (error) {

@@ -1,4 +1,5 @@
 import Order from "../../models/Order.js";
+import { normalizeOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 export default async function confirmReceipt(req, res) {
     try {
@@ -13,7 +14,8 @@ export default async function confirmReceipt(req, res) {
             return res.status(403).json({ message: "Unauthorized" });
         }
 
-        if (order.status !== "delivering" && order.status !== "delivered") {
+        const normalizedStatus = normalizeOrderStatus(order.status);
+        if (normalizedStatus !== ORDER_STATUS.ON_THE_WAY && normalizedStatus !== ORDER_STATUS.DELIVERED) {
             // Allowing 'delivered' status too just in case rider marked it but user hadn't confirmed yet (though simplified flow implies user confirms first?)
             // Actually, usually Rider marks "Arrived", then User checks, then User confirms, then Rider completes.
             // Let's allow it if status is delivering or picking_up (in case of weird flow) but mainly delivering.

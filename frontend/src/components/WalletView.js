@@ -172,25 +172,12 @@ export default function WalletView({ role = "user" }) {
                 </div>
                 {wallet.pendingBalance > 0 && (
                     <div className="mt-3 bg-white/10 px-3 py-1 rounded-lg inline-block md:block backdrop-blur-sm border border-white/5">
-                        <p className="text-xs text-gray-300 uppercase tracking-wider font-bold">Pending Clearance</p>
+                        <p className="text-xs text-gray-300 uppercase tracking-wider font-bold">Pending Balance</p>
                         <p className="text-lg font-bold text-yellow-300">KES {wallet.pendingBalance.toLocaleString()}</p>
                     </div>
                 )}
             </div>
 
-            {!isAdmin && (
-                <div className="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/10 w-full md:w-auto">
-                    <div className="flex flex-col gap-1">
-                        <p className="text-xs text-gray-300 font-bold uppercase tracking-wider">next payout</p>
-                        <p className="text-xl font-bold flex items-center gap-2">
-                            ⏱️ Today 9:00 PM
-                        </p>
-                        <p className="text-[10px] text-gray-300 mt-1 max-w-[200px]">
-                            Automated payout to {wallet.payoutDetails?.accountNumber || "your account"}. Balance resets after payout.
-                        </p>
-                    </div>
-                </div>
-            )}
 
             {!isAdmin && !hasSetup && !isEditing && (
                 <div className="bg-orange-500/20 p-4 rounded-xl border border-orange-500/30 text-orange-200 text-sm font-bold">
@@ -246,6 +233,7 @@ export default function WalletView({ role = "user" }) {
                                         ? 'text-red-500'
                                         : 'text-green-600'
                                         }`}>
+                                        <span className="block text-[10px] text-gray-500 font-bold uppercase">Paid amount</span>
                                         {tx.type === 'withdrawal' || tx.type.includes('deduction') ? '-' : '+'}
                                         KES {tx.amount.toLocaleString()}
                                     </div>

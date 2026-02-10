@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import { socket } from "../lib/socket";
 
 const NotificationContext = createContext(undefined);
 
@@ -33,6 +34,21 @@ export function NotificationProvider({ children }) {
       setNotification(null);
     }, timeout);
   };
+
+  useEffect(() => {
+    const handleNotification = (payload) => {
+      if (!payload) return;
+      if (payload.type === "SILENT") return;
+      const title = payload.title || "Notification";
+      const body = payload.body || "";
+      notify(`${title}${body ? `: ${body}` : ""}`, "info");
+    };
+
+    socket.on("notification:new", handleNotification);
+    return () => {
+      socket.off("notification:new", handleNotification);
+    };
+  }, []);
 
   return (
     <NotificationContext.Provider value={{ notify, enableNotifications }}>

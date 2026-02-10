@@ -34,6 +34,9 @@ import payDeliveryFee from "./api/orders/payDelivery.js";
 import { confirmGoodsPayment } from "./api/vendors/orders.js";
 import confirmReceipt from "./api/orders/receipt.js";
 import { getOrderStatus } from "./api/orders/status.js";
+import getOrderTimeline from "./api/orders/timeline.js";
+import cancelOrder from "./api/orders/cancel.js";
+import orderRecommendations from "./api/orders/recommendations.js";
 
 /* riders */
 import riderRegister from "./api/riders/register.js";
@@ -62,7 +65,12 @@ import adminSettings from "./api/admin/settings.js";
 import adminFaqs from "./api/admin/faqs.js";
 import chatRoute from "./api/chat/chat.routes.js";
 import pushRoute from "./api/notifications/push.js";
+import registerToken from "./api/notifications/register-token.js";
+import { getPreferences, updatePreferences } from "./api/notifications/preferences.js";
+import { listNotifications, getNotification, markRead } from "./api/notifications/inbox.js";
+import markUnreachable from "./api/orders/unreachable.js";
 import financeRoute from "./api/admin/finance.js";
+import wishlistRoutes from "./api/wishlist/routes.js";
 
 /* middleware */
 import requireAuth from "./middleware/requireAuth.js";
@@ -73,6 +81,7 @@ import requireAdmin from "./middleware/requireAdmin.js";
 import cron from "node-cron";
 import { runDailyPayouts } from "./api/payments/payouts.js";
 import { startRiderCleanupJob } from "./jobs/rider-cleanup.js";
+import { startOrderRecoveryJob } from "./jobs/order-recovery.js";
 import vendorCancelOrder from "./api/vendors/cancel.js";
 async function startServer() {
   const app = express();
@@ -92,6 +101,7 @@ async function startServer() {
 
   /* Start Rider Cleanup Job */
   startRiderCleanupJob();
+  startOrderRecoveryJob(io);
 
   app.set("trust proxy", 1);
 
@@ -131,6 +141,20 @@ async function startServer() {
   app.post("/api/orders/pay-delivery", requireAuth, payDeliveryFee);
   app.post("/api/orders/confirm-receipt", requireAuth, confirmReceipt);
   app.get("/api/orders/:id/status", requireAuth, getOrderStatus);
+  app.get("/api/orders/:id/timeline", requireAuth, getOrderTimeline);
+  app.post("/api/orders/:id/cancel", requireAuth, cancelOrder);
+  app.post("/api/orders/:id/unreachable", requireAuth, markUnreachable);
+  app.use("/api/orders/recommendations", requireAuth, orderRecommendations);
+  app.use("/api/wishlist", requireAuth, wishlistRoutes);
+  app.get("/api/system/time", (req, res) => {
+    const now = new Date();
+    res.json({
+      serverTime: now.toISOString(),
+      hour: now.getHours(),
+      minute: now.getMinutes(),
+      timestamp: now.getTime(),
+    });
+  });
 
   /* riders */
   app.post("/api/riders/register", requireAuth, riderRegister);
@@ -246,6 +270,12 @@ async function startServer() {
 
   /* notifications */
   app.use("/api/notifications", pushRoute);
+  app.post("/api/notifications/register-token", requireAuth, registerToken);
+  app.get("/api/notifications", requireAuth, listNotifications);
+  app.get("/api/notifications/:id", requireAuth, getNotification);
+  app.patch("/api/notifications/:id/read", requireAuth, markRead);
+  app.get("/api/notifications/preferences", requireAuth, getPreferences);
+  app.put("/api/notifications/preferences", requireAuth, updatePreferences);
 
 
   /* socket */

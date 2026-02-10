@@ -32,11 +32,6 @@ export async function assignBestRider(order) {
       // Pick first (nearest or random)
       const bestRider = riders[0];
 
-      // Update Order
-      order.riderId = bestRider._id; // Rider model links to User via userId
-      order.status = "assigned"; // Or 'pending_acceptance' if we had that flow
-      await order.save();
-
       console.log(`✅ Auto-Assigned Order ${order._id} to Rider ${bestRider.name}`);
       return bestRider;
     }

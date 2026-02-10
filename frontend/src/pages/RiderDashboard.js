@@ -15,12 +15,28 @@ export default function RiderDashboard({ tab = "orders" }) {
     const [riderProfile, setRiderProfile] = useState(null);
     const [faqs, setFaqs] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [userLocation, setUserLocation] = useState(null);
 
     useEffect(() => {
         setActiveTab(tab);
     }, [tab]);
 
-    const activeOrder = Array.isArray(assignments) ? assignments.find(a => ['picking_up', 'delivering'].includes(a.status)) : null;
+    const activeOrder = Array.isArray(assignments) ? assignments.find(a => ['ON_THE_WAY'].includes(a.status)) : null;
+
+    useEffect(() => {
+        if (!activeOrder?._id) return;
+        socket.emit("join:order", activeOrder._id);
+
+        const handleUserLocation = (data) => {
+            setUserLocation({ lat: data.lat, lng: data.lng });
+        };
+
+        socket.on("user:location:update", handleUserLocation);
+
+        return () => {
+            socket.off("user:location:update", handleUserLocation);
+        };
+    }, [activeOrder?._id]);
 
     const fetchAssignments = useCallback(async () => {
         try {
@@ -117,7 +133,7 @@ export default function RiderDashboard({ tab = "orders" }) {
 
         try {
             setLoading(true);
-            const res = await fetch(`${API_URL}/api/orders/pay`, { // Re-using Pay endpoint as it marks completed & paid
+            const res = await fetch(`${API_URL}/api/orders/pay`, { // Re-using Pay endpoint as it marks paid
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),
@@ -221,13 +237,13 @@ export default function RiderDashboard({ tab = "orders" }) {
                     ) : (
                         assignments.map((order) => (
                             <div key={order._id} className="relative group bg-riderDark/50 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-riderBlue/10 hover:bg-riderDark/70 transition-all duration-300 hover:-translate-y-1">
-                                {order.status === 'assigned' && <div className="absolute top-0 right-0 p-2"><span className="animate-pulse w-3 h-3 bg-blue-500 rounded-full inline-block"></span></div>}
+                                {order.status === 'RIDER_ASSIGNED' && <div className="absolute top-0 right-0 p-2"><span className="animate-pulse w-3 h-3 bg-blue-500 rounded-full inline-block"></span></div>}
 
                                 <div className="mb-4">
                                     <div className="flex justify-between items-start mb-2">
                                         <p className="text-xs text-riderMaroon font-extrabold uppercase tracking-widest">Order #{order._id.slice(-6)}</p>
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${order.status === "delivered" || order.status === "completed" ? "bg-green-500/20 text-green-400" :
-                                            order.status === "delivering" ? "bg-orange-500/20 text-orange-400" :
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${order.status === "DELIVERED" ? "bg-green-500/20 text-green-400" :
+                                            order.status === "ON_THE_WAY" ? "bg-orange-500/20 text-orange-400" :
                                                 "bg-blue-500/20 text-blue-400"
                                             }`}>
                                             {order.status}
@@ -261,7 +277,7 @@ export default function RiderDashboard({ tab = "orders" }) {
 
                                 {/* Actions */}
                                 <div className="grid grid-cols-2 gap-3">
-                                    {order.status === 'assigned' && (
+                                    {order.status === 'RIDER_ASSIGNED' && (
                                         <button
                                             onClick={() => handleAcceptOrder(order._id)}
                                             disabled={loading}
@@ -271,7 +287,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         </button>
                                     )}
 
-                                    {order.status === 'picking_up' && (
+                                    {order.status === 'ON_THE_WAY' && !order.pickedUpAt && (
                                         <div className="col-span-full bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20 text-center">
                                             <p className="font-bold text-yellow-500 mb-2">At the Shop</p>
                                             <p className="text-sm text-gray-400 mb-4">Ensure client pays <strong>KES {order.goodsTotal}</strong> to Vendor.</p>
@@ -303,7 +319,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         </div>
                                     )}
 
-                                    {order.status === 'delivering' && (
+                                    {order.status === 'ON_THE_WAY' && order.pickedUpAt && (
                                         <>
                                             <a
                                                 href={`https://www.google.com/maps/dir/?api=1&destination=${order.dropoff}`}
@@ -323,7 +339,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         </>
                                     )}
 
-                                    {order.status === 'delivered' && (
+                                    {order.status === 'DELIVERED' && (
                                         <div className="col-span-full">
                                             <div className="text-center bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20 mb-3">
                                                 <p className="font-bold text-yellow-600 text-lg mb-2">Wait for Payment 💰</p>
@@ -355,11 +371,6 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         </div>
                                     )}
 
-                                    {order.status === 'completed' && (
-                                        <div className="col-span-full text-center bg-blue-500/10 p-3 rounded-xl border border-blue-500/20">
-                                            <p className="font-bold text-blue-500">Order Completed ✅</p>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         ))
@@ -380,6 +391,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                             role="rider"
                             socket={socket}
                             order={activeOrder}
+                            userLocation={userLocation}
                             deliveryLocation={activeOrder?.dropoff?.location?.coordinates ? {
                                 lat: activeOrder.dropoff.location.coordinates[1],
                                 lng: activeOrder.dropoff.location.coordinates[0]
@@ -461,5 +473,3 @@ export default function RiderDashboard({ tab = "orders" }) {
         </div>
     );
 }
-
-

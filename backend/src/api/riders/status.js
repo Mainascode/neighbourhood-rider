@@ -12,6 +12,14 @@ export async function goOnline(req, res) {
             return res.status(400).json({ error: "Location (lat, lng) is required" });
         }
 
+        const existing = await Rider.findOne({ userId: req.user._id });
+        if (!existing) {
+            return res.status(404).json({ error: "Rider profile not found" });
+        }
+        if (existing.penalties?.isDisabled) {
+            return res.status(403).json({ error: "Rider account disabled due to penalties" });
+        }
+
         const rider = await Rider.findOneAndUpdate(
             { userId: req.user._id },
             {
@@ -71,6 +79,11 @@ export async function heartbeat(req, res) {
         }
 
         // Only update if NOT offline
+        const existing = await Rider.findOne({ userId: req.user._id });
+        if (existing?.penalties?.isDisabled) {
+            return res.status(403).json({ error: "Rider account disabled due to penalties" });
+        }
+
         const rider = await Rider.findOneAndUpdate(
             {
                 userId: req.user._id,

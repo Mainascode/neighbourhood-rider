@@ -61,9 +61,8 @@ export default function Navbar() {
 
         {user?.role === "rider" && (
           <>
-            <NavLink to="/rider/map" label="Live Map" />
-            <NavLink to="/rider/orders" label="Assigned Orders" />
-            <NavLink to="/rider/dashboard" label="Dashboard" />
+            <NavLink to="/rider/dashboard" label="Rider Dashboard" />
+            <NavLink to="/rider/settings" label="Settings" />
           </>
         )}
 
@@ -75,7 +74,8 @@ export default function Navbar() {
 
         {user?.role === "vendor" && (
           <>
-            <NavLink to="/vendor/dashboard" label="My Shop" />
+            <NavLink to="/vendor/dashboard" label="Vendor Dashboard" />
+            <NavLink to="/vendor/settings" label="Settings" />
           </>
         )}
 
@@ -144,9 +144,8 @@ export default function Navbar() {
 
             {user?.role === "rider" && (
               <>
-                <Link to="/rider/map" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Live Map</Link>
-                <Link to="/rider/orders" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Assigned Orders</Link>
-                <Link to="/rider/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+                <Link to="/rider/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Rider Dashboard</Link>
+                <Link to="/rider/settings" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Settings</Link>
               </>
             )}
 
@@ -155,7 +154,10 @@ export default function Navbar() {
             )}
 
             {user?.role === "vendor" && (
-              <Link to="/vendor/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>My Shop</Link>
+              <>
+                <Link to="/vendor/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Vendor Dashboard</Link>
+                <Link to="/vendor/settings" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Settings</Link>
+              </>
             )}
 
           </div>

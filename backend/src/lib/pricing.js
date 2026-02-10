@@ -2,7 +2,7 @@ import axios from "axios";
 import DistanceCache from "../models/DistanceCache.js";
 import SystemSetting from "../models/SystemSetting.js";
 
-export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
+export async function calculateOrderPricing(goodsTotal, pickup, dropoff, overrides = {}) {
     // 0. Fetch System Settings
     let settings = await SystemSetting.findOne({ key: "global_config" });
     if (!settings) {
@@ -10,13 +10,14 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
         settings = await SystemSetting.create({});
     }
 
-    const BASE_FEE = settings.riderBaseFee;
-    const PER_KM_FEE = settings.riderPerKmFee;
+    const BASE_FEE = overrides.baseFee ?? settings.riderBaseFee;
+    const PER_KM_FEE = overrides.perKmFee ?? settings.riderPerKmFee;
     const SERVICE_FEE = settings.serviceFee;
     const COMMISSION_RATE = settings.vendorCommissionRate / 100; // Convert % to decimal
 
     let distanceKm = 0;
     let duration = null;
+    let etaMinutes = null;
 
     if (pickup && dropoff && pickup.lat && pickup.lng && dropoff.lat && dropoff.lng) {
         try {
@@ -31,6 +32,7 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
                 console.log(`✅ Distance Cache Hit: ${pickupArea} -> ${dropoffArea}`);
                 distanceKm = cachedRoute.distance_km;
                 duration = cachedRoute.duration;
+                etaMinutes = parseDurationToMinutes(duration);
             } else {
                 console.log(`⚠️ Distance Cache Miss: ${pickupArea} -> ${dropoffArea}. Calling Google API...`);
                 // 3. Call Google Directions API
@@ -48,6 +50,7 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
                         const leg = response.data.routes[0].legs[0];
                         distanceKm = leg.distance.value / 1000; // Meters to Km
                         duration = leg.duration.text;
+                        etaMinutes = parseDurationToMinutes(duration);
 
                         // 4. Save to Cache
                         await DistanceCache.create({
@@ -67,7 +70,11 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
         } catch (err) {
             console.error("❌ Distance Calculation Error (Falling back to Haversine):", err.message);
             distanceKm = haversineDistance(pickup, dropoff);
+            etaMinutes = estimateEtaMinutesFromDistance(distanceKm);
         }
+    }
+    if (!etaMinutes && distanceKm > 0) {
+        etaMinutes = estimateEtaMinutesFromDistance(distanceKm);
     }
 
     // Tiered Pricing Logic
@@ -127,7 +134,8 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
             serviceFee: SERVICE_FEE,
             totalCost,
             distanceKm: parseFloat(distanceKm.toFixed(2)),
-            duration
+            duration,
+            etaMinutes
         },
         distribution: {
             vendorPayout: vendorNet, // Actual amount to wallet balance
@@ -142,6 +150,23 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff) {
             }
         }
     };
+}
+
+function parseDurationToMinutes(durationText) {
+    if (!durationText || typeof durationText !== "string") return null;
+    const text = durationText.toLowerCase();
+    const hoursMatch = text.match(/(\d+)\s*hour/);
+    const minsMatch = text.match(/(\d+)\s*min/);
+    const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+    const mins = minsMatch ? parseInt(minsMatch[1], 10) : 0;
+    const total = hours * 60 + mins;
+    return Number.isFinite(total) && total > 0 ? total : null;
+}
+
+function estimateEtaMinutesFromDistance(distanceKm) {
+    if (!Number.isFinite(distanceKm) || distanceKm <= 0) return null;
+    const avgSpeedKmh = 25; // conservative urban estimate
+    return Math.max(1, Math.ceil((distanceKm / avgSpeedKmh) * 60));
 }
 
 function haversineDistance(coords1, coords2) {

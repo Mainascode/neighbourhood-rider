@@ -1,6 +1,8 @@
 
 import axios from 'axios';
 import Order from '../../models/Order.js';
+import { sendNotification } from "../../lib/notificationService.js";
+import { updateOrderStatus, normalizeOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 const getMpesaToken = async () => {
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
@@ -104,23 +106,37 @@ export const handleMpesaCallback = async (req, res) => {
 
                 // Let's assume this handles the main full payment or delivery fee payment based on context. 
                 // Checks:
+                const setUpdates = {};
                 if (Math.abs(order.amount - amount) < 10) {
-                    order.paid = true;
-                    order.goodsPaid = true;
-                    order.isDeliveryFeePaid = true;
-                    order.status = 'assigned'; // Ready for rider assignment if not already
+                    setUpdates.paid = true;
+                    setUpdates.goodsPaid = true;
+                    setUpdates.isDeliveryFeePaid = true;
                 } else if (Math.abs(order.deliveryFee - amount) < 10) {
-                    order.isDeliveryFeePaid = true;
+                    setUpdates.isDeliveryFeePaid = true;
                 }
 
-                order.paymentData = {
+                setUpdates.paymentData = {
                     mpesaReceiptNumber,
                     amount,
                     phoneNumber: metadata.find(o => o.Name === 'PhoneNumber')?.Value,
                     date: new Date()
                 };
 
-                await order.save();
+                const currentStatus = normalizeOrderStatus(order.status);
+                if (currentStatus !== ORDER_STATUS.PAYMENT_CONFIRMED) {
+                    await updateOrderStatus({
+                        orderId: order._id,
+                        fromStatusRaw: order.status,
+                        toStatus: ORDER_STATUS.PAYMENT_CONFIRMED,
+                        actor: { role: "system", name: "mpesa_callback" },
+                        source: "payments.mpesa_callback",
+                        io: req.app.get("io"),
+                        set: setUpdates,
+                    });
+                } else {
+                    Object.assign(order, setUpdates);
+                    await order.save();
+                }
 
                 // DISTRIBUTE FUNDS (Pending)
                 // Import dynamically to avoid circular dependency issues if any, or just import at top if safe.
@@ -131,25 +147,31 @@ export const handleMpesaCallback = async (req, res) => {
                 console.log(`[M-Pesa] Funds distributed (pending) for order ${order._id}`);
 
                 // Update Status to pending_vendor if it was payment_pending
-                if (order.status === 'payment_pending' || order.status === 'pending') {
-                    order.status = 'pending_vendor';
-                    await order.save();
+                if (normalizeOrderStatus(order.status) === ORDER_STATUS.PAYMENT_CONFIRMED) {
 
                     // NOTIFY VENDOR
                     const io = req.app.get("io");
                     if (order.vendorId) {
                         const Vendor = (await import("../../models/Vendor.js")).default;
                         const vendorProfile = await Vendor.findById(order.vendorId);
-                        const { sendPushNotification } = await import("../../lib/push.js"); // Dynamic import
 
                         if (vendorProfile && io) {
                             io.to(`vendor:${vendorProfile.userId}`).emit("vendor:order:new", order);
-                            await sendPushNotification(
-                                vendorProfile.userId,
-                                "New Shop Order! 🛍️",
-                                `Order #${order._id.slice(-6)} Paid & Received. Amount: KES ${order.amount}`,
-                                "/vendor/dashboard"
-                            );
+                        }
+                        if (vendorProfile?.userId) {
+                            await sendNotification({
+                                recipientId: vendorProfile.userId,
+                                recipientType: "VENDOR",
+                                title: "New paid order received",
+                                body: `New order received. Order #${order._id.slice(-6)}.`,
+                                data: { orderId: String(order._id) },
+                                eventType: "NEW_PAID_ORDER",
+                                deepLink: "/vendor/dashboard",
+                                orderId: String(order._id),
+                                type: "ALERT",
+                                category: "orderUpdates",
+                                io,
+                            });
                         }
                     }
                 }
@@ -167,8 +189,20 @@ export const handleMpesaCallback = async (req, res) => {
             const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
             const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
             if (order) {
-                order.status = 'payment_failed';
-                await order.save();
+                const currentStatus = normalizeOrderStatus(order.status);
+                if (currentStatus !== ORDER_STATUS.CANCELLED) {
+                    await updateOrderStatus({
+                        orderId: order._id,
+                        fromStatusRaw: order.status,
+                        toStatus: ORDER_STATUS.CANCELLED,
+                        actor: { role: "system", name: "mpesa_callback" },
+                        source: "payments.mpesa_callback",
+                        reason: "PAYMENT_FAILED",
+                        io: req.app.get("io"),
+                    });
+                } else {
+                    await order.save();
+                }
 
                 // Notify User via Socket
                 const io = req.app.get("io");

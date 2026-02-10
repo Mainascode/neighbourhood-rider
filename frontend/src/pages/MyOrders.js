@@ -6,15 +6,21 @@ import { FaBoxOpen, FaClock, FaCheckCircle, FaTimesCircle } from "react-icons/fa
 import { Link } from "react-router-dom";
 import { socket } from "../lib/socket";
 import LiveMap from "../components/LiveMap";
+import { useNotify } from "../context/NotificationContext";
 
 export default function MyOrders() {
+    const { enableNotifications } = useNotify();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("pending");
+    const [receiptOrder, setReceiptOrder] = useState(null);
+    const [wishlistItems, setWishlistItems] = useState([]);
+    const [wishlistLoading, setWishlistLoading] = useState(true);
 
     // Tracking State
     const [trackingOrder, setTrackingOrder] = useState(null);
     const [riderLocation, setRiderLocation] = useState(null);
+    const [userLocation, setUserLocation] = useState(null);
 
     const fetchOrders = useCallback(async () => {
         try {
@@ -27,7 +33,7 @@ export default function MyOrders() {
                 setOrders(data);
 
                 // ✨ Auto-Open Map for Active Orders
-                const activeOrder = data.find(o => ["assigned", "delivering"].includes(o.status));
+                const activeOrder = data.find(o => ["RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status));
                 if (activeOrder) {
                     setTrackingOrder(activeOrder);
                     // Also switch tab to pending if not already
@@ -41,9 +47,27 @@ export default function MyOrders() {
         }
     }, []);
 
+    const fetchWishlist = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/wishlist`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+                credentials: "include"
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setWishlistItems(Array.isArray(data) ? data : []);
+            }
+        } catch (err) {
+            console.error("Failed to fetch wishlist", err);
+        } finally {
+            setWishlistLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         fetchOrders();
-    }, [fetchOrders]);
+        fetchWishlist();
+    }, [fetchOrders, fetchWishlist]);
 
     // Listen for rider location updates
     useEffect(() => {
@@ -63,9 +87,31 @@ export default function MyOrders() {
         };
     }, [trackingOrder]);
 
+    useEffect(() => {
+        if (!trackingOrder) return;
+        if (!navigator.geolocation) return;
+
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                setUserLocation(loc);
+                socket.emit("user:location", {
+                    orderId: trackingOrder._id,
+                    lat: loc.lat,
+                    lng: loc.lng
+                });
+            },
+            () => { },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+        );
+
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, [trackingOrder]);
+
     const startTracking = (order) => {
         setTrackingOrder(order);
         setRiderLocation(null); // Reset prev location
+        setUserLocation(null);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -90,11 +136,27 @@ export default function MyOrders() {
     };
 
     const filteredOrders = orders.filter((order) => {
-        if (activeTab === "pending") return ["pending", "assigned", "delivering"].includes(order.status);
-        if (activeTab === "completed") return ["completed", "delivered"].includes(order.status);
-        if (activeTab === "cancelled") return ["cancelled"].includes(order.status);
+        if (activeTab === "pending") return ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(order.status);
+        if (activeTab === "completed") return ["DELIVERED"].includes(order.status);
+        if (activeTab === "cancelled") return ["CANCELLED", "REFUNDED"].includes(order.status);
+        if (activeTab === "history") return true;
         return true;
     });
+
+    const removeWishlistItem = async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+                credentials: "include"
+            });
+            if (res.ok) {
+                setWishlistItems(prev => prev.filter(w => w._id !== id));
+            }
+        } catch (err) {
+            console.error("Failed to remove wishlist item", err);
+        }
+    };
 
     return (
         <div className="min-h-screen flex flex-col bg-transparent text-riderLight font-sans">
@@ -111,6 +173,22 @@ export default function MyOrders() {
                             <h1 className="text-2xl md:text-3xl font-extrabold text-riderLight">My Orders</h1>
                             <p className="text-sm md:text-base text-gray-600">Track and manage your deliveries</p>
                         </div>
+                        <div className="ml-auto hidden md:block">
+                            <button
+                                onClick={enableNotifications}
+                                className="bg-riderBlue text-white text-xs md:text-sm font-bold px-4 py-2 rounded-full shadow hover:bg-blue-700 transition-all"
+                            >
+                                Enable Notifications
+                            </button>
+                        </div>
+                    </div>
+                    <div className="md:hidden mb-6">
+                        <button
+                            onClick={enableNotifications}
+                            className="w-full bg-riderBlue text-white text-sm font-bold px-4 py-3 rounded-xl shadow hover:bg-blue-700 transition-all"
+                        >
+                            Enable Notifications
+                        </button>
                     </div>
 
                     {/* LIVE TRACKING SECTION (Uber-Style) */}
@@ -170,26 +248,80 @@ export default function MyOrders() {
                             onClick={() => setActiveTab("pending")}
                             label="Pending"
                             icon={<FaClock />}
-                            count={orders.filter(o => ["pending", "assigned", "delivering"].includes(o.status)).length}
+                            count={orders.filter(o => ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status)).length}
                         />
                         <TabButton
                             active={activeTab === "completed"}
                             onClick={() => setActiveTab("completed")}
                             label="Completed"
                             icon={<FaCheckCircle />}
-                            count={orders.filter(o => ["completed", "delivered"].includes(o.status)).length}
+                            count={orders.filter(o => ["DELIVERED"].includes(o.status)).length}
                         />
                         <TabButton
                             active={activeTab === "cancelled"}
                             onClick={() => setActiveTab("cancelled")}
                             label="Cancelled"
                             icon={<FaTimesCircle />}
-                            count={orders.filter(o => ["cancelled"].includes(o.status)).length}
+                            count={orders.filter(o => ["CANCELLED", "REFUNDED"].includes(o.status)).length}
+                        />
+                        <TabButton
+                            active={activeTab === "history"}
+                            onClick={() => setActiveTab("history")}
+                            label="History"
+                            icon={<FaBoxOpen />}
+                            count={orders.length}
+                        />
+                        <TabButton
+                            active={activeTab === "wishlist"}
+                            onClick={() => setActiveTab("wishlist")}
+                            label="Wishlist"
+                            icon={<FaCheckCircle />}
+                            count={wishlistItems.length}
                         />
                     </div>
 
                     {/* ORDERS LIST */}
-                    {loading ? (
+                    {activeTab === "wishlist" ? (
+                        wishlistLoading ? (
+                            <div className="flex justify-center py-20">
+                                <div className="w-8 h-8 border-4 border-riderMaroon border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        ) : wishlistItems.length === 0 ? (
+                            <div className="text-center py-20 bg-riderBlack/90 backdrop-blur-md rounded-2xl border border-dashed border-riderBlue/10">
+                                <FaBoxOpen className="text-5xl mx-auto text-gray-600 mb-4" />
+                                <h3 className="text-xl font-bold text-gray-600">No wishlist items yet</h3>
+                                <Link to="/order" className="text-riderBlue hover:text-riderLight mt-2 inline-block transition-colors">Browse vendors</Link>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {wishlistItems.map(item => (
+                                    <div key={item._id} className="bg-riderDark/90 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-riderBlue/10 flex gap-4">
+                                        <div className="w-20 h-20 rounded-xl bg-riderBlack/40 overflow-hidden flex items-center justify-center">
+                                            {item.image ? (
+                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="text-2xl">📌</div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-riderLight">{item.name}</h3>
+                                            <p className="text-xs text-gray-500">{item.vendorName || "Vendor"}</p>
+                                            <p className="text-sm text-riderMaroon font-bold mt-1">{typeof item.price === "number" ? `KES ${item.price}` : ""}</p>
+                                        </div>
+                                        <div className="flex flex-col gap-2 justify-center">
+                                            <Link to="/order" className="text-xs bg-riderBlue text-white px-3 py-1 rounded-full text-center">Order</Link>
+                                            <button
+                                                onClick={() => removeWishlistItem(item._id)}
+                                                className="text-xs bg-white/10 text-gray-200 px-3 py-1 rounded-full"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )
+                    ) : loading ? (
                         <div className="flex justify-center py-20">
                             <div className="w-8 h-8 border-4 border-riderMaroon border-t-transparent rounded-full animate-spin"></div>
                         </div>
@@ -205,10 +337,9 @@ export default function MyOrders() {
                                 <div key={order._id} className="bg-riderDark/90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-riderBlue/10 flex flex-col md:flex-row justify-between gap-4 hover:bg-riderBlack transition-all">
                                     <div>
                                         <div className="flex items-center gap-3 mb-2">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${order.status === "pending" ? "bg-yellow-500/20 text-yellow-400" :
-                                                order.status === "completed" ? "bg-green-500/20 text-green-400" :
-                                                    order.status === "cancelled" ? "bg-red-500/20 text-red-400" :
-                                                        "bg-blue-500/20 text-blue-400"
+                                            <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${["CANCELLED", "REFUNDED"].includes(order.status) ? "bg-red-500/20 text-red-400" :
+                                                order.status === "DELIVERED" ? "bg-green-500/20 text-green-400" :
+                                                    "bg-blue-500/20 text-blue-400"
                                                 }`}>
                                                 {order.status}
                                             </span>
@@ -222,8 +353,15 @@ export default function MyOrders() {
                                     <div className="text-right flex flex-col justify-center">
                                         <p className="text-xl font-bold text-riderMaroon">KES {order.amount}</p>
 
+                                        {["CANCELLED", "REFUNDED"].includes(order.status) && (order.paid || order.isDeliveryFeePaid) && (
+                                            <div className="mt-2 text-xs text-blue-600 font-semibold bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 inline-block">
+                                                Refund initiated
+                                                <span className="block text-[10px] text-blue-500">Funds will return based on your payment provider</span>
+                                            </div>
+                                        )}
+
                                         {/* Actions based on Status */}
-                                        {order.status === 'delivered' && !order.paid && (
+                                        {order.status === 'DELIVERED' && !order.paid && (
                                             <div className="mt-2 flex flex-col gap-2">
                                                 <span className="text-xs font-bold text-green-500 animate-pulse">Rider Arrived!</span>
                                                 <button
@@ -240,12 +378,20 @@ export default function MyOrders() {
                                         )}
 
                                         {/* Track Button */}
-                                        {["assigned", "delivering"].includes(order.status) && (
+                                        {["RIDER_ASSIGNED", "ON_THE_WAY"].includes(order.status) && (
                                             <button
                                                 onClick={() => startTracking(order)}
                                                 className="mt-2 text-xs bg-riderBlue text-riderLight px-3 py-1 rounded-full shadow hover:bg-blue-600 transition-colors flex items-center gap-1 justify-end ml-auto"
                                             >
                                                 <span>🗺️</span> Track Rider
+                                            </button>
+                                        )}
+                                        {order.status === "DELIVERED" && (
+                                            <button
+                                                onClick={() => setReceiptOrder(order)}
+                                                className="mt-2 text-xs bg-gray-800 text-white px-3 py-1 rounded-full shadow hover:bg-gray-700 transition-colors flex items-center gap-1 justify-end ml-auto"
+                                            >
+                                                🧾 Receipt
                                             </button>
                                         )}
                                     </div>
@@ -259,6 +405,44 @@ export default function MyOrders() {
             <Footer />
 
 
+            {receiptOrder && (
+                <div className="fixed inset-0 bg-riderBlack/80 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-800">Receipt</h3>
+                            <button onClick={() => setReceiptOrder(null)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+                        </div>
+                        <div className="text-sm text-gray-700 space-y-2">
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Order ID</span>
+                                <span className="font-mono">{receiptOrder._id}</span>
+                            </div>
+                            <div>
+                                <span className="font-semibold">Items</span>
+                                <ul className="mt-1 text-xs text-gray-600">
+                                    {receiptOrder.items?.map((item, idx) => (
+                                        <li key={idx}>{item.name || "Item"} {item.price ? `- KES ${item.price}` : ""}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Total paid</span>
+                                <span className="font-bold">
+                                    KES {receiptOrder.paid ? receiptOrder.amount : (receiptOrder.isDeliveryFeePaid ? receiptOrder.deliveryFee : 0)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Date & time</span>
+                                <span>{new Date(receiptOrder.updatedAt || receiptOrder.createdAt).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Payment method</span>
+                                <span className="capitalize">{receiptOrder.paymentMethod || "cash"}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

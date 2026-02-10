@@ -1,6 +1,8 @@
 
 import Order from "../../models/Order.js";
 import Rider from "../../models/Rider.js";
+import { recordRejection } from "../../lib/penalties.js";
+import { updateOrderStatus, ORDER_STATUS, normalizeOrderStatus } from "../../lib/orderStatus.js";
 
 /**
  * POST /api/riders/accept-order
@@ -26,12 +28,10 @@ export async function acceptOrder(req, res) {
         // Using user's logic: "Validate rider is ONLINE_AVAILABLE... Set rider status = ONLINE_BUSY"
         // But since we auto-assigned, they might already be BUSY. We'll ensure they are at least "assigned" to this order.
 
-        // Confirm assignment -> Update status to 'picking_up' (or just keep 'assigned' and confirm?)
-        // The prompt says "Confirm order assignment". 
-        // We'll update order status to 'picking_up' to signify acceptance and progress.
-
-        order.status = "picking_up";
-        await order.save();
+        const normalizedStatus = normalizeOrderStatus(order.status);
+        if (normalizedStatus !== ORDER_STATUS.RIDER_ASSIGNED) {
+            return res.status(400).json({ error: `Order is already ${order.status}` });
+        }
 
         // Ensure rider is BUSY
         rider.status = "ONLINE_BUSY";
@@ -66,29 +66,30 @@ export async function rejectOrder(req, res) {
         }
 
         // 1. Unassign Rider
-        order.riderId = null;
-        order.status = "pending"; // Reset to pending to allow reassignment
-        await order.save();
+        await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.READY_FOR_PICKUP,
+            actor: { id: riderUser._id, role: riderUser.role, name: riderUser.name },
+            source: "riders.reject-order",
+            reason: "RIDER_REJECTED",
+            io: req.app.get("io"),
+            set: { riderId: null },
+        });
 
         // 2. Set Rider to ONLINE_AVAILABLE
         rider.status = "ONLINE_AVAILABLE";
         await rider.save();
 
-        // 3. Trigger Reassignment
-        // Use matchOrder with exclusion list
+        await recordRejection(rider._id);
+
         const { matchOrder } = await import("../../services/matching.js");
         const io = req.app.get("io");
-
         const pickupLocation = {
             lat: order.pickup.location.coordinates[1],
             lng: order.pickup.location.coordinates[0]
         };
-
-        // Exclude the current rider from the next match attempt
-        matchOrder(orderId, pickupLocation, 1, [rider._id], io).then(result => {
-            console.log(`Reassignment result for order ${orderId}:`, result.success ? "Assigned" : "No rider found");
-        }).catch(err => console.error("Reassignment error:", err));
-
+        matchOrder(orderId, pickupLocation, 1, [rider._id], io, Date.now());
 
         res.json({ success: true, message: "Order rejected. Reassigning..." });
 

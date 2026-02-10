@@ -113,7 +113,7 @@ async function verifyHierarchy() {
             amount: 500,
             location: "Nairobi",
             locationCoordinates: { lat: -1.2, lng: 36.8 }, // Lat/Lng Valid
-            status: "pending"
+            status: "CREATED"
         });
         console.log(`   -> Order Created: ${newOrder._id} [${newOrder.status}]`);
 
@@ -124,7 +124,7 @@ async function verifyHierarchy() {
         if (availableRider) {
             console.log(`   -> Found Rider: ${availableRider.name}`);
             newOrder.rider = availableRider.userId;
-            newOrder.status = "assigned";
+            newOrder.status = "RIDER_ASSIGNED";
             await newOrder.save();
             console.log(`   -> Order Updated: ${newOrder.status.toUpperCase()} to ${availableRider.name}`);
         } else {
@@ -133,7 +133,7 @@ async function verifyHierarchy() {
 
         // C. Rider Delivers
         console.log("3. Rider Completes Delivery...");
-        newOrder.status = "delivered";
+        newOrder.status = "DELIVERED";
         await newOrder.save();
         console.log(`   -> Order Status: ${newOrder.status.toUpperCase()}`);
 

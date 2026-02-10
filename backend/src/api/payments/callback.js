@@ -1,5 +1,6 @@
 import express from "express";
 import Order from "../../models/Order.js";
+import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 import Payment from "../../models/Payment.js";
 
 const router = express.Router();
@@ -24,10 +25,21 @@ router.post("/", async (req, res) => {
       payment.amount = amount;
       await payment.save();
 
-      await Order.findByIdAndUpdate(payment.order, {
-        status: "COMPLETED",
-        paymentStatus: "PAID",
-      });
+      const order = await Order.findById(payment.order);
+      if (order) {
+        try {
+          await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.PAYMENT_CONFIRMED,
+            actor: { role: "system", name: "mpesa_callback" },
+            source: "payments.callback",
+            set: { paymentStatus: "PAID" },
+          });
+        } catch (err) {
+          await Order.findByIdAndUpdate(order._id, { paymentStatus: "PAID" });
+        }
+      }
     } else {
       payment.status = "FAILED";
       await payment.save();

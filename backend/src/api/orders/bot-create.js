@@ -1,6 +1,7 @@
 import express from "express";
 import Order from "../../models/Order.js";
 import { assignBestRider } from "../../lib/matchRider.js";
+import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 const router = express.Router();
 
@@ -22,13 +23,67 @@ router.post("/", async (req, res) => {
             items: typeof items === "string" ? items.split(",") : items,
             amount: 0, // Pending calculation
             isBotOrder: true,
-            status: "pending",
+            status: ORDER_STATUS.CREATED,
             // userId: null (Guest) or we can try to find user by email?
             // checking if user exists by email would be nice to link it.
         });
 
+        const io = req.app.get("io");
+        const actor = { role: "system", name: "bot_create" };
+        const first = await updateOrderStatus({
+            orderId: newOrder._id,
+            fromStatusRaw: newOrder.status,
+            toStatus: ORDER_STATUS.PAYMENT_PENDING,
+            actor,
+            source: "orders.bot-create",
+            io,
+        });
+        const second = await updateOrderStatus({
+            orderId: newOrder._id,
+            fromStatusRaw: first.status,
+            toStatus: ORDER_STATUS.PAYMENT_CONFIRMED,
+            actor,
+            source: "orders.bot-create",
+            io,
+        });
+        const third = await updateOrderStatus({
+            orderId: newOrder._id,
+            fromStatusRaw: second.status,
+            toStatus: ORDER_STATUS.VENDOR_ACCEPTED,
+            actor,
+            source: "orders.bot-create",
+            io,
+        });
+        const fourth = await updateOrderStatus({
+            orderId: newOrder._id,
+            fromStatusRaw: third.status,
+            toStatus: ORDER_STATUS.PREPARING,
+            actor,
+            source: "orders.bot-create",
+            io,
+        });
+        await updateOrderStatus({
+            orderId: newOrder._id,
+            fromStatusRaw: fourth.status,
+            toStatus: ORDER_STATUS.READY_FOR_PICKUP,
+            actor,
+            source: "orders.bot-create",
+            io,
+        });
+
         // Auto Assign!
         const assignedRider = await assignBestRider(newOrder);
+        if (assignedRider) {
+            await updateOrderStatus({
+                orderId: newOrder._id,
+                fromStatusRaw: ORDER_STATUS.READY_FOR_PICKUP,
+                toStatus: ORDER_STATUS.RIDER_ASSIGNED,
+                actor,
+                source: "orders.bot-create",
+                io,
+                set: { riderId: assignedRider._id, riderAssignedAt: new Date() },
+            });
+        }
 
         // Notify Admin via Socket (if available in global context or attached to req)
         const io = req.app.get("io");
