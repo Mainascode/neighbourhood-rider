@@ -20,7 +20,7 @@ export default function MyOrders() {
     // Tracking State
     const [trackingOrder, setTrackingOrder] = useState(null);
     const [riderLocation, setRiderLocation] = useState(null);
-    const [userLocation, setUserLocation] = useState(null);
+
 
     const fetchOrders = useCallback(async () => {
         try {
@@ -94,7 +94,7 @@ export default function MyOrders() {
         const watchId = navigator.geolocation.watchPosition(
             (pos) => {
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                setUserLocation(loc);
+
                 socket.emit("user:location", {
                     orderId: trackingOrder._id,
                     lat: loc.lat,
@@ -111,7 +111,7 @@ export default function MyOrders() {
     const startTracking = (order) => {
         setTrackingOrder(order);
         setRiderLocation(null); // Reset prev location
-        setUserLocation(null);
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 

@@ -267,7 +267,7 @@ export default function Order() {
         if (!user) return alert("Please login first!"); // Replace with notify later
         if (cart.length === 0) return;
 
-        const isLate = typeof serverHour === "number" && serverHour >= 21;
+
         const vendorIsOpen = (selectedVendor?.isOpen !== false) && !selectedVendor?.isManuallyClosed;
         if (!vendorIsOpen) {
             return alert("Vendor is currently closed. Please try again later.");
@@ -401,17 +401,17 @@ export default function Order() {
             });
             const data = await res.json();
 
-                if (data.success) {
-                    if (method === 'mpesa') {
-                        alert("STK Push Sent! Check your phone.");
-                        // In a real app, you'd poll for status or listen to socket here.
-                    } else {
-                        setActiveOrder(data.order);
-                        setPaymentConfirmed(true);
-                    }
+            if (data.success) {
+                if (method === 'mpesa') {
+                    alert("STK Push Sent! Check your phone.");
+                    // In a real app, you'd poll for status or listen to socket here.
                 } else {
-                    alert("Payment failed: " + data.message);
+                    setActiveOrder(data.order);
+                    setPaymentConfirmed(true);
                 }
+            } else {
+                alert("Payment failed: " + data.message);
+            }
         } catch (err) {
             console.error(err);
             alert("Payment error.");
@@ -760,26 +760,26 @@ export default function Order() {
 
                         {/* Payment Method Tabs */}
                         {!(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") && (
-                        <div className="flex gap-2 mb-4">
-                            <button
-                                onClick={() => setPaymentMethod('mpesa')}
-                                className={`flex-1 py-2 rounded-lg font-bold text-sm border ${paymentMethod === 'mpesa'
-                                    ? 'bg-green-600 text-white border-green-600'
-                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                    }`}
-                            >
-                                M-Pesa
-                            </button>
-                            <button
-                                onClick={() => setPaymentMethod('google_pay')}
-                                className={`flex-1 py-2 rounded-lg font-bold text-sm border ${paymentMethod === 'google_pay'
-                                    ? 'bg-black text-white border-black'
-                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                    }`}
-                            >
-                                Google Pay
-                            </button>
-                        </div>
+                            <div className="flex gap-2 mb-4">
+                                <button
+                                    onClick={() => setPaymentMethod('mpesa')}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm border ${paymentMethod === 'mpesa'
+                                        ? 'bg-green-600 text-white border-green-600'
+                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    M-Pesa
+                                </button>
+                                <button
+                                    onClick={() => setPaymentMethod('google_pay')}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm border ${paymentMethod === 'google_pay'
+                                        ? 'bg-black text-white border-black'
+                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    Google Pay
+                                </button>
+                            </div>
                         )}
 
                         {paymentMethod === 'mpesa' && !(paymentConfirmed || activeOrder.status === "PAYMENT_CONFIRMED") ? (

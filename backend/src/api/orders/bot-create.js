@@ -86,7 +86,7 @@ router.post("/", async (req, res) => {
         }
 
         // Notify Admin via Socket (if available in global context or attached to req)
-        const io = req.app.get("io");
+
         if (io) {
             io.emit("admin:order:new", newOrder);
             if (assignedRider) {
