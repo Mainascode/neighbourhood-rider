@@ -44,9 +44,9 @@ export default function Order() {
             if (!user) return;
             setWishlistLoading(true);
             try {
-                const res = await fetch(`${API_URL}/api/wishlist`, {
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-                });
+            const res = await fetch(`${API_URL}/api/wishlist`, {
+                credentials: "include"
+            });
                 if (res.ok) {
                     const data = await res.json();
                     setWishlistItems(Array.isArray(data) ? data : []);
@@ -58,9 +58,9 @@ export default function Order() {
         const fetchRecommendations = async () => {
             if (!user) return;
             try {
-                const res = await fetch(`${API_URL}/api/orders/recommendations`, {
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-                });
+            const res = await fetch(`${API_URL}/api/orders/recommendations`, {
+                credentials: "include"
+            });
                 if (res.ok) {
                     const data = await res.json();
                     setRecommendations(Array.isArray(data.items) ? data.items : []);
@@ -203,9 +203,9 @@ export default function Order() {
             const res = await fetch(`${API_URL}/api/wishlist`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                    "Content-Type": "application/json"
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     vendorId: vendor._id,
                     vendorName: vendor.storeName,
@@ -229,7 +229,7 @@ export default function Order() {
         try {
             const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
                 method: "DELETE",
-                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                credentials: "include"
             });
             if (res.ok) {
                 setWishlistItems(prev => prev.filter(w => w._id !== id));

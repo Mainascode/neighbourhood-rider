@@ -18,7 +18,7 @@ export default function Navbar() {
   const fetchWalletBalance = async () => {
     try {
       const res = await fetch(`${API_URL}/api/wallet/me`, {
-        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+        credentials: "include"
       });
       const data = await res.json();
       if (res.ok) {

@@ -50,7 +50,6 @@ export default function MyOrders() {
     const fetchWishlist = useCallback(async () => {
         try {
             const res = await fetch(`${API_URL}/api/wishlist`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
                 credentials: "include"
             });
             if (res.ok) {
@@ -147,7 +146,6 @@ export default function MyOrders() {
         try {
             const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
                 method: "DELETE",
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
                 credentials: "include"
             });
             if (res.ok) {
