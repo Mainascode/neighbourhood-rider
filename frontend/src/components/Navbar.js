@@ -1,33 +1,15 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { API_URL } from "../lib/config";
 import { useState, useEffect } from "react";
-import { FaBars, FaTimes, FaWallet } from "react-icons/fa";
+import { FaBars, FaTimes } from "react-icons/fa";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [balance, setBalance] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      fetchWalletBalance();
-    }
+    // Wallet removed
   }, [user]);
-
-  const fetchWalletBalance = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/wallet/me`, {
-        credentials: "include"
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setBalance(data.wallet.balance);
-      }
-    } catch (err) {
-      console.error("Error fetching wallet:", err);
-    }
-  };
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 text-riderLight px-4 md:px-6 py-3 md:py-4 flex justify-between items-center transition-all duration-300 shadow-sm">
@@ -81,11 +63,6 @@ export default function Navbar() {
 
         {user && (
           <div className="flex items-center gap-4">
-            <div className="bg-gray-100 px-4 py-2 rounded-full flex items-center gap-2 text-gray-700 font-bold text-sm border border-gray-200 shadow-inner">
-              <FaWallet className="text-riderBlue" />
-              <span>KES {balance.toLocaleString()}</span>
-            </div>
-
             <button
               onClick={logout}
               className="bg-gradient-to-r from-riderMaroon to-orange-500 text-white shadow-lg shadow-riderMaroon/30 hover:shadow-riderMaroon/40 border-0 px-6 py-2.5 rounded-full font-bold transition-all hover:-translate-y-1 active:scale-95"
@@ -117,12 +94,9 @@ export default function Navbar() {
 
           <div className="flex flex-col gap-6 text-lg font-medium">
             {user && (
-              <div className="bg-white/10 p-3 rounded-xl flex items-center gap-3 text-white border border-white/10 mb-2">
-                <FaWallet className="text-riderBlue text-xl" />
-                <div>
-                  <p className="text-xs text-gray-400 uppercase font-bold">Balance</p>
-                  <p className="font-bold">KES {balance.toLocaleString()}</p>
-                </div>
+              <div className="bg-white/10 p-3 rounded-xl text-white border border-white/10 mb-2">
+                <p className="text-xs text-gray-400 uppercase font-bold">Account</p>
+                <p className="font-bold">{user?.name || "User"}</p>
               </div>
             )}
 
