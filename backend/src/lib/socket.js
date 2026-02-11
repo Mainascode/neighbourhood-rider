@@ -13,24 +13,33 @@ export default function setupSocket(io) {
         const match = cookie.match(/accessToken=([^;]+)/);
         if (match) token = decodeURIComponent(match[1]);
       }
-      if (!token) return next(new Error("Unauthorized"));
+      if (!token) {
+        socket.user = null;
+        return next();
+      }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select("_id name role");
 
-      if (!user) return next(new Error("User not found"));
+      if (!user) {
+        socket.user = null;
+        return next();
+      }
 
       socket.user = user;
       next();
     } catch {
-      next(new Error("Invalid token"));
+      socket.user = null;
+      next();
     }
   });
 
   io.on("connection", (socket) => {
-    console.log("🔌 socket:", socket.user.name, socket.user.role);
-    const role = String(socket.user.role || "user").toUpperCase();
-    socket.join(`notify:${role}:${socket.user._id}`);
+    console.log("🔌 socket:", socket.user?.name || "anonymous", socket.user?.role || "anon");
+    if (socket.user) {
+      const role = String(socket.user.role || "user").toUpperCase();
+      socket.join(`notify:${role}:${socket.user._id}`);
+    }
 
     socket.on("join:order", (orderId) => {
       socket.join(`order:${orderId}`);
@@ -38,6 +47,7 @@ export default function setupSocket(io) {
 
     /* rider live location & persistence */
     socket.on("rider:location", async ({ orderId, lat, lng }) => {
+      if (!socket.user) return;
       // Role check (case insensitive)
       if (socket.user.role.toLowerCase() !== "rider") return;
 
@@ -90,6 +100,7 @@ export default function setupSocket(io) {
     });
 
     socket.on("rider:online", async () => {
+      if (!socket.user) return;
       if (socket.user.role.toLowerCase() !== "rider") return;
       try {
         await import("../models/Rider.js").then(async ({ default: Rider }) => {
@@ -117,6 +128,7 @@ export default function setupSocket(io) {
 
     /* mark delivered */
     socket.on("order:delivered", async ({ orderId }) => {
+      if (!socket.user) return;
       if (socket.user.role.toLowerCase() !== "rider") return;
 
       const order = await Order.findById(orderId);
@@ -141,9 +153,9 @@ export default function setupSocket(io) {
     });
 
     socket.on("disconnect", async () => {
-      console.log("❌ socket disconnected:", socket.user.name);
+      console.log("❌ socket disconnected:", socket.user?.name || "anonymous");
       // Mark offline
-      if (socket.user.role.toLowerCase() === "rider") {
+      if (socket.user && socket.user.role.toLowerCase() === "rider") {
         await import("../models/Rider.js").then(async ({ default: Rider }) => {
           await Rider.findOneAndUpdate({ userId: socket.user._id }, { isAvailable: false });
         });
