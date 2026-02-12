@@ -33,8 +33,18 @@ export async function acceptOrder(req, res) {
             return res.status(400).json({ error: `Order is already ${order.status}` });
         }
 
+        await updateOrderStatus({
+            orderId: order._id,
+            fromStatusRaw: order.status,
+            toStatus: ORDER_STATUS.ON_THE_WAY,
+            actor: { id: riderUser._id, role: riderUser.role, name: riderUser.name },
+            source: "riders.accept-order",
+            io: req.app.get("io"),
+        });
+
         // Ensure rider is BUSY
         rider.status = "ONLINE_BUSY";
+        rider.isAvailable = false;
         await rider.save();
 
         res.json({ success: true, message: "Order accepted", order });
@@ -79,6 +89,7 @@ export async function rejectOrder(req, res) {
 
         // 2. Set Rider to ONLINE_AVAILABLE
         rider.status = "ONLINE_AVAILABLE";
+        rider.isAvailable = true;
         await rider.save();
 
         await recordRejection(rider._id);

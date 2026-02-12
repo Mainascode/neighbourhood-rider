@@ -1,6 +1,8 @@
 
 import axios from 'axios';
+import crypto from "crypto";
 import Order from '../../models/Order.js';
+import MpesaTransaction from "../../models/MpesaTransaction.js";
 import { sendNotification } from "../../lib/notificationService.js";
 import { updateOrderStatus, normalizeOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
@@ -29,9 +31,23 @@ const getMpesaToken = async () => {
 export const initiateSTKPush = async (req, res) => {
     try {
         const { phoneNumber, amount, orderId } = req.body;
+        const user = req.user;
 
         if (!phoneNumber || !amount || !orderId) {
             return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) return res.status(404).json({ message: "Order not found" });
+        if (order.userId?.toString() !== user._id?.toString()) {
+            return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const amt = Number(amount);
+        const matchesTotal = Math.abs(order.amount - amt) < 10;
+        const matchesDelivery = Math.abs(order.deliveryFee - amt) < 10;
+        if (!matchesTotal && !matchesDelivery) {
+            return res.status(400).json({ message: "Invalid payment amount" });
         }
 
         const token = await getMpesaToken();
@@ -69,6 +85,20 @@ export const initiateSTKPush = async (req, res) => {
             headers: { Authorization: `Bearer ${token}` }
         });
 
+        const checkoutRequestId = response.data.CheckoutRequestID;
+        if (checkoutRequestId) {
+            await Order.findByIdAndUpdate(orderId, {
+                mpesaCheckoutRequestId: checkoutRequestId,
+                paymentData: {
+                    ...(order.paymentData || {}),
+                    checkoutRequestId,
+                    phoneNumber,
+                    amount: amt,
+                    initiatedAt: new Date()
+                }
+            });
+        }
+
         res.status(200).json({ success: true, message: "STK Push Initiated", data: response.data });
 
     } catch (error) {
@@ -79,22 +109,76 @@ export const initiateSTKPush = async (req, res) => {
 
 export const handleMpesaCallback = async (req, res) => {
     try {
-        const { Body } = req.body;
+        const signature = req.headers["x-mpesa-signature"];
+        const secret = process.env.MPESA_CALLBACK_SECRET;
+        const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
 
-        if (Body.stkCallback.ResultCode === 0) {
+        if (!signature || !secret) {
+            return res.status(401).json({ message: "Missing signature or secret" });
+        }
+
+        const expected = crypto
+            .createHmac("sha256", secret)
+            .update(rawBody)
+            .digest("hex");
+
+        if (signature !== expected) {
+            return res.status(403).json({ message: "Invalid signature" });
+        }
+
+        const parsedBody = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString("utf-8")) : req.body;
+        const { Body } = parsedBody;
+        if (!Body?.stkCallback) {
+            return res.status(400).json({ message: "Invalid callback payload" });
+        }
+
+        const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
+        const resultCode = Body.stkCallback.ResultCode;
+        const resultDesc = Body.stkCallback.ResultDesc;
+
+        // Record callback and enforce idempotency
+        const existingTx = await MpesaTransaction.findOne({ checkoutRequestId });
+        if (existingTx?.processedAt) {
+            return res.status(200).json({ message: "Callback already processed" });
+        }
+
+        if (resultCode === 0) {
             // Success
-            const metadata = Body.stkCallback.CallbackMetadata.Item;
-            const amount = metadata.find(o => o.Name === 'Amount').Value;
-            const mpesaReceiptNumber = metadata.find(o => o.Name === 'MpesaReceiptNumber').Value;
+            const metadata = Body.stkCallback.CallbackMetadata?.Item || [];
+            const amount = metadata.find(o => o.Name === 'Amount')?.Value;
+            const mpesaReceiptNumber = metadata.find(o => o.Name === 'MpesaReceiptNumber')?.Value;
+            const phoneNumber = metadata.find(o => o.Name === 'PhoneNumber')?.Value;
 
             console.log(`[M-Pesa] Payment Successful: ${mpesaReceiptNumber} - KES ${amount}`);
 
             // Update Order
             // Find order by checkout ID
-            const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
             const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
 
             if (order) {
+                const amt = Number(amount);
+                const matchesTotal = Math.abs(order.amount - amt) < 10;
+                const matchesDelivery = Math.abs(order.deliveryFee - amt) < 10;
+                if (!matchesTotal && !matchesDelivery) {
+                    await MpesaTransaction.findOneAndUpdate(
+                        { checkoutRequestId },
+                        {
+                            checkoutRequestId,
+                            mpesaReceiptNumber,
+                            orderId: order._id,
+                            amount: amt,
+                            phoneNumber,
+                            resultCode,
+                            resultDesc,
+                            raw: Body,
+                            processedAt: new Date(),
+                            sourceIp: req.ip
+                        },
+                        { upsert: true, new: true }
+                    );
+                    return res.status(200).json({ message: "Amount mismatch recorded" });
+                }
+
                 // Determine what exactly was paid for
                 // If amount matches 'amount' (Total), then full payment
                 // If matches 'deliveryFee', then only delivery fee
@@ -117,8 +201,8 @@ export const handleMpesaCallback = async (req, res) => {
 
                 setUpdates.paymentData = {
                     mpesaReceiptNumber,
-                    amount,
-                    phoneNumber: metadata.find(o => o.Name === 'PhoneNumber')?.Value,
+                    amount: amt,
+                    phoneNumber,
                     date: new Date()
                 };
 
@@ -132,6 +216,7 @@ export const handleMpesaCallback = async (req, res) => {
                         source: "payments.mpesa_callback",
                         io: req.app.get("io"),
                         set: setUpdates,
+                        preconditions: { mpesaCheckoutRequestId: checkoutRequestId }
                     });
                 } else {
                     Object.assign(order, setUpdates);
@@ -184,9 +269,24 @@ export const handleMpesaCallback = async (req, res) => {
                 console.error(`[M-Pesa] Order not found for CheckoutID: ${checkoutRequestId}`);
             }
 
+            await MpesaTransaction.findOneAndUpdate(
+                { checkoutRequestId },
+                {
+                    checkoutRequestId,
+                    mpesaReceiptNumber,
+                    orderId: order?._id,
+                    amount: Number(amount),
+                    phoneNumber,
+                    resultCode,
+                    resultDesc,
+                    raw: Body,
+                    processedAt: new Date(),
+                    sourceIp: req.ip
+                },
+                { upsert: true, new: true }
+            );
         } else {
-            console.log(`[M-Pesa] Payment Failed/Cancelled: ${Body.stkCallback.ResultDesc}`);
-            const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
+            console.log(`[M-Pesa] Payment Failed/Cancelled: ${resultDesc}`);
             const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
             if (order) {
                 const currentStatus = normalizeOrderStatus(order.status);
@@ -208,6 +308,19 @@ export const handleMpesaCallback = async (req, res) => {
                 const io = req.app.get("io");
                 if (io) io.to(`order:${order._id}`).emit("order:update", order);
             }
+            await MpesaTransaction.findOneAndUpdate(
+                { checkoutRequestId },
+                {
+                    checkoutRequestId,
+                    orderId: order?._id,
+                    resultCode,
+                    resultDesc,
+                    raw: Body,
+                    processedAt: new Date(),
+                    sourceIp: req.ip
+                },
+                { upsert: true, new: true }
+            );
         }
 
         res.status(200).json({ message: "Callback received" });

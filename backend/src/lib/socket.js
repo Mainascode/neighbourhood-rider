@@ -54,14 +54,15 @@ export default function setupSocket(io) {
       // Persist to DB
       try {
         await import("../models/Rider.js").then(async ({ default: Rider }) => {
-          await Rider.findOneAndUpdate(
-            { userId: socket.user._id },
-            {
-              location: { type: "Point", coordinates: [lng, lat] }, // Memo: GeoJSON is [lng, lat]
-              isAvailable: true,
-              status: "approved" // Ensure they stay approved/visible
-            }
-          );
+          const update = {
+            location: { type: "Point", coordinates: [lng, lat] },
+            lastSeen: new Date(),
+          };
+          if (orderId) {
+            update.status = "ONLINE_BUSY";
+            update.isAvailable = false;
+          }
+          await Rider.findOneAndUpdate({ userId: socket.user._id }, update);
         });
       } catch (err) {
         console.error("Error updating rider loc:", err);

@@ -6,7 +6,7 @@ import AuthCard from "./AuthCard";
 
 export default function Login() {
   const { login } = useAuth();
-  const { notify } = useNotify();
+  const { notify, enableNotifications } = useNotify();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -18,6 +18,7 @@ export default function Login() {
     try {
       await login(email, password);
       notify("Welcome back 👋", "success");
+      await enableNotifications({ prompt: true });
       navigate("/");
     } catch (err) {
       notify(err.message || "Login failed", "error");

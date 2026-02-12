@@ -3,6 +3,7 @@ import Rider from "../models/Rider.js";
 import { recordAssignment } from "../lib/penalties.js";
 import { ORDER_STATUS, updateOrderStatus } from "../lib/orderStatus.js";
 import Order from "../models/Order.js";
+import { getRiderAcceptTimeoutSeconds } from "../lib/riderConfig.js";
 
 /**
  * Finds the nearest available rider to the given location.
@@ -61,7 +62,7 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider, io) {
                 _id: rider._id,
                 status: "ONLINE_AVAILABLE" // Double check status hasn't changed
             },
-            { status: "ONLINE_BUSY" },
+            { status: "ONLINE_BUSY", isAvailable: false },
             { new: true }
         );
 
@@ -87,7 +88,7 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider, io) {
 
         if (!updatedOrder) {
             // Rollback rider status if order was already taken
-            await Rider.findByIdAndUpdate(rider._id, { status: "ONLINE_AVAILABLE" });
+            await Rider.findByIdAndUpdate(rider._id, { status: "ONLINE_AVAILABLE", isAvailable: true });
             return { success: false, error: "ORDER_ALREADY_ASSIGNED" };
         }
 
@@ -110,7 +111,8 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider, io) {
  * @param {Object} io - Socket.io instance
  */
 export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRiderIds = [], io, startedAt = Date.now()) {
-    const RESPONSE_TIMEOUT_MS = 15000; // 15 seconds per attempt
+    const acceptSeconds = await getRiderAcceptTimeoutSeconds(orderId);
+    const RESPONSE_TIMEOUT_MS = Math.max(5, Number(acceptSeconds || 15)) * 1000;
     const TOTAL_RETRY_WINDOW_MS = 4 * 60 * 1000; // 4 minutes total
     const deadlineAt = startedAt + TOTAL_RETRY_WINDOW_MS;
 
@@ -179,6 +181,11 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
                     phone: assignedRider.phone
                 }
             });
+            io.emit(`rider:order:${assignedRider.userId}`, {
+                _id: orderId,
+                status: ORDER_STATUS.RIDER_ASSIGNED,
+                acceptBy: Date.now() + RESPONSE_TIMEOUT_MS,
+            });
             // Also notify the rider specifically?
             // io.to(`rider:${assignedRider.userId}`).emit("rider:new_order", { orderId, pickupLocation }); 
             // (Assumes riders join room `rider:{userId}`)
@@ -211,7 +218,7 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
 
                 // 2. Set rider to available again (or maybe penalty?)
                 // Assuming they just missed it, set available.
-                await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_AVAILABLE" });
+                await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_AVAILABLE", isAvailable: true });
 
                 // 3. Retry with exclusion
                 // recursive call

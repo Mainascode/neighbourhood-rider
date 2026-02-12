@@ -24,6 +24,7 @@ const VendorSchema = new mongoose.Schema({
         default: "pochi"
     },
     mpesaNumber: { type: String }, // The Till Number or Phone Number
+    riderAcceptTimeoutSeconds: { type: Number },
 
     // Fixed Operating Hours (06:00 - 21:00) - Managed via virtual
     status: {

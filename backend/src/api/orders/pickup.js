@@ -15,6 +15,12 @@ export default async function handler(req, res) {
         const order = await Order.findById(orderId);
         if (!order) return res.status(404).json({ message: "Order not found" });
 
+        const Rider = (await import("../../models/Rider.js")).default;
+        const riderProfile = await Rider.findOne({ userId: req.user._id });
+        if (!riderProfile || order.riderId?.toString() !== riderProfile._id.toString()) {
+            return res.status(403).json({ message: "Unauthorized" });
+        }
+
         const normalizedStatus = normalizeOrderStatus(order.status);
         if (![ORDER_STATUS.RIDER_ASSIGNED, ORDER_STATUS.ON_THE_WAY].includes(normalizedStatus))
             return res.status(400).json({ message: "Order is not ready for pickup" });

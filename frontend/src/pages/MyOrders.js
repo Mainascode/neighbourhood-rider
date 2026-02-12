@@ -9,7 +9,7 @@ import LiveMap from "../components/LiveMap";
 import { useNotify } from "../context/NotificationContext";
 
 export default function MyOrders() {
-    const { enableNotifications } = useNotify();
+    useNotify();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("pending");
@@ -171,22 +171,6 @@ export default function MyOrders() {
                             <h1 className="text-2xl md:text-3xl font-extrabold text-riderLight">My Orders</h1>
                             <p className="text-sm md:text-base text-gray-600">Track and manage your deliveries</p>
                         </div>
-                        <div className="ml-auto hidden md:block">
-                            <button
-                                onClick={enableNotifications}
-                                className="bg-riderBlue text-white text-xs md:text-sm font-bold px-4 py-2 rounded-full shadow hover:bg-blue-700 transition-all"
-                            >
-                                Enable Notifications
-                            </button>
-                        </div>
-                    </div>
-                    <div className="md:hidden mb-6">
-                        <button
-                            onClick={enableNotifications}
-                            className="w-full bg-riderBlue text-white text-sm font-bold px-4 py-3 rounded-xl shadow hover:bg-blue-700 transition-all"
-                        >
-                            Enable Notifications
-                        </button>
                     </div>
 
                     {/* LIVE TRACKING SECTION (Uber-Style) */}

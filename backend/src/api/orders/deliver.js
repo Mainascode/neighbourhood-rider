@@ -10,6 +10,12 @@ export default async function deliverOrder(req, res) {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
+    const Rider = (await import("../../models/Rider.js")).default;
+    const riderProfile = await Rider.findOne({ userId: req.user._id });
+    if (!riderProfile || order.riderId?.toString() !== riderProfile._id.toString()) {
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
     const normalizedStatus = normalizeOrderStatus(order.status);
     if (normalizedStatus !== ORDER_STATUS.ON_THE_WAY)
         return res.status(400).json({ message: "Order must be on the way" });
@@ -42,6 +48,9 @@ export default async function deliverOrder(req, res) {
         await releasePendingFunds(order._id);
     }
 
+    if (order.riderId) {
+        await Rider.findByIdAndUpdate(order.riderId, { status: "ONLINE_AVAILABLE", isAvailable: true });
+    }
 
 
     // ...

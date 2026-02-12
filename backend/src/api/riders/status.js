@@ -24,6 +24,7 @@ export async function goOnline(req, res) {
             { userId: req.user._id },
             {
                 status: "ONLINE_AVAILABLE",
+                isAvailable: true,
                 location: {
                     type: "Point",
                     coordinates: [location.lng, location.lat], // GeoJSON order: [lng, lat]
@@ -46,12 +47,14 @@ export async function goOnline(req, res) {
 
 /**
  * POST /api/riders/go-offline
+ * Body: { reason }
  */
 export async function goOffline(req, res) {
     try {
+        const { reason } = req.body || {};
         const rider = await Rider.findOneAndUpdate(
             { userId: req.user._id },
-            { status: "OFFLINE" },
+            { status: "OFFLINE", isAvailable: false, lastOfflineReason: reason || "OTHER" },
             { new: true }
         );
 
@@ -90,6 +93,7 @@ export async function heartbeat(req, res) {
                 status: { $ne: "OFFLINE" }
             },
             {
+                isAvailable: true,
                 location: {
                     type: "Point",
                     coordinates: [location.lng, location.lat],

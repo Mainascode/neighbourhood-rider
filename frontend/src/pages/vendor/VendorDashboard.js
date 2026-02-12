@@ -10,7 +10,7 @@ import { socket } from "../../lib/socket"; // Ensure socket imported
 
 export default function VendorDashboard({ initialTab = "overview" }) {
     const { user } = useAuth();
-    const { notify, enableNotifications } = useNotify();
+    const { notify } = useNotify();
     const navigate = useNavigate();
 
     const [vendor, setVendor] = useState(null);
@@ -301,15 +301,6 @@ export default function VendorDashboard({ initialTab = "overview" }) {
                                         />
                                     </div>
                                 </div>
-
-                                <button
-                                    onClick={enableNotifications}
-                                    type="button"
-                                    className="w-full bg-riderBlue text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-                                >
-                                    🔔 Enable Push Notifications
-                                </button>
-                                <p className="text-xs text-gray-500 text-center">Get notified when new orders arrive.</p>
 
                                 <button
                                     disabled={loading}

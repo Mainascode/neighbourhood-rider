@@ -4,38 +4,7 @@ import NotificationPreference from "../models/NotificationPreference.js";
 import Order from "../models/Order.js";
 import Vendor from "../models/Vendor.js";
 import Rider from "../models/Rider.js";
-
-let adminApp = null;
-let adminMessaging = null;
-
-async function getMessaging() {
-  if (adminMessaging) return adminMessaging;
-  const admin = await import("firebase-admin");
-
-  if (!adminApp) {
-    const base64 = process.env.FCM_SERVICE_ACCOUNT_BASE64;
-    const json = process.env.FCM_SERVICE_ACCOUNT_JSON;
-
-    let credentials = null;
-    if (base64) {
-      const raw = Buffer.from(base64, "base64").toString("utf-8");
-      credentials = JSON.parse(raw);
-    } else if (json) {
-      credentials = JSON.parse(json);
-    }
-
-    if (!credentials) {
-      throw new Error("FCM credentials not configured");
-    }
-
-    adminApp = admin.initializeApp({
-      credential: admin.credential.cert(credentials),
-    });
-  }
-
-  adminMessaging = admin.getMessaging(adminApp);
-  return adminMessaging;
-}
+import { getMessaging } from "./firebaseAdmin.js";
 
 export async function sendNotification({
   recipientId,

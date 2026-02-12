@@ -9,13 +9,14 @@ import ReviewList from "../components/ReviewList";
 
 export default function RiderDashboard({ tab = "orders" }) {
     const { user } = useAuth();
-    const { notify, enableNotifications } = useNotify();
+    const { notify } = useNotify();
     const [activeTab, setActiveTab] = useState(tab);
     const [assignments, setAssignments] = useState([]);
     const [riderProfile, setRiderProfile] = useState(null);
     const [faqs, setFaqs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [userLocation, setUserLocation] = useState(null);
+    const [acceptTimers, setAcceptTimers] = useState({});
 
     useEffect(() => {
         setActiveTab(tab);
@@ -85,6 +86,9 @@ export default function RiderDashboard({ tab = "orders" }) {
         const handleNewAssignment = (order) => {
             notify("📦 New delivery assigned!", "success");
             if (activeTab === "orders") fetchAssignments();
+            if (order?.acceptBy) {
+                setAcceptTimers(prev => ({ ...prev, [order._id]: order.acceptBy }));
+            }
         };
 
         socket.on(`rider:order:${user?.id}`, handleNewAssignment);
@@ -93,6 +97,20 @@ export default function RiderDashboard({ tab = "orders" }) {
             socket.off(`rider:order:${user?.id}`, handleNewAssignment);
         };
     }, [activeTab, fetchAssignments, fetchProfile, fetchFaqs, notify, user]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setAcceptTimers(prev => ({ ...prev }));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getTimeLeft = (orderId) => {
+        const acceptBy = acceptTimers[orderId];
+        if (!acceptBy) return null;
+        const msLeft = acceptBy - Date.now();
+        return Math.max(0, Math.ceil(msLeft / 1000));
+    };
 
     const handleAcceptOrder = async (orderId) => {
         try {
@@ -183,20 +201,79 @@ export default function RiderDashboard({ tab = "orders" }) {
 
     const handleToggleOnline = async () => {
         try {
-            const newStatus = !riderProfile.isAvailable;
-            const res = await fetch(`${API_URL}/api/riders/me`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isAvailable: newStatus }),
-                credentials: "include"
-            });
-            const data = await res.json();
-            setRiderProfile(data);
-            notify(newStatus ? "You are now ONLINE 🟢" : "You are now OFFLINE 🔴", "info");
+            const goingOnline = !riderProfile.isAvailable;
+            if (goingOnline) {
+                if (!navigator.geolocation) {
+                    notify("Location permission is required to go online", "error");
+                    return;
+                }
+                const position = await new Promise((resolve, reject) =>
+                    navigator.geolocation.getCurrentPosition(resolve, reject)
+                );
+                const location = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                const res = await fetch(`${API_URL}/api/riders/go-online`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ location }),
+                    credentials: "include"
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    notify(data.error || "Failed to go online", "error");
+                    return;
+                }
+                setRiderProfile(data.rider || data);
+                notify("You are now ONLINE 🟢", "info");
+            } else {
+                const reason = window.prompt("Why are you going offline? (e.g., Break, Off shift, Vehicle issue)") || "OTHER";
+                const res = await fetch(`${API_URL}/api/riders/go-offline`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reason }),
+                    credentials: "include"
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    notify(data.error || "Failed to go offline", "error");
+                    return;
+                }
+                setRiderProfile(data.rider || data);
+                notify("You are now OFFLINE 🔴", "info");
+            }
         } catch (e) {
             notify("Failed to update status", "error");
         }
     };
+
+    useEffect(() => {
+        if (!riderProfile || riderProfile.status === "OFFLINE") return;
+        if (!navigator.geolocation) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const position = await new Promise((resolve, reject) =>
+                    navigator.geolocation.getCurrentPosition(resolve, reject)
+                );
+                const location = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                await fetch(`${API_URL}/api/riders/heartbeat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ location }),
+                    credentials: "include"
+                });
+            } catch (e) {
+                // silently ignore heartbeat failures
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [riderProfile?.status]);
 
     return (
         <div className="min-h-screen bg-transparent text-riderLight p-4 md:p-6 pb-20">
@@ -285,6 +362,11 @@ export default function RiderDashboard({ tab = "orders" }) {
                                         >
                                             {loading ? "Processing..." : "Accept Order 🚀"}
                                         </button>
+                                    )}
+                                    {order.status === 'RIDER_ASSIGNED' && getTimeLeft(order._id) !== null && (
+                                        <div className="col-span-2 text-center text-xs text-gray-500">
+                                            Accept within <span className="font-bold text-riderMaroon">{getTimeLeft(order._id)}s</span> or it will be reassigned.
+                                        </div>
                                     )}
 
                                     {order.status === 'ON_THE_WAY' && !order.pickedUpAt && (
@@ -434,15 +516,6 @@ export default function RiderDashboard({ tab = "orders" }) {
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">National ID</span>
                                     <span className="font-bold text-riderLight font-mono">{riderProfile.idNumber}</span>
-                                </div>
-                                <div className="pt-4 border-t border-riderBlue/10">
-                                    <button
-                                        onClick={enableNotifications}
-                                        className="w-full bg-riderBlue text-riderLight font-bold py-3 rounded-xl shadow-lg hover:bg-blue-800 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        🔔 Enable Push Notifications
-                                    </button>
-                                    <p className="text-xs text-gray-500 mt-2 text-center">Get notified on your device when new orders arrive.</p>
                                 </div>
                             </div>
                         </div>

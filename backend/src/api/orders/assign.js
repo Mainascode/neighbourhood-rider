@@ -26,16 +26,20 @@ export default async function handler(req, res) {
     });
 
     await Rider.findByIdAndUpdate(riderId, {
-      isAvailable: false
+      isAvailable: false,
+      status: "ONLINE_BUSY",
     });
 
     // 3. Notify Rider via Socket
     const io = req.app.get("io");
     if (io) {
+      const { getRiderAcceptTimeoutSeconds } = await import("../../lib/riderConfig.js");
+      const acceptSeconds = await getRiderAcceptTimeoutSeconds(orderId);
       io.emit(`rider:order:${riderId}`, {
         _id: orderId,
         status: ORDER_STATUS.RIDER_ASSIGNED,
-        message: "You have been assigned a new order! 📦"
+        message: "You have been assigned a new order! 📦",
+        acceptBy: Date.now() + (Math.max(5, Number(acceptSeconds || 15)) * 1000)
       });
     }
 

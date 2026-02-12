@@ -29,6 +29,10 @@ export default function AdminDashboard() {
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [selectedOrderForAssignment, setSelectedOrderForAssignment] = useState(null);
   const [newFaq, setNewFaq] = useState({ question: "", answer: "", isPublished: true });
+  const [testFlowLoading, setTestFlowLoading] = useState(false);
+  const [gpsSimOrders, setGpsSimOrders] = useState({});
+  const [testFlowStep, setTestFlowStep] = useState("");
+  const [testFlowOrderId, setTestFlowOrderId] = useState("");
   const { notify } = useNotify();
 
   /* 🛠️ Actions */
@@ -138,6 +142,23 @@ export default function AdminDashboard() {
     if (activeModal === "faqs") fetchFaqs();
   }, [activeModal, fetchDashboard, fetchRiders, fetchOrders, fetchFaqs, fetchVendors]);
 
+  useEffect(() => {
+    if (!testFlowOrderId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/orders`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setOrders(data);
+        const match = data.find(o => o._id === testFlowOrderId);
+        if (match) setTestFlowStep(match.status);
+      } catch (e) {
+        // ignore
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [testFlowOrderId]);
+
 
   /* 🛠️ Actions */
   const handleApproveRider = async (id, status) => {
@@ -194,6 +215,144 @@ export default function AdminDashboard() {
     }
   }
 
+  const runTestSeedVendors = async () => {
+    try {
+      setTestFlowLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/test/seed-vendors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ count: 3 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify(`Seeded ${data.createdCount} vendors`, "success");
+        fetchVendors();
+      } else {
+        notify(data.message || "Failed to seed vendors", "error");
+      }
+    } catch (e) {
+      notify("Seed failed", "error");
+    } finally {
+      setTestFlowLoading(false);
+    }
+  };
+
+  const runTestFlow = async () => {
+    try {
+      setTestFlowLoading(true);
+      setTestFlowStep("Creating order");
+      const res = await fetch(`${API_URL}/api/admin/test/flow`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify(`Test flow started: ${data.orderId}`, "success");
+        setTestFlowStep("Order created");
+        setTestFlowOrderId(data.orderId);
+        if (data.order) {
+          setOrders(prev => [data.order, ...prev.filter(o => o._id !== data.order._id)]);
+        }
+        setActiveModal("orders");
+      } else {
+        notify(data.message || "Failed to run test flow", "error");
+        setTestFlowStep("");
+        setTestFlowOrderId("");
+      }
+    } catch (e) {
+      notify("Test flow failed", "error");
+      setTestFlowStep("");
+      setTestFlowOrderId("");
+    } finally {
+      setTestFlowLoading(false);
+    }
+  };
+
+  const runSeedRiderOnline = async () => {
+    try {
+      setTestFlowLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/test/seed-rider-online`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify("Test rider created and set online", "success");
+        fetchRiders();
+      } else {
+        notify(data.message || "Failed to create test rider", "error");
+      }
+    } catch (e) {
+      notify("Failed to create test rider", "error");
+    } finally {
+      setTestFlowLoading(false);
+    }
+  };
+
+  const runSeedUser = async () => {
+    try {
+      setTestFlowLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/test/seed-user`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify("Test user created", "success");
+      } else {
+        notify(data.message || "Failed to create test user", "error");
+      }
+    } catch (e) {
+      notify("Failed to create test user", "error");
+    } finally {
+      setTestFlowLoading(false);
+    }
+  };
+
+  const runSeedAll = async () => {
+    try {
+      setTestFlowLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/test/seed-all`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify("Test user + vendor + rider created", "success");
+        fetchVendors();
+        fetchRiders();
+      } else {
+        notify(data.message || "Failed to seed all", "error");
+      }
+    } catch (e) {
+      notify("Failed to seed all", "error");
+    } finally {
+      setTestFlowLoading(false);
+    }
+  };
+
+  const toggleGpsSim = async (orderId) => {
+    const nextAction = gpsSimOrders[orderId] ? "stop" : "start";
+    try {
+      const res = await fetch(`${API_URL}/api/admin/test/simulate-gps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderId, action: nextAction })
+      });
+      if (res.ok) {
+        setGpsSimOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+      } else {
+        notify("Failed to toggle GPS simulation", "error");
+      }
+    } catch (e) {
+      notify("Failed to toggle GPS simulation", "error");
+    }
+  };
+
 
   return (
     <div className="flex min-h-screen bg-transparent text-riderLight font-sans selection:bg-riderMaroon selection:text-riderLight overflow-hidden">
@@ -239,6 +398,43 @@ export default function AdminDashboard() {
             <p className="text-gray-600 text-sm mt-1">Here is what is happening in your neighborhood today.</p>
           </div>
           <div className="flex gap-4 items-center">
+            <div className="flex gap-2">
+              <button
+                onClick={runTestSeedVendors}
+                disabled={testFlowLoading}
+                className="px-4 py-2 rounded-full text-xs font-bold bg-riderBlue text-white hover:bg-blue-700 transition-all disabled:opacity-50"
+              >
+                Seed Vendors
+              </button>
+              <button
+                onClick={runSeedRiderOnline}
+                disabled={testFlowLoading}
+                className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50"
+              >
+                Create Test Rider
+              </button>
+              <button
+                onClick={runSeedUser}
+                disabled={testFlowLoading}
+                className="px-4 py-2 rounded-full text-xs font-bold bg-orange-600 text-white hover:bg-orange-700 transition-all disabled:opacity-50"
+              >
+                Create Test User
+              </button>
+              <button
+                onClick={runSeedAll}
+                disabled={testFlowLoading}
+                className="px-4 py-2 rounded-full text-xs font-bold bg-pink-600 text-white hover:bg-pink-700 transition-all disabled:opacity-50"
+              >
+                Seed All
+              </button>
+              <button
+                onClick={runTestFlow}
+                disabled={testFlowLoading}
+                className="px-4 py-2 rounded-full text-xs font-bold bg-green-600 text-white hover:bg-green-700 transition-all disabled:opacity-50"
+              >
+                Run Test Flow
+              </button>
+            </div>
             <div className="relative cursor-pointer hover:text-riderBlue transition-colors">
               <FaBell className="text-xl" />
               {notifications.length > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>}
@@ -246,6 +442,12 @@ export default function AdminDashboard() {
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-riderMaroon to-pink-600 border-2 border-riderBlue/10"></div>
           </div>
         </header>
+
+        {testFlowStep && (
+          <div className="mb-6 bg-green-500/10 border border-green-500/30 text-green-600 rounded-xl px-4 py-3 text-sm font-semibold">
+            Test flow status: {testFlowStep}
+          </div>
+        )}
 
         {/* 🔔 Notifications Feed */}
         <div className="absolute top-10 right-10 flex flex-col gap-2 z-50 pointer-events-none">
@@ -441,6 +643,12 @@ export default function AdminDashboard() {
                           Pay Rider 💸
                         </button>
                       )}
+                      <button
+                        onClick={() => toggleGpsSim(order._id)}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold ${gpsSimOrders[order._id] ? "bg-red-500 text-white" : "bg-blue-500/20 text-blue-400"}`}
+                      >
+                        {gpsSimOrders[order._id] ? "Stop GPS" : "Simulate GPS"}
+                      </button>
                       <button className="bg-riderBlue/10 hover:bg-riderBlue/20 p-2 rounded-lg transition-colors text-sm">Details</button>
                     </div>
                   </div>

@@ -26,7 +26,7 @@ export default async function login(req, res) {
     const Rider = (await import("../../models/Rider.js")).default;
     await Rider.findOneAndUpdate(
       { userId: user._id },
-      { isAvailable: true, status: "approved" }, // Ensure approved for testing simplicity
+      { isAvailable: true, status: "ONLINE_AVAILABLE", approvalStatus: "approved" },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }

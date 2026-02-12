@@ -56,6 +56,8 @@ export default async function handler(req, res) {
             set: { riderId: assignedRider._id, riderAssignedAt: new Date() },
         });
 
+        await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_BUSY", isAvailable: false });
+
         const io = req.app.get("io");
         if (io) {
             io.to(`order:${order._id}`).emit("order:update", order);

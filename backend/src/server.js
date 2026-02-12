@@ -44,6 +44,7 @@ import nearbyRiders from "./api/riders/nearby.js";
 import riderMe from "./api/riders/me.js";
 import { goOnline, goOffline, heartbeat } from "./api/riders/status.js";
 import { acceptOrder, rejectOrder } from "./api/riders/orders.js";
+import riderReasons from "./api/riders/reasons.js";
 
 /* payments */
 /* payments */
@@ -71,6 +72,7 @@ import { listNotifications, getNotification, markRead } from "./api/notification
 import markUnreachable from "./api/orders/unreachable.js";
 import financeRoute from "./api/admin/finance.js";
 import wishlistRoutes from "./api/wishlist/routes.js";
+import adminTestFlow from "./api/admin/test-flow.js";
 
 /* middleware */
 import requireAuth from "./middleware/requireAuth.js";
@@ -132,7 +134,6 @@ async function startServer() {
   /* orders */
   app.post("/api/orders/create", requireAuth, createOrder);
   app.post("/api/orders/assign", requireAuth, requireAdmin, assignOrder);
-  app.post("/api/orders/accept", requireAuth, acceptOrder);
   app.use("/api/orders/my", requireAuth, myOrders);
   app.use("/api/orders/bot-create", botCreateOrder);
   app.post("/api/orders/deliver", requireAuth, deliverOrder);
@@ -164,6 +165,7 @@ async function startServer() {
   app.post("/api/riders/heartbeat", requireAuth, heartbeat);
   app.post("/api/riders/accept-order", requireAuth, acceptOrder);
   app.post("/api/riders/reject-order", requireAuth, rejectOrder);
+  app.use("/api/riders", riderReasons);
 
   /* vendors */
   app.post("/api/vendors/register", requireAuth, vendorRegister);
@@ -253,6 +255,7 @@ async function startServer() {
   app.use("/api/admin/orders", requireAuth, requireAdmin, adminOrders);
   app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
   app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
+  app.use("/api/admin/test", requireAuth, requireAdmin, adminTestFlow);
 
   /* admin settings */
   app.get("/api/admin/settings", requireAuth, requireAdmin, adminSettings.getSystemSettings);

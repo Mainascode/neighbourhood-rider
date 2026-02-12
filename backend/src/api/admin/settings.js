@@ -23,7 +23,7 @@ export async function getSystemSettings(req, res) {
  */
 export async function updateSystemSettings(req, res) {
     try {
-        const { riderBaseFee, riderPerKmFee, serviceFee, vendorCommissionRate } = req.body;
+        const { riderBaseFee, riderPerKmFee, serviceFee, vendorCommissionRate, riderAcceptTimeoutSeconds } = req.body;
 
         let settings = await SystemSetting.findOne({ key: "global_config" });
         if (!settings) {
@@ -34,6 +34,7 @@ export async function updateSystemSettings(req, res) {
         if (riderPerKmFee !== undefined) settings.riderPerKmFee = riderPerKmFee;
         if (serviceFee !== undefined) settings.serviceFee = serviceFee;
         if (vendorCommissionRate !== undefined) settings.vendorCommissionRate = vendorCommissionRate;
+        if (riderAcceptTimeoutSeconds !== undefined) settings.riderAcceptTimeoutSeconds = riderAcceptTimeoutSeconds;
 
         await settings.save();
         res.json(settings);

@@ -16,15 +16,15 @@ export function startRiderCleanupJob() {
         try {
             const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
 
-            const result = await Rider.updateMany(
-                {
-                    status: { $ne: "OFFLINE" },
-                    lastSeen: { $lt: twoMinutesAgo }
-                },
-                {
-                    $set: { status: "OFFLINE" }
-                }
-            );
+                const result = await Rider.updateMany(
+                    {
+                        status: { $ne: "OFFLINE" },
+                        lastSeen: { $lt: twoMinutesAgo }
+                    },
+                    {
+                        $set: { status: "OFFLINE", isAvailable: false }
+                    }
+                );
 
             if (result.modifiedCount > 0) {
                 console.log(`💤 Auto-Offline: Set ${result.modifiedCount} idle riders to OFFLINE.`);

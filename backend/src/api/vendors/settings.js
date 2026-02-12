@@ -8,7 +8,7 @@ import User from "../../models/User.js";
  */
 export async function updateVendor(req, res) {
     try {
-        const { storeName, description, phone, location, address, logo, coverImage, isManuallyClosed } = req.body;
+        const { storeName, description, phone, location, address, logo, coverImage, isManuallyClosed, riderAcceptTimeoutSeconds } = req.body;
 
         const vendor = await Vendor.findOne({ userId: req.user.id });
 
@@ -28,6 +28,10 @@ export async function updateVendor(req, res) {
         if (typeof isManuallyClosed === "boolean") {
             vendor.isManuallyClosed = isManuallyClosed;
             vendor.manualClosedAt = isManuallyClosed ? new Date() : null;
+        }
+
+        if (riderAcceptTimeoutSeconds !== undefined) {
+            vendor.riderAcceptTimeoutSeconds = riderAcceptTimeoutSeconds;
         }
 
         // Handle location update if specific coordinates provided [lng, lat]

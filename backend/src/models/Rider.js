@@ -28,6 +28,7 @@ const RiderSchema = new mongoose.Schema({
     coordinates: [Number], // [lng, lat]
   },
   lastSeen: Date,
+  lastOfflineReason: { type: String },
   isVerified: { type: Boolean, default: false },
   metrics: {
     rating: { type: Number, default: 5.0 },

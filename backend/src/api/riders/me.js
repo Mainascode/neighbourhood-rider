@@ -7,7 +7,7 @@ export default async function me(req, res) {
             const { isAvailable } = req.body;
             const rider = await Rider.findOneAndUpdate(
                 { userId: req.user._id },
-                { isAvailable },
+                { isAvailable, ...(typeof isAvailable === "boolean" ? { status: isAvailable ? "ONLINE_AVAILABLE" : "OFFLINE" } : {}) },
                 { new: true }
             );
             if (!rider) return res.status(404).json({ message: "Not a rider" });

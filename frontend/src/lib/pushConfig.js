@@ -32,7 +32,7 @@ export async function registerServiceWorker() {
     return null;
 }
 
-export async function subscribeToPush() {
+export async function subscribeToPush(options = { prompt: true }) {
     if (!("serviceWorker" in navigator)) return;
 
     const registration = await navigator.serviceWorker.ready;
@@ -44,7 +44,10 @@ export async function subscribeToPush() {
     }
 
     // Request permission
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
+    if (permission === "default" && options.prompt) {
+        permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") {
         console.error("Permission not granted for Notification");
         return;

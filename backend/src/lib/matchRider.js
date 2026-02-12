@@ -1,8 +1,11 @@
 import Rider from "../models/Rider.js";
 
 export async function findNearestRiders(lng, lat, radiusKm = 5) {
+  const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
   return Rider.find({
     isAvailable: true,
+    status: "ONLINE_AVAILABLE",
+    lastSeen: { $gt: twoMinutesAgo },
     location: {
       $nearSphere: {
         $geometry: {
@@ -20,12 +23,13 @@ export async function assignBestRider(order) {
     // 1. Need Lat/Lng of Order. If Bot Order with [0,0], use random/first available.
     const pickup = order.pickup?.location?.coordinates;
     let riders = [];
+    const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
 
     if (pickup && (pickup[0] !== 0 || pickup[1] !== 0)) {
       riders = await findNearestRiders(pickup[0], pickup[1], 10); // 10km radius
     } else {
       // Placeholder location order -> Find any available rider
-      riders = await Rider.find({ isAvailable: true, status: "approved" }).limit(5);
+      riders = await Rider.find({ isAvailable: true, status: "ONLINE_AVAILABLE", lastSeen: { $gt: twoMinutesAgo } }).limit(5);
     }
 
     if (riders.length > 0) {

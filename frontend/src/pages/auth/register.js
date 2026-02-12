@@ -6,7 +6,7 @@ import AuthCard from "./AuthCard";
 
 export default function Register() {
   const { register } = useAuth();
-  const { notify } = useNotify();
+  const { notify, enableNotifications } = useNotify();
   const navigate = useNavigate();
 
   const [show, setShow] = useState(false);
@@ -26,6 +26,7 @@ export default function Register() {
     try {
       await register(name, email, password, confirmPassword);
       notify("Account created successfully 🎉", "success");
+      await enableNotifications({ prompt: true });
       navigate("/");
     } catch (err) {
       notify(err.message || "Registration failed", "error");

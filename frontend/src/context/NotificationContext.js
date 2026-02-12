@@ -13,14 +13,20 @@ export const useNotify = () => {
 
 export function NotificationProvider({ children }) {
   const [notification, setNotification] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   /* Push Notifications */
-  const enableNotifications = async () => {
+  const enableNotifications = async (options = { prompt: true }) => {
     try {
       const { registerServiceWorker, subscribeToPush } = await import("../lib/pushConfig");
       await registerServiceWorker();
-      await subscribeToPush();
-      notify("Notifications enabled! 🔔", "success");
+      await subscribeToPush(options);
+      if (Notification.permission === "granted") {
+        notify("Notifications enabled! 🔔", "success");
+        setPermissionDenied(false);
+      } else if (Notification.permission === "denied") {
+        setPermissionDenied(true);
+      }
     } catch (e) {
       console.error(e);
       notify("Failed to enable notifications.", "error");
@@ -50,9 +56,41 @@ export function NotificationProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      enableNotifications({ prompt: false });
+    } else if (Notification.permission === "denied") {
+      setPermissionDenied(true);
+    }
+  }, []);
+
+  const SettingsLink = () => (
+    <a
+      href="https://support.google.com/chrome/answer/3220216"
+      target="_blank"
+      rel="noreferrer"
+      className="underline font-semibold"
+    >
+      Browser settings
+    </a>
+  );
+
   return (
     <NotificationContext.Provider value={{ notify, enableNotifications }}>
       {children}
+
+      {permissionDenied && (
+        <div className="fixed bottom-20 right-6 z-50 max-w-sm bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-xl shadow-xl p-4 text-sm">
+          <div className="font-bold mb-1">Notifications are blocked</div>
+          <p className="text-yellow-800">
+            Enable notifications in your browser settings to receive updates.
+          </p>
+          <div className="mt-2">
+            <SettingsLink />
+          </div>
+        </div>
+      )}
 
       {/* Notification UI */}
       {notification && (

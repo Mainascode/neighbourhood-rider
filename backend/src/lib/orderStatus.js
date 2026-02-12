@@ -324,6 +324,18 @@ export async function updateOrderStatus({
     console.error("Notification error:", err.message || err);
   }
 
+  if (normalizedTo === ORDER_STATUS.CANCELLED && updatedOrder.riderId) {
+    try {
+      const Rider = (await import("../models/Rider.js")).default;
+      await Rider.findByIdAndUpdate(updatedOrder.riderId, {
+        status: "ONLINE_AVAILABLE",
+        isAvailable: true,
+      });
+    } catch (err) {
+      console.error("Failed to release rider on cancel:", err.message || err);
+    }
+  }
+
   return updatedOrder;
 }
 
