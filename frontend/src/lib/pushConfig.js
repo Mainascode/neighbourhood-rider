@@ -27,6 +27,25 @@ function getVapidDiagnostics(key) {
     return `len=${key.length}, prefix=${safePrefix}`;
 }
 
+async function getVapidPublicKey() {
+    if (isValidVapidPublicKey(PUBLIC_VAPID_KEY)) return PUBLIC_VAPID_KEY;
+
+    const res = await fetch(`${API_URL}/api/notifications/vapid-public-key`, {
+        credentials: "include",
+    });
+    if (!res.ok) {
+        throw new Error("Failed to fetch public VAPID key from server.");
+    }
+    const data = await res.json();
+    const serverKey = normalizeVapidKey(data?.publicKey);
+    if (!isValidVapidPublicKey(serverKey)) {
+        throw new Error(
+            `Push not configured: frontend/server VAPID key invalid (${getVapidDiagnostics(serverKey)}).`
+        );
+    }
+    return serverKey;
+}
+
 function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding)
@@ -57,11 +76,7 @@ export async function registerServiceWorker() {
 
 export async function subscribeToPush(options = { prompt: true }) {
     if (!("serviceWorker" in navigator)) return;
-    if (!isValidVapidPublicKey(PUBLIC_VAPID_KEY)) {
-        throw new Error(
-            `Push not configured: REACT_APP_VAPID_PUBLIC_KEY is missing/invalid (${getVapidDiagnostics(PUBLIC_VAPID_KEY)}).`
-        );
-    }
+    const vapidKey = await getVapidPublicKey();
 
     const registration = await navigator.serviceWorker.ready;
 
@@ -84,7 +99,7 @@ export async function subscribeToPush(options = { prompt: true }) {
     // Subscribe
     const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
 
     // Send to backend

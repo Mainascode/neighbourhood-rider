@@ -17,6 +17,17 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     console.warn("⚠️ customized VAPID keys not found. Push notifications will fail if not set.");
 }
 
+// @route   GET /api/notifications/vapid-public-key
+// @desc    Returns public VAPID key for web push subscription
+// @access  Public
+router.get("/vapid-public-key", (_req, res) => {
+    const key = (process.env.VAPID_PUBLIC_KEY || "").trim();
+    if (!key) {
+        return res.status(500).json({ error: "VAPID public key is not configured" });
+    }
+    return res.json({ publicKey: key });
+});
+
 // @route   POST /api/notifications/subscribe
 // @desc    Register a user's browser for push notifications
 // @access  Private (Logged in users)
