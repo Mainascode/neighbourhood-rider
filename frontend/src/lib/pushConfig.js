@@ -1,13 +1,30 @@
 import { API_URL } from "./config";
 
-// This MUST match the Public Key generated on the backend
-// User needs to fill this in after I provide it
-const PUBLIC_VAPID_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY || "PLACEHOLDER_KEY";
+function normalizeVapidKey(key) {
+    return (key || "")
+        .trim()
+        .replace(/^['"]|['"]$/g, "")
+        .replace(/\s+/g, "");
+}
+
+// This MUST match the public VAPID key configured in backend env.
+const PUBLIC_VAPID_KEY = normalizeVapidKey(process.env.REACT_APP_VAPID_PUBLIC_KEY);
 
 function isValidVapidPublicKey(key) {
     if (!key || key === "PLACEHOLDER_KEY") return false;
-    // VAPID public keys are URL-safe base64 and typically ~87 chars.
-    return /^[A-Za-z0-9\-_]{70,200}$/.test(key);
+    if (!/^[A-Za-z0-9\-_]{70,200}$/.test(key)) return false;
+    try {
+        const bytes = urlBase64ToUint8Array(key);
+        // Uncompressed P-256 public key should be 65 bytes and start with 0x04.
+        return bytes.length === 65 && bytes[0] === 4;
+    } catch {
+        return false;
+    }
+}
+
+function getVapidDiagnostics(key) {
+    const safePrefix = key ? key.slice(0, 8) : "<empty>";
+    return `len=${key.length}, prefix=${safePrefix}`;
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -42,7 +59,7 @@ export async function subscribeToPush(options = { prompt: true }) {
     if (!("serviceWorker" in navigator)) return;
     if (!isValidVapidPublicKey(PUBLIC_VAPID_KEY)) {
         throw new Error(
-            "Push not configured: REACT_APP_VAPID_PUBLIC_KEY is missing or invalid."
+            `Push not configured: REACT_APP_VAPID_PUBLIC_KEY is missing/invalid (${getVapidDiagnostics(PUBLIC_VAPID_KEY)}).`
         );
     }
 
