@@ -4,6 +4,12 @@ import { API_URL } from "./config";
 // User needs to fill this in after I provide it
 const PUBLIC_VAPID_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY || "PLACEHOLDER_KEY";
 
+function isValidVapidPublicKey(key) {
+    if (!key || key === "PLACEHOLDER_KEY") return false;
+    // VAPID public keys are URL-safe base64 and typically ~87 chars.
+    return /^[A-Za-z0-9\-_]{70,200}$/.test(key);
+}
+
 function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding)
@@ -34,6 +40,11 @@ export async function registerServiceWorker() {
 
 export async function subscribeToPush(options = { prompt: true }) {
     if (!("serviceWorker" in navigator)) return;
+    if (!isValidVapidPublicKey(PUBLIC_VAPID_KEY)) {
+        throw new Error(
+            "Push not configured: REACT_APP_VAPID_PUBLIC_KEY is missing or invalid."
+        );
+    }
 
     const registration = await navigator.serviceWorker.ready;
 
