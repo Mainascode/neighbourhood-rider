@@ -248,8 +248,10 @@ export default function RiderDashboard({ tab = "orders" }) {
         }
     };
 
+    const riderStatus = riderProfile?.status;
+
     useEffect(() => {
-        if (!riderProfile || riderProfile.status === "OFFLINE") return;
+        if (!riderStatus || riderStatus === "OFFLINE") return;
         if (!navigator.geolocation) return;
 
         const interval = setInterval(async () => {
@@ -273,7 +275,7 @@ export default function RiderDashboard({ tab = "orders" }) {
         }, 30000);
 
         return () => clearInterval(interval);
-    }, [riderProfile?.status]);
+    }, [riderStatus]);
 
     return (
         <div className="min-h-screen bg-transparent text-riderLight p-4 md:p-6 pb-20">

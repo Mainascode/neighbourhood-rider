@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
 
 const NotificationContext = createContext(undefined);
@@ -16,7 +16,15 @@ export function NotificationProvider({ children }) {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   /* Push Notifications */
-  const enableNotifications = async (options = { prompt: true }) => {
+  const notify = useCallback((message, type = "info", timeout = 3000) => {
+    setNotification({ message, type });
+
+    setTimeout(() => {
+      setNotification(null);
+    }, timeout);
+  }, []);
+
+  const enableNotifications = useCallback(async (options = { prompt: true }) => {
     try {
       const { registerServiceWorker, subscribeToPush } = await import("../lib/pushConfig");
       await registerServiceWorker();
@@ -31,15 +39,7 @@ export function NotificationProvider({ children }) {
       console.error(e);
       notify("Failed to enable notifications.", "error");
     }
-  };
-
-  const notify = (message, type = "info", timeout = 3000) => {
-    setNotification({ message, type });
-
-    setTimeout(() => {
-      setNotification(null);
-    }, timeout);
-  };
+  }, [notify]);
 
   useEffect(() => {
     const handleNotification = (payload) => {
@@ -54,7 +54,7 @@ export function NotificationProvider({ children }) {
     return () => {
       socket.off("notification:new", handleNotification);
     };
-  }, []);
+  }, [notify]);
 
   useEffect(() => {
     if (!("Notification" in window)) return;
@@ -63,7 +63,7 @@ export function NotificationProvider({ children }) {
     } else if (Notification.permission === "denied") {
       setPermissionDenied(true);
     }
-  }, []);
+  }, [enableNotifications]);
 
   const SettingsLink = () => (
     <a
