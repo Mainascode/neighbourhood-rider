@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { socket } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
+import { apiGetCached, invalidateCache } from "../lib/api";
 
 import { API_URL } from "../lib/config";
 import ReviewList from "../components/ReviewList";
@@ -41,27 +42,18 @@ export default function RiderDashboard({ tab = "orders" }) {
 
     const fetchAssignments = useCallback(async () => {
         try {
-            const res = await fetch(`${API_URL}/api/orders/my`, {
-                credentials: "include",
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setAssignments(Array.isArray(data) ? data : []);
-            } else {
-                setAssignments([]);
-            }
+            const data = await apiGetCached("/api/orders/my", { ttlMs: 5000 });
+            setAssignments(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
             notify("Failed to fetch assignments", "error");
+            setAssignments([]);
         }
     }, [notify]);
 
     const fetchProfile = useCallback(async () => {
         try {
-            const res = await fetch(`${API_URL}/api/riders/me`, {
-                credentials: "include",
-            });
-            const data = await res.json();
+            const data = await apiGetCached("/api/riders/me", { ttlMs: 10000 });
             setRiderProfile(data);
         } catch (err) {
             console.error(err);
@@ -70,8 +62,7 @@ export default function RiderDashboard({ tab = "orders" }) {
 
     const fetchFaqs = useCallback(async () => {
         try {
-            const res = await fetch(`${API_URL}/api/faqs`);
-            const data = await res.json();
+            const data = await apiGetCached("/api/faqs", { ttlMs: 30000 });
             setFaqs(data);
         } catch (err) {
             console.error(err);
@@ -123,6 +114,7 @@ export default function RiderDashboard({ tab = "orders" }) {
             });
             const data = await res.json();
             if (data.success) {
+                invalidateCache("/api/orders/my");
                 notify("Order accepted! Start your engine 🏍️", "success");
                 fetchAssignments();
             } else {
@@ -159,6 +151,7 @@ export default function RiderDashboard({ tab = "orders" }) {
             });
             const data = await res.json();
             if (data.success || !data.error) { // Handling potential inconsistent response keys
+                invalidateCache("/api/orders/my");
                 notify("Payment Confirmed & Order Completed! 🎉", "success");
                 fetchAssignments();
             } else {
@@ -183,6 +176,7 @@ export default function RiderDashboard({ tab = "orders" }) {
             });
             const data = await res.json();
             if (data.success) {
+                invalidateCache("/api/orders/my");
                 if (order.paid || order.goodsPaid) {
                     notify(`Order Delivered! KES ${order.deliveryFee} earned ✅`, "success");
                 } else {
@@ -499,6 +493,11 @@ export default function RiderDashboard({ tab = "orders" }) {
                         <div className="flex-1">
                             <h3 className="text-3xl font-bold mb-1 text-riderLight">{riderProfile.name}</h3>
                             <p className="text-riderMaroon font-mono mb-6">{riderProfile.phone}</p>
+                            <div className="mb-6 bg-riderDark/30 p-4 rounded-xl text-sm">
+                                <p className="text-gray-500 uppercase tracking-wider text-xs mb-1">Logged In As</p>
+                                <p className="font-bold text-riderLight">{user?.name || riderProfile.name}</p>
+                                <p className="text-gray-600 font-mono">{user?.email || "email-not-available"}</p>
+                            </div>
 
                             <div className="space-y-4 text-sm bg-riderDark/30 p-6 rounded-xl">
                                 <div className="flex justify-between border-b border-riderBlue/10 pb-2">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { API_URL } from "../lib/config";
+import { apiGetCached } from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { FaQuestionCircle, FaChevronDown, FaChevronUp } from "react-icons/fa";
@@ -15,8 +15,7 @@ export default function Faqs() {
 
     const fetchFaqs = async () => {
         try {
-            const res = await fetch(`${API_URL}/api/faqs`);
-            const data = await res.json();
+            const data = await apiGetCached("/api/faqs", { ttlMs: 30000 });
             setFaqs(data);
         } catch (err) {
             console.error(err);

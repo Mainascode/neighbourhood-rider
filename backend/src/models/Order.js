@@ -37,9 +37,9 @@ const OrderSchema = new mongoose.Schema({
   },
   paid: { type: Boolean, default: false }, // Overall Payment (legacy / rider)
   goodsPaid: { type: Boolean, default: false }, // Vendor Payment Status
-  amount: { type: Number, default: 0 }, // Total Amount (Goods + Fee)
-  goodsTotal: { type: Number, default: 0 }, // Cost of Items
-  deliveryFee: { type: Number, default: 50 }, // Rider Fee (Fixed 50)
+  amount: { type: Number, default: 0, immutable: true }, // Total Amount (Goods + Fee)
+  goodsTotal: { type: Number, default: 0, immutable: true }, // Cost of Items
+  deliveryFee: { type: Number, default: 50, immutable: true }, // Rider Fee (Fixed 50)
   isDeliveryFeePaid: { type: Boolean, default: false }, // Delivery Fee Payment Status
   riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
   isBotOrder: { type: Boolean, default: false },
@@ -65,20 +65,28 @@ const OrderSchema = new mongoose.Schema({
 
   // Detailed Pricing Breakdown
   pricing: {
+    type: {
     goodsTotal: Number,
     deliveryFee: Number, // The fee charged to customer
     serviceFee: Number,  // KES 30
     totalCost: Number
+    },
+    immutable: true,
   },
 
   // Calculated Splits
   distribution: {
+    type: {
     vendorPayout: Number,
     riderPayout: Number,
     adminRevenue: Number,
     splits: Object
+    },
+    immutable: true,
   }
 }, { timestamps: true });
+
+OrderSchema.index({ mpesaCheckoutRequestId: 1 }, { sparse: true });
 
 export default mongoose.models.Order ||
   mongoose.model("Order", OrderSchema);

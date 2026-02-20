@@ -3,15 +3,33 @@ import axios from 'axios';
 import crypto from "crypto";
 import Order from '../../models/Order.js';
 import MpesaTransaction from "../../models/MpesaTransaction.js";
+import PaymentEventLog from "../../models/PaymentEventLog.js";
 import { sendNotification } from "../../lib/notificationService.js";
 import { updateOrderStatus, normalizeOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
+
+function getMpesaBaseUrl() {
+    return process.env.NODE_ENV === "production"
+        ? "https://api.safaricom.co.ke"
+        : "https://sandbox.safaricom.co.ke";
+}
+
+function parseAllowedCallbackIps() {
+    return String(process.env.MPESA_CALLBACK_IPS || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+function normalizeSourceIp(req) {
+    const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+    const candidate = forwarded || req.ip || "";
+    return candidate.replace(/^::ffff:/, "");
+}
 
 const getMpesaToken = async () => {
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
-    const url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
-
-    // In production change URL to https://api.safaricom.co.ke/...
+    const url = `${getMpesaBaseUrl()}/oauth/v1/generate?grant_type=client_credentials`;
 
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
 
@@ -63,9 +81,8 @@ export const initiateSTKPush = async (req, res) => {
         const passkey = process.env.MPESA_PASSKEY;
         const password = Buffer.from(`${shortCode}${passkey}${timestamp}`).toString("base64");
 
-        const stkUrl = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
-
-        const callbackUrl = `${process.env.API_URL}/api/payments/mpesa/callback`;
+        const stkUrl = `${getMpesaBaseUrl()}/mpesa/stkpush/v1/processrequest`;
+        const callbackUrl = process.env.MPESA_CALLBACK_URL || `${process.env.API_URL}/api/payments/mpesa/callback`;
 
         const data = {
             BusinessShortCode: shortCode,
@@ -103,12 +120,33 @@ export const initiateSTKPush = async (req, res) => {
 
     } catch (error) {
         console.error("STK Push Error:", error.response?.data || error.message);
-        res.status(500).json({ success: false, message: "STK Push Failed", error: error.message });
+        await PaymentEventLog.create({
+            eventType: "STK_INIT_FAILED",
+            orderId: req.body?.orderId || undefined,
+            resultDesc: error.response?.data?.errorMessage || error.message,
+            raw: {
+                request: {
+                    phoneNumber: req.body?.phoneNumber,
+                    amount: req.body?.amount,
+                    orderId: req.body?.orderId,
+                },
+                response: error.response?.data,
+            },
+        }).catch((logErr) => {
+            console.error("Payment event log failed:", logErr.message);
+        });
+        res.status(500).json({ success: false, message: "STK Push Failed" });
     }
 };
 
 export const handleMpesaCallback = async (req, res) => {
     try {
+        const allowedIps = parseAllowedCallbackIps();
+        const sourceIp = normalizeSourceIp(req);
+        if (allowedIps.length && !allowedIps.includes(sourceIp)) {
+            return res.status(403).json({ message: "IP not allowed" });
+        }
+
         const signature = req.headers["x-mpesa-signature"];
         const secret = process.env.MPESA_CALLBACK_SECRET;
         const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
@@ -172,7 +210,7 @@ export const handleMpesaCallback = async (req, res) => {
                             resultDesc,
                             raw: Body,
                             processedAt: new Date(),
-                            sourceIp: req.ip
+                            sourceIp
                         },
                         { upsert: true, new: true }
                     );
@@ -281,13 +319,24 @@ export const handleMpesaCallback = async (req, res) => {
                     resultDesc,
                     raw: Body,
                     processedAt: new Date(),
-                    sourceIp: req.ip
+                    sourceIp
                 },
                 { upsert: true, new: true }
             );
         } else {
             console.log(`[M-Pesa] Payment Failed/Cancelled: ${resultDesc}`);
             const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
+            await PaymentEventLog.create({
+                eventType: "CALLBACK_PAYMENT_FAILED",
+                checkoutRequestId,
+                orderId: order?._id,
+                resultCode,
+                resultDesc,
+                sourceIp,
+                raw: Body,
+            }).catch((logErr) => {
+                console.error("Payment event log failed:", logErr.message);
+            });
             if (order) {
                 const currentStatus = normalizeOrderStatus(order.status);
                 if (currentStatus !== ORDER_STATUS.CANCELLED) {
@@ -317,7 +366,7 @@ export const handleMpesaCallback = async (req, res) => {
                     resultDesc,
                     raw: Body,
                     processedAt: new Date(),
-                    sourceIp: req.ip
+                    sourceIp
                 },
                 { upsert: true, new: true }
             );
@@ -326,6 +375,33 @@ export const handleMpesaCallback = async (req, res) => {
         res.status(200).json({ message: "Callback received" });
     } catch (error) {
         console.error("Callback Error:", error);
+        let parsedBody = {};
+        try {
+            parsedBody = Buffer.isBuffer(req.body)
+                ? JSON.parse(req.body.toString("utf-8"))
+                : (req.body || {});
+        } catch {
+            parsedBody = { rawBody: "<unparseable>" };
+        }
+        const callbackBody = parsedBody?.Body?.stkCallback;
+        const checkoutRequestId = callbackBody?.CheckoutRequestID;
+        const sourceIp = normalizeSourceIp(req);
+        await PaymentEventLog.findOneAndUpdate(
+            { eventType: "CALLBACK_FAILED", checkoutRequestId: checkoutRequestId || null },
+            {
+                $set: {
+                    checkoutRequestId,
+                    sourceIp,
+                    lastError: error.message,
+                    raw: parsedBody,
+                },
+                $inc: { attempts: 1 },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        ).catch((logErr) => {
+            console.error("Callback failure log failed:", logErr.message);
+        });
+        // Return 500 to let upstream webhook sender retry.
         res.status(500).json({ message: "Error processing callback" });
     }
 };

@@ -10,7 +10,7 @@ import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../lib/socket";
 import LiveMap from "../components/LiveMap";
-import { API_URL } from "../lib/config";
+import { apiFetch, apiGetCached, invalidateCache } from "../lib/api";
 /* useNotify removed */
 
 export default function Order() {
@@ -44,13 +44,8 @@ export default function Order() {
             if (!user) return;
             setWishlistLoading(true);
             try {
-            const res = await fetch(`${API_URL}/api/wishlist`, {
-                credentials: "include"
-            });
-                if (res.ok) {
-                    const data = await res.json();
-                    setWishlistItems(Array.isArray(data) ? data : []);
-                }
+                const data = await apiGetCached("/api/wishlist", { ttlMs: 15000 });
+                setWishlistItems(Array.isArray(data) ? data : []);
             } catch (e) { }
             finally { setWishlistLoading(false); }
         };
@@ -58,13 +53,8 @@ export default function Order() {
         const fetchRecommendations = async () => {
             if (!user) return;
             try {
-            const res = await fetch(`${API_URL}/api/orders/recommendations`, {
-                credentials: "include"
-            });
-                if (res.ok) {
-                    const data = await res.json();
-                    setRecommendations(Array.isArray(data.items) ? data.items : []);
-                }
+                const data = await apiGetCached("/api/orders/recommendations", { ttlMs: 30000 });
+                setRecommendations(Array.isArray(data?.items) ? data.items : []);
             } catch (e) { }
         };
 
@@ -115,13 +105,11 @@ export default function Order() {
         const fetchTimeline = async () => {
             if (!activeOrder?._id) return;
             try {
-                const res = await fetch(`${API_URL}/api/orders/${activeOrder._id}/timeline`, {
+                const data = await apiFetch(`/api/orders/${activeOrder._id}/timeline`, {
+                    method: "GET",
                     headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
                 });
-                if (res.ok) {
-                    const data = await res.json();
-                    setTimeline(Array.isArray(data.timeline) ? data.timeline : []);
-                }
+                setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
             } catch (e) { }
         };
         fetchTimeline();
@@ -130,8 +118,7 @@ export default function Order() {
     useEffect(() => {
         const fetchServerTime = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/system/time`);
-                const data = await res.json();
+                const data = await apiGetCached("/api/system/time", { ttlMs: 30000 });
                 if (typeof data.hour === "number") setServerHour(data.hour);
                 if (typeof data.minute === "number") setServerMinute(data.minute);
             } catch (e) { }
@@ -147,11 +134,10 @@ export default function Order() {
         fetchVendors();
         const checkOrder = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/orders/my`, {
-                    credentials: "include",
+                const data = await apiFetch("/api/orders/my", {
+                    method: "GET",
                     headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
                 });
-                const data = await res.json();
                 if (data && data.length > 0) {
                     // Find active order
                     const active = data.find(o => [
@@ -174,8 +160,7 @@ export default function Order() {
 
     const fetchVendors = async () => {
         try {
-            const res = await fetch(`${API_URL}/api/vendors/nearby`);
-            const data = await res.json();
+            const data = await apiGetCached("/api/vendors/nearby", { ttlMs: 20000 });
             setVendors(Array.isArray(data) ? data : (data.vendors || []));
         } catch (err) { console.error(err); }
     };
@@ -200,12 +185,11 @@ export default function Order() {
     const saveToWishlist = async (vendor, item) => {
         if (!user) return alert("Please login first!");
         try {
-            const res = await fetch(`${API_URL}/api/wishlist`, {
+            const data = await apiFetch("/api/wishlist", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                credentials: "include",
                 body: JSON.stringify({
                     vendorId: vendor._id,
                     vendorName: vendor.storeName,
@@ -215,25 +199,21 @@ export default function Order() {
                     image: item.image
                 })
             });
-            if (res.ok) {
-                const data = await res.json();
-                setWishlistItems(prev => {
-                    if (prev.some(w => w._id === data._id)) return prev;
-                    return [data, ...prev];
-                });
-            }
+            invalidateCache("/api/wishlist");
+            setWishlistItems(prev => {
+                if (prev.some(w => w._id === data._id)) return prev;
+                return [data, ...prev];
+            });
         } catch (e) { }
     };
 
     const removeWishlistItem = async (id) => {
         try {
-            const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
+            await apiFetch(`/api/wishlist/${id}`, {
                 method: "DELETE",
-                credentials: "include"
             });
-            if (res.ok) {
-                setWishlistItems(prev => prev.filter(w => w._id !== id));
-            }
+            invalidateCache("/api/wishlist");
+            setWishlistItems(prev => prev.filter(w => w._id !== id));
         } catch (e) { }
     };
 
@@ -241,11 +221,8 @@ export default function Order() {
         let vendor = vendors.find(v => v._id === wish.vendorId);
         if (!vendor && wish.vendorId) {
             try {
-                const res = await fetch(`${API_URL}/api/vendors/${wish.vendorId}/public`);
-                if (res.ok) {
-                    vendor = await res.json();
-                    setVendors(prev => prev.some(v => v._id === vendor._id) ? prev : [...prev, vendor]);
-                }
+                vendor = await apiGetCached(`/api/vendors/${wish.vendorId}/public`, { ttlMs: 60000 });
+                setVendors(prev => prev.some(v => v._id === vendor._id) ? prev : [...prev, vendor]);
             } catch (e) { }
         }
 
@@ -316,10 +293,9 @@ export default function Order() {
                 alert("Could not access location. Using default/profile address.");
             }
 
-            const res = await fetch(`${API_URL}/api/orders/create`, {
+            const data = await apiFetch("/api/orders/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
-                credentials: "include",
                 body: JSON.stringify({
                     vendorId: selectedVendor._id,
                     items: cart,
@@ -349,29 +325,14 @@ export default function Order() {
                 })
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                setActiveOrder(data.order);
-                setSelectedVendor(null);
-                setCart([]);
-
-                if (data.order.status === 'PAYMENT_PENDING') {
-                    // Automatically open payment modal or trigger payment
-                    // Since we have a payment modal that shows if !isDeliveryFeePaid (or effectively !paid), 
-                    // and activeOrder is set, it *should* show.
-                    // But we might want to be explicit.
-                    alert("Order Created! Please complete payment to proceed.");
-                    // The UI below checks `activeOrder && !activeOrder.isDeliveryFeePaid`
-                    // In proposed flow, 'isDeliveryFeePaid' might be false.
-                    // We also need to ensure the payment modal handles the FULL amount if that's the requirement, 
-                    // but for now sticking to the existing "Delivery Fee Payment" modal structure but maybe updating text?
-                    // The user said "Lock cart prices".
-                    // Let's assume the existing payment modal payload pays the "Delivery Fee" (50). 
-                    // If we need to pay TOTAL, we need to update `pay-delivery` or the modal.
-                    // For this step, simply showing the modal is the first step.
-                } else {
-                    alert("Order Placed! Waiting for Vendor/Rider.");
-                }
+            setActiveOrder(data.order);
+            setSelectedVendor(null);
+            setCart([]);
+            invalidateCache("/api/orders/my");
+            if (data.order.status === 'PAYMENT_PENDING') {
+                alert("Order Created! Please complete payment to proceed.");
+            } else {
+                alert("Order Placed! Waiting for Vendor/Rider.");
             }
         } catch (err) {
             console.error(err);
@@ -394,23 +355,17 @@ export default function Order() {
                 body.token = paymentData; // Send token to backend
             }
 
-            const res = await fetch(`${API_URL}/api/orders/pay-delivery`, {
+            const data = await apiFetch("/api/orders/pay-delivery", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
                 body: JSON.stringify(body)
             });
-            const data = await res.json();
 
-            if (data.success) {
-                if (method === 'mpesa') {
-                    alert("STK Push Sent! Check your phone.");
-                    // In a real app, you'd poll for status or listen to socket here.
-                } else {
-                    setActiveOrder(data.order);
-                    setPaymentConfirmed(true);
-                }
+            if (method === 'mpesa') {
+                alert("STK Push Sent! Check your phone.");
             } else {
-                alert("Payment failed: " + data.message);
+                setActiveOrder(data.order);
+                setPaymentConfirmed(true);
             }
         } catch (err) {
             console.error(err);
@@ -895,14 +850,12 @@ export default function Order() {
                                         onClick={async () => {
                                             if (!window.confirm("Cancel this order?")) return;
                                             try {
-                                                const res = await fetch(`${API_URL}/api/orders/${activeOrder._id}/cancel`, {
+                                                await apiFetch(`/api/orders/${activeOrder._id}/cancel`, {
                                                     method: "POST",
                                                     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
                                                     body: JSON.stringify({ reason: "USER_CANCELLED" })
                                                 });
-                                                if (res.ok) {
-                                                    setActiveOrder(prev => prev ? { ...prev, status: "CANCELLED" } : prev);
-                                                }
+                                                setActiveOrder(prev => prev ? { ...prev, status: "CANCELLED" } : prev);
                                             } catch (e) { }
                                         }}
                                         className="mt-2 text-xs bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full font-bold"
@@ -939,18 +892,13 @@ export default function Order() {
                                     onClick={async () => {
                                         if (window.confirm("Are you sure you have received these items?")) {
                                             try {
-                                                const res = await fetch(`${API_URL}/api/orders/confirm-receipt`, {
+                                                await apiFetch("/api/orders/confirm-receipt", {
                                                     method: "POST",
                                                     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
                                                     body: JSON.stringify({ orderId: activeOrder._id })
                                                 });
-                                                const data = await res.json();
-                                                if (res.ok) {
-                                                    alert("Receipt Confirmed! The rider can now complete the order.");
-                                                    setActiveOrder(prev => ({ ...prev, isReceived: true }));
-                                                } else {
-                                                    alert(data.message || "Error confirming receipt");
-                                                }
+                                                alert("Receipt Confirmed! The rider can now complete the order.");
+                                                setActiveOrder(prev => ({ ...prev, isReceived: true }));
                                             } catch (err) { console.error(err); alert("Connection error"); }
                                         }
                                     }}

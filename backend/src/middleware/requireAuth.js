@@ -14,7 +14,10 @@ export default function requireAuth(req, res, next) {
 
     const decoded = verifyAccess(token);
 
-    req.user = decoded; // { id, email, role }
+    req.user = {
+      ...decoded,
+      _id: decoded._id || decoded.id,
+    };
     next();
   } catch (err) {
     console.error("Auth Error:", err.message);

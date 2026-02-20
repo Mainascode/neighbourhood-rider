@@ -1,5 +1,6 @@
 import express from "express";
 import Order from "../../models/Order.js";
+import { ok, fail } from "../../lib/response.js";
 
 const router = express.Router();
 
@@ -34,10 +35,10 @@ router.get("/", async (req, res) => {
       .populate("riderId", "name phone") // Correct field: riderId
       .populate("userId", "name phone"); // Correct field: userId (was customer)
 
-    res.json(orders);
+    return ok(res, orders);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to fetch orders" });
+    return fail(res, "Failed to fetch orders", 500);
   }
 });
 

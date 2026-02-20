@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import { useAuth } from "../../context/AuthContext";
-import { API_URL } from "../../lib/config";
+import { apiFetch, apiGetCached, invalidateCache } from "../../lib/api";
 import { useNavigate } from "react-router-dom";
 import { useNotify } from "../../context/NotificationContext";
 import ReviewList from "../../components/ReviewList";
@@ -19,6 +19,7 @@ export default function VendorDashboard({ initialTab = "overview" }) {
     const [orders, setOrders] = useState([]); // State for orders
     const [newItem, setNewItem] = useState({ name: "", price: "", image: "" });
     const [loading, setLoading] = useState(false);
+    const [bootstrapping, setBootstrapping] = useState(true);
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -26,8 +27,7 @@ export default function VendorDashboard({ initialTab = "overview" }) {
 
     useEffect(() => {
         if (!user) return;
-        fetchVendorProfile();
-        fetchInventory();
+        Promise.all([fetchVendorProfile(), fetchInventory()]).finally(() => setBootstrapping(false));
 
         socket.on(`vendor:order:new`, (newOrder) => {
             notify("New Order Received! 🔔", "success");
@@ -41,11 +41,8 @@ export default function VendorDashboard({ initialTab = "overview" }) {
 
     const fetchVendorProfile = async () => {
         try {
-            const res = await fetch(`${API_URL}/api/vendors/me`, { credentials: "include" });
-            if (res.ok) {
-                const data = await res.json();
-                setVendor(data);
-            }
+            const data = await apiGetCached("/api/vendors/me", { ttlMs: 10000 });
+            setVendor(data);
         } catch (err) { console.error(err); }
     };
 
@@ -53,10 +50,9 @@ export default function VendorDashboard({ initialTab = "overview" }) {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/vendors/me`, {
+            const data = await apiFetch("/api/vendors/me", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                credentials: "include",
                 body: JSON.stringify({
                     storeName: vendor.storeName,
                     phone: vendor.phone,
@@ -65,17 +61,12 @@ export default function VendorDashboard({ initialTab = "overview" }) {
                     isManuallyClosed: vendor.isManuallyClosed
                 })
             });
-
-            const data = await res.json();
-            if (res.ok) {
-                setVendor(data);
-                notify("Shop settings updated!", "success");
-            } else {
-                notify(data.message || "Update failed", "error");
-            }
+            invalidateCache("/api/vendors/me");
+            setVendor(data);
+            notify("Shop settings updated!", "success");
         } catch (err) {
             console.error(err);
-            notify("Connection error", "error");
+            notify(err.message || "Connection error", "error");
         } finally {
             setLoading(false);
         }
@@ -90,23 +81,15 @@ export default function VendorDashboard({ initialTab = "overview" }) {
 
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/vendors/me`, {
-                method: "DELETE",
-                credentials: "include"
-            });
-            const data = await res.json();
-            if (res.ok) {
-                notify("Shop deleted. Redirecting...", "info");
-                setTimeout(() => {
-                    navigate("/orders"); // Redirect to user page
-                    window.location.reload(); // Force reload to refresh role
-                }, 2000);
-            } else {
-                notify(data.message || "Delete failed", "error");
-            }
+            await apiFetch("/api/vendors/me", { method: "DELETE" });
+            notify("Shop deleted. Redirecting...", "info");
+            setTimeout(() => {
+                navigate("/orders");
+                window.location.reload();
+            }, 2000);
         } catch (err) {
             console.error(err);
-            notify("Connection error", "error");
+            notify(err.message || "Connection error", "error");
         } finally {
             setLoading(false);
         }
@@ -115,25 +98,16 @@ export default function VendorDashboard({ initialTab = "overview" }) {
     const handleRequestRider = async (order) => {
         try {
             setLoading(true);
-            const res = await fetch(`${API_URL}/api/vendors/orders/dispatch`, {
+            const data = await apiFetch("/api/vendors/orders/dispatch", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                credentials: "include",
                 body: JSON.stringify({ orderId: order._id })
             });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                notify(data.message, "success");
-                // Update local order status
-                setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'RIDER_ASSIGNED' } : o));
-            } else {
-                notify(data.message || "Failed to find rider", "error");
-            }
+            notify(data.message || "Rider request sent", "success");
+            setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'RIDER_ASSIGNED' } : o));
         } catch (err) {
             console.error(err);
-            notify("Connection Error", "error");
+            notify(err.message || "Connection Error", "error");
         } finally {
             setLoading(false);
         }
@@ -141,11 +115,8 @@ export default function VendorDashboard({ initialTab = "overview" }) {
 
     const fetchInventory = async () => {
         try {
-            const res = await fetch(`${API_URL}/api/vendors/inventory`, { credentials: "include" });
-            if (res.ok) {
-                const data = await res.json();
-                setInventory(data);
-            }
+            const data = await apiGetCached("/api/vendors/inventory", { ttlMs: 10000 });
+            setInventory(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
 
@@ -164,22 +135,17 @@ export default function VendorDashboard({ initialTab = "overview" }) {
         if (!newItem.name || !newItem.price) return notify("Name and Price required", "error");
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/vendors/inventory`, {
+            const updatedInventory = await apiFetch("/api/vendors/inventory", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                credentials: "include",
                 body: JSON.stringify(newItem)
             });
-            if (res.ok) {
-                const updatedInventory = await res.json();
-                setInventory(updatedInventory);
-                setNewItem({ name: "", price: "", image: "" });
-                notify("Item added successfully", "success");
-            } else {
-                notify("Failed to add item (Is your shop approved?)", "error");
-            }
+            invalidateCache("/api/vendors/inventory");
+            setInventory(updatedInventory);
+            setNewItem({ name: "", price: "", image: "" });
+            notify("Item added successfully", "success");
         } catch (err) {
-            notify("Error adding item", "error");
+            notify(err.message || "Error adding item", "error");
         } finally {
             setLoading(false);
         }
@@ -188,14 +154,12 @@ export default function VendorDashboard({ initialTab = "overview" }) {
     const handleDeleteItem = async (itemId) => {
         if (!window.confirm("Delete this item?")) return;
         try {
-            const res = await fetch(`${API_URL}/api/vendors/inventory/${itemId}`, {
-                method: "DELETE", credentials: "include"
+            const updatedInventory = await apiFetch(`/api/vendors/inventory/${itemId}`, {
+                method: "DELETE"
             });
-            if (res.ok) {
-                const updatedInventory = await res.json();
-                setInventory(updatedInventory);
-                notify("Item deleted", "info");
-            }
+            invalidateCache("/api/vendors/inventory");
+            setInventory(updatedInventory);
+            notify("Item deleted", "info");
         } catch (err) { console.error(err); }
     }
 
@@ -204,27 +168,34 @@ export default function VendorDashboard({ initialTab = "overview" }) {
             <Navbar />
 
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 pt-24">
-                {/* Header */}
-                <div className="bg-white border border-gray-200 p-6 rounded-3xl shadow-sm mb-8 flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-                    <div className="relative z-10">
-                        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-riderMaroon to-orange-500">
-                            {vendor?.storeName || "My Shop"}
-                        </h1>
-                        <p className="text-gray-500 font-medium">Vendor Dashboard</p>
+                {bootstrapping ? (
+                    <div className="space-y-4 animate-pulse mb-8">
+                        <div className="h-24 bg-white/70 rounded-3xl border border-gray-200"></div>
+                        <div className="h-12 bg-white/70 rounded-xl border border-gray-200"></div>
                     </div>
-                    <div className="flex gap-4 relative z-10">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${vendor?.isOpen && !vendor?.isManuallyClosed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                            <span className={`w-2.5 h-2.5 rounded-full ${vendor?.isOpen && !vendor?.isManuallyClosed ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                            <span className={`${vendor?.isOpen && !vendor?.isManuallyClosed ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
-                                {vendor?.isOpen && !vendor?.isManuallyClosed ? 'Accepting Orders' : 'Temporarily Closed'}
-                            </span>
+                ) : (
+                    <div className="bg-white border border-gray-200 p-6 rounded-3xl shadow-sm mb-8 flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                        <div className="relative z-10">
+                            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-riderMaroon to-orange-500">
+                                {vendor?.storeName || "My Shop"}
+                            </h1>
+                            <p className="text-gray-500 font-medium">Vendor Dashboard</p>
+                            <p className="text-xs text-gray-400 mt-1">Logged in as {user?.name || "User"} ({user?.email || "no-email"})</p>
                         </div>
-                        <button onClick={() => setActiveTab('settings')} className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-bold transition-all text-gray-600">
-                            Settings
-                        </button>
+                        <div className="flex gap-4 relative z-10">
+                            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${vendor?.isOpen && !vendor?.isManuallyClosed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full ${vendor?.isOpen && !vendor?.isManuallyClosed ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                <span className={`${vendor?.isOpen && !vendor?.isManuallyClosed ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
+                                    {vendor?.isOpen && !vendor?.isManuallyClosed ? 'Accepting Orders' : 'Temporarily Closed'}
+                                </span>
+                            </div>
+                            <button onClick={() => setActiveTab('settings')} className="bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-bold transition-all text-gray-600">
+                                Settings
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Tabs */}
                 <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
@@ -368,14 +339,12 @@ export default function VendorDashboard({ initialTab = "overview" }) {
                                                             onClick={async () => {
                                                                 if (!window.confirm("Confirm you have received payment for goods?")) return;
                                                                 try {
-                                                                    const res = await fetch(`${API_URL}/api/orders/${order._id}/confirm-goods`, {
-                                                                        method: "PATCH", credentials: "include"
+                                                                    await apiFetch(`/api/orders/${order._id}/confirm-goods`, {
+                                                                        method: "PATCH"
                                                                     });
-                                                                    if (res.ok) {
-                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, goodsPaid: true } : o));
-                                                                        notify("Payment Confirmed! You can now request a rider.", "success");
-                                                                    }
-                                                                } catch (e) { notify("Error confirming payment", "error"); }
+                                                                    setOrders(prev => prev.map(o => o._id === order._id ? { ...o, goodsPaid: true } : o));
+                                                                    notify("Payment Confirmed! You can now request a rider.", "success");
+                                                                } catch (e) { notify(e.message || "Error confirming payment", "error"); }
                                                             }}
                                                             className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold px-4 py-2 rounded-lg w-full transition-all"
                                                         >

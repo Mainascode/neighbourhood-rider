@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_URL } from "../../lib/config";
+import { apiFetch } from "../../lib/api";
 import { Link } from "react-router-dom";
 import { FaEnvelope, FaArrowLeft } from "react-icons/fa";
 
@@ -15,22 +15,14 @@ export default function ForgotPassword() {
         setError("");
 
         try {
-
-            const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+            await apiFetch("/api/auth/forgot-password", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),
             });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                setSent(true);
-            } else {
-                setError(data.message || "Failed to send email");
-            }
+            setSent(true);
         } catch (err) {
-            setError("Network error. Please try again.");
+            setError(err.message || "Network error. Please try again.");
         } finally {
             setLoading(false);
         }

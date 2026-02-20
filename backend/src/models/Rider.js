@@ -49,6 +49,7 @@ const RiderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 RiderSchema.index({ location: "2dsphere" });
+RiderSchema.index({ phone: 1 }, { sparse: true });
 
 export default mongoose.models.Rider ||
   mongoose.model("Rider", RiderSchema);

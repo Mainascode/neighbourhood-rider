@@ -28,7 +28,7 @@ export default function Hero() {
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
           <div className="inline-block bg-gradient-to-r from-riderMaroon/10 to-riderBlue/10 text-riderMaroon px-6 py-2 rounded-full text-xs font-black tracking-widest uppercase mb-6 border-2 border-riderMaroon/10 mx-auto lg:mx-0 shadow-sm">
-            🔔 Your Doorbell Service
+            🔔 Nitume Doorbell Service
           </div>
           <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] border-2 border-white/50 inline-block mb-10 shadow-xl shadow-riderBlue/5 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
             <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-riderMaroon/10"></div>

@@ -1,6 +1,7 @@
 
 import Vendor from "../../models/Vendor.js";
 import User from "../../models/User.js";
+import { ok, fail } from "../../lib/response.js";
 
 /**
  * PATCH /api/vendors/me
@@ -13,7 +14,7 @@ export async function updateVendor(req, res) {
         const vendor = await Vendor.findOne({ userId: req.user.id });
 
         if (!vendor) {
-            return res.status(404).json({ message: "Vendor profile not found" });
+            return fail(res, "Vendor profile not found", 404);
         }
 
         // Update fields if provided
@@ -43,10 +44,10 @@ export async function updateVendor(req, res) {
 
         await vendor.save();
 
-        res.json(vendor);
+        return ok(res, vendor);
     } catch (err) {
         console.error("Vendor Update Error:", err);
-        res.status(500).json({ message: "Failed to update vendor profile", error: err.message });
+        return fail(res, "Failed to update vendor profile", 500);
     }
 }
 
@@ -59,7 +60,7 @@ export async function deleteVendor(req, res) {
         const vendor = await Vendor.findOne({ userId: req.user.id });
 
         if (!vendor) {
-            return res.status(404).json({ message: "Vendor profile not found" });
+            return fail(res, "Vendor profile not found", 404);
         }
 
         // 1. Delete Vendor Profile
@@ -68,10 +69,10 @@ export async function deleteVendor(req, res) {
         // 2. Revert User Role to 'user'
         await User.findByIdAndUpdate(req.user.id, { role: 'user' });
 
-        res.json({ message: "Shop deleted successfully. Your account is now a regular user account." });
+        return ok(res, { message: "Shop deleted successfully. Your account is now a regular user account." });
     } catch (err) {
         console.error("Vendor Delete Error:", err);
-        res.status(500).json({ message: "Failed to delete shop", error: err.message });
+        return fail(res, "Failed to delete shop", 500);
     }
 }
 
@@ -82,11 +83,11 @@ export async function deleteVendor(req, res) {
 export async function getVendorProfile(req, res) {
     try {
         const vendor = await Vendor.findOne({ userId: req.user.id });
-        if (!vendor) return res.status(404).json({ message: "Vendor profile not found" });
-        res.json(vendor);
+        if (!vendor) return fail(res, "Vendor profile not found", 404);
+        return ok(res, vendor);
     } catch (err) {
         console.error("Get Vendor Error:", err);
-        res.status(500).json({ message: "Failed to fetch vendor profile" });
+        return fail(res, "Failed to fetch vendor profile", 500);
     }
 }
 

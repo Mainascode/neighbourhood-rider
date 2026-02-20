@@ -8,8 +8,9 @@ const router = express.Router();
 
 // Configure VAPID (This will crash if keys aren't set, which is good for debugging)
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    const vapidSubject = process.env.VAPID_SUBJECT || "mailto:mainaemmanuel855@gmail.com";
     webpush.setVapidDetails(
-        "mailto:mainaemmanuel855@gmail.com",
+        vapidSubject,
         process.env.VAPID_PUBLIC_KEY,
         process.env.VAPID_PRIVATE_KEY
     );

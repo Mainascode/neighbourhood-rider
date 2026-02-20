@@ -1,9 +1,10 @@
 import { verifyRefresh, signAccess } from "../../lib/jwt.js";
+import { ok, fail } from "../../lib/response.js";
 
 export default function refresh(req, res) {
   try {
     const token = req.cookies.refreshToken;
-    if (!token) return res.sendStatus(401);
+    if (!token) return fail(res, "No refresh token", 401);
 
     const user = verifyRefresh(token);
 
@@ -22,8 +23,8 @@ export default function refresh(req, res) {
       maxAge: 15 * 60 * 1000,
     });
 
-    res.json({ ok: true });
+    return ok(res, { refreshed: true });
   } catch {
-    return res.sendStatus(401);
+    return fail(res, "Invalid refresh token", 401);
   }
 }

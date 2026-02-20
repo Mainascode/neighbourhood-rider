@@ -119,5 +119,6 @@ VendorSchema.virtual("nextOpenTime").get(function () {
 });
 
 VendorSchema.index({ location: "2dsphere" });
+VendorSchema.index({ phone: 1 });
 
 export default mongoose.models.Vendor || mongoose.model("Vendor", VendorSchema);

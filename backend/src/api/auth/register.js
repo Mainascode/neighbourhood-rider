@@ -1,32 +1,61 @@
 import bcrypt from "bcryptjs";
 import User from "../../models/User.js";
 import { signAccess, signRefresh } from "../../lib/jwt.js";
+import { ok, fail } from "../../lib/response.js";
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email).toLowerCase());
+}
 
 export default async function register(req, res) {
-  const { name, email, password, confirmPassword } = req.body;
+  const googleOnly = String(process.env.GOOGLE_AUTH_ONLY || "false").toLowerCase() === "true";
+  if (googleOnly) {
+    return fail(res, "Password registration is disabled. Please continue with Google.", 403);
+  }
 
-  if (!name || !email || !password)
-    return res.status(400).json({ message: "All fields required" });
+  const { name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms } = req.body;
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!name || !normalizedEmail || !password)
+    return fail(res, "All fields required", 400);
+
+  if (!isValidEmail(normalizedEmail))
+    return fail(res, "Please use a valid email address", 400);
+
+  if (!acceptPrivacyPolicy || !acceptTerms)
+    return fail(res, "You must accept Privacy Policy and Terms to continue", 400);
 
   if (password !== confirmPassword)
-    return res.status(400).json({ message: "Passwords do not match" });
+    return fail(res, "Passwords do not match", 400);
 
-  const exists = await User.findOne({ email });
+  const exists = await User.findOne({ email: normalizedEmail });
   if (exists)
-    return res.status(409).json({ message: "Email already registered" });
+    return fail(res, "Email already registered", 409);
 
   const hashed = await bcrypt.hash(password, 12);
 
   const user = await User.create({
     name,
-    email,
+    email: normalizedEmail,
     password: hashed,
-    role: email === "kimaningugihenry@gmail.com" ? "admin" : "user",
+    role: "user",
+    authProvider: "email",
+    privacyPolicyAcceptedAt: new Date(),
+    termsAcceptedAt: new Date(),
   });
 
-  const accessToken = signAccess({ id: user._id, role: user.role });
-  const refreshToken = signRefresh({ id: user._id, role: user.role });
+  const accessToken = signAccess({
+    id: user._id,
+    role: user.role,
+    email: user.email,
+    name: user.name,
+  });
+  const refreshToken = signRefresh({
+    id: user._id,
+    role: user.role,
+    email: user.email,
+    name: user.name,
+  });
 
   user.refreshTokens.push({
     token: refreshToken,
@@ -52,7 +81,7 @@ export default async function register(req, res) {
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
-  res.status(201).json({
+  return ok(res, {
     accessToken,
     user: {
       id: user._id,
@@ -60,5 +89,5 @@ export default async function register(req, res) {
       email: user.email,
       role: user.role,
     },
-  });
+  }, 201);
 }

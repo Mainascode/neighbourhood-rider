@@ -11,11 +11,14 @@ const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
   password: String,
+  authProvider: { type: String, enum: ["email", "google"], default: "email" },
   role: {
     type: String,
     enum: ["user", "admin", "rider", "vendor"],
     default: "user",
   },
+  privacyPolicyAcceptedAt: Date,
+  termsAcceptedAt: Date,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
 

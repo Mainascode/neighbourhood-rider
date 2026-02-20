@@ -1,5 +1,6 @@
 import express from "express";
 import WishlistItem from "../../models/WishlistItem.js";
+import { ok, fail } from "../../lib/response.js";
 
 const router = express.Router();
 
@@ -8,10 +9,10 @@ router.get("/", async (req, res) => {
   try {
     const items = await WishlistItem.find({ userId: req.user._id })
       .sort({ addedAt: -1 });
-    res.json(items);
+    return ok(res, items);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to fetch wishlist" });
+    return fail(res, "Failed to fetch wishlist", 500);
   }
 });
 
@@ -21,7 +22,7 @@ router.post("/", async (req, res) => {
     const { vendorId, vendorName, itemId, name, price, image } = req.body;
 
     if (!vendorId || !name) {
-      return res.status(400).json({ message: "vendorId and name are required" });
+      return fail(res, "vendorId and name are required", 400);
     }
 
     const match = { userId: req.user._id, vendorId };
@@ -32,7 +33,7 @@ router.post("/", async (req, res) => {
     }
 
     const existing = await WishlistItem.findOne(match);
-    if (existing) return res.json(existing);
+    if (existing) return ok(res, existing);
 
     const created = await WishlistItem.create({
       userId: req.user._id,
@@ -44,10 +45,10 @@ router.post("/", async (req, res) => {
       image
     });
 
-    res.status(201).json(created);
+    return ok(res, created, 201);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to add wishlist item" });
+    return fail(res, "Failed to add wishlist item", 500);
   }
 });
 
@@ -59,11 +60,11 @@ router.delete("/:id", async (req, res) => {
       userId: req.user._id
     });
 
-    if (!removed) return res.status(404).json({ message: "Item not found" });
-    res.json({ success: true });
+    if (!removed) return fail(res, "Item not found", 404);
+    return ok(res, { removed: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to remove wishlist item" });
+    return fail(res, "Failed to remove wishlist item", 500);
   }
 });
 

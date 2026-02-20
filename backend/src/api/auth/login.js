@@ -1,25 +1,48 @@
 import User from "../../models/User.js";
 import bcrypt from "bcryptjs";
 import { signAccess, signRefresh } from "../../lib/jwt.js";
+import { ok, fail } from "../../lib/response.js";
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email).toLowerCase());
+}
 
 export default async function login(req, res) {
-  const { email, password } = req.body;
+  const googleOnly = String(process.env.GOOGLE_AUTH_ONLY || "false").toLowerCase() === "true";
+  if (googleOnly) {
+    return fail(res, "Password login is disabled. Please continue with Google.", 403);
+  }
 
-  const user = await User.findOne({ email });
+  const { email, password, acceptPrivacyPolicy } = req.body;
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!isValidEmail(normalizedEmail)) {
+    return fail(res, "Please use a valid email address", 400);
+  }
+
+  if (!acceptPrivacyPolicy) {
+    return fail(res, "You must accept the Privacy Policy to continue", 400);
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
   if (!user) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    return fail(res, "Invalid credentials", 401);
   }
 
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    return fail(res, "Invalid credentials", 401);
   }
 
   // ✅ Auto-promote to admin if email matches env
-  if (email === process.env.ADMIN_EMAIL && user.role !== "admin") {
+  if (normalizedEmail === process.env.ADMIN_EMAIL && user.role !== "admin") {
     user.role = "admin";
-    await user.save();
   }
+
+  if (!user.privacyPolicyAcceptedAt) {
+    user.privacyPolicyAcceptedAt = new Date();
+  }
+  await user.save();
 
   // ✅ Auto-set Rider to ONLINE
   if (user.role === "rider") {
@@ -35,6 +58,7 @@ export default async function login(req, res) {
     id: user._id.toString(),
     email: user.email,
     role: user.role, // 🔥 REQUIRED for admin
+    name: user.name,
   };
 
   // ✅ SIGN TOKENS
@@ -59,7 +83,7 @@ export default async function login(req, res) {
   });
 
   // ✅ SEND USER BACK
-  res.json({
+  return ok(res, {
     user: {
       id: user._id,
       email: user.email,

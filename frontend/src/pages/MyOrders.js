@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { API_URL } from "../lib/config";
+import { apiFetch, apiGetCached, invalidateCache } from "../lib/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { FaBoxOpen, FaClock, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
@@ -24,21 +24,15 @@ export default function MyOrders() {
 
     const fetchOrders = useCallback(async () => {
         try {
-            const res = await fetch(`${API_URL}/api/orders/my`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-                credentials: "include"
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setOrders(data);
+            const data = await apiGetCached("/api/orders/my", { ttlMs: 6000 });
+            const rows = Array.isArray(data) ? data : [];
+            setOrders(rows);
 
-                // ✨ Auto-Open Map for Active Orders
-                const activeOrder = data.find(o => ["RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status));
-                if (activeOrder) {
-                    setTrackingOrder(activeOrder);
-                    // Also switch tab to pending if not already
-                    setActiveTab("pending");
-                }
+            // ✨ Auto-Open Map for Active Orders
+            const activeOrder = rows.find(o => ["RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status));
+            if (activeOrder) {
+                setTrackingOrder(activeOrder);
+                setActiveTab("pending");
             }
         } catch (err) {
             console.error("Failed to fetch orders", err);
@@ -49,13 +43,8 @@ export default function MyOrders() {
 
     const fetchWishlist = useCallback(async () => {
         try {
-            const res = await fetch(`${API_URL}/api/wishlist`, {
-                credentials: "include"
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setWishlistItems(Array.isArray(data) ? data : []);
-            }
+            const data = await apiGetCached("/api/wishlist", { ttlMs: 10000 });
+            setWishlistItems(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Failed to fetch wishlist", err);
         } finally {
@@ -117,15 +106,14 @@ export default function MyOrders() {
     const handlePayOrder = async (orderId) => {
         try {
             // Simulate Payment Process
-            const res = await fetch(`${API_URL}/api/orders/pay`, {
+            const data = await apiFetch("/api/orders/pay", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId }),
-                credentials: "include"
+                body: JSON.stringify({ orderId })
             });
-            const data = await res.json();
             if (data.success) {
                 // Payment Success
+                invalidateCache("/api/orders/my");
                 fetchOrders(); // Refresh
                 alert("Payment Successful! Order Completed.");
             }
@@ -144,13 +132,9 @@ export default function MyOrders() {
 
     const removeWishlistItem = async (id) => {
         try {
-            const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
-                method: "DELETE",
-                credentials: "include"
-            });
-            if (res.ok) {
-                setWishlistItems(prev => prev.filter(w => w._id !== id));
-            }
+            await apiFetch(`/api/wishlist/${id}`, { method: "DELETE" });
+            invalidateCache("/api/wishlist");
+            setWishlistItems(prev => prev.filter(w => w._id !== id));
         } catch (err) {
             console.error("Failed to remove wishlist item", err);
         }
@@ -304,9 +288,7 @@ export default function MyOrders() {
                             </div>
                         )
                     ) : loading ? (
-                        <div className="flex justify-center py-20">
-                            <div className="w-8 h-8 border-4 border-riderMaroon border-t-transparent rounded-full animate-spin"></div>
-                        </div>
+                        <MyOrdersSkeleton />
                     ) : filteredOrders.length === 0 ? (
                         <div className="text-center py-20 bg-riderBlack/90 backdrop-blur-md rounded-2xl border border-dashed border-riderBlue/10">
                             <FaBoxOpen className="text-5xl mx-auto text-gray-600 mb-4" />
@@ -441,4 +423,18 @@ function TabButton({ active, onClick, label, icon, count }) {
             {count > 0 && <span className={`text-xs px-1.5 py-0.5 rounded-full ${active ? "bg-riderBlue/20 text-riderLight" : "bg-riderDark/20 text-gray-600"}`}>{count}</span>}
         </button>
     )
+}
+
+function MyOrdersSkeleton() {
+    return (
+        <div className="space-y-4 animate-pulse">
+            {[1, 2, 3].map((id) => (
+                <div key={id} className="bg-riderDark/90 backdrop-blur-md p-6 rounded-2xl border border-riderBlue/10">
+                    <div className="h-4 w-44 bg-riderBlack/40 rounded mb-3"></div>
+                    <div className="h-6 w-32 bg-riderBlack/40 rounded mb-2"></div>
+                    <div className="h-4 w-56 bg-riderBlack/30 rounded"></div>
+                </div>
+            ))}
+        </div>
+    );
 }

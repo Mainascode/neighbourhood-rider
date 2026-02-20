@@ -63,6 +63,7 @@ export default function Navbar() {
 
         {user && (
           <div className="flex items-center gap-4">
+            <NavLink to="/change-password" label="Change Password" />
             <button
               onClick={logout}
               className="bg-gradient-to-r from-riderMaroon to-orange-500 text-white shadow-lg shadow-riderMaroon/30 hover:shadow-riderMaroon/40 border-0 px-6 py-2.5 rounded-full font-bold transition-all hover:-translate-y-1 active:scale-95"
@@ -137,6 +138,15 @@ export default function Navbar() {
           </div>
 
           <div className="mt-auto pt-8 border-t border-riderBlue/10">
+            {user && (
+              <Link
+                to="/change-password"
+                onClick={() => setIsMenuOpen(false)}
+                className="block text-center w-full bg-riderBlue/20 text-riderLight border border-riderBlue/30 shadow-lg px-6 py-2.5 rounded-xl font-bold hover:shadow-xl transition-all mb-3"
+              >
+                Change Password
+              </Link>
+            )}
             {user && (
               <button
                 onClick={() => { logout(); setIsMenuOpen(false); }}

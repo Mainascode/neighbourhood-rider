@@ -13,6 +13,10 @@ import Inquiry from "./models/Inquiry.js";
 import connectDB from "./lib/db.js";
 import setupSocket from "./lib/socket.js";
 import corsMiddleware from "./middleware/cors.js";
+import securityHeaders from "./middleware/securityHeaders.js";
+import { createRateLimiter } from "./middleware/rateLimiter.js";
+import { validateLoginPayload, validateRegisterPayload } from "./middleware/validators.js";
+import { getAllowedOrigins } from "./lib/origins.js";
 
 /* auth */
 import loginRoute from "./api/auth/login.js";
@@ -22,6 +26,8 @@ import logoutRoute from "./api/auth/logout.js";
 import meRoute from "./api/auth/me.js";
 import forgotPasswordRoute from "./api/auth/forgot-password.js";
 import resetPasswordRoute from "./api/auth/reset-password.js";
+import changePasswordRoute from "./api/auth/change-password.js";
+import googleAuthRoute from "./api/auth/google.js";
 
 /* orders */
 import createOrder from "./api/orders/create.js";
@@ -77,6 +83,7 @@ import adminTestFlow from "./api/admin/test-flow.js";
 /* middleware */
 import requireAuth from "./middleware/requireAuth.js";
 import requireAdmin from "./middleware/requireAdmin.js";
+import { auditAdminAction } from "./middleware/adminAuditLogger.js";
 
 
 
@@ -108,13 +115,23 @@ async function startServer() {
 
   /* middleware */
   app.use(corsMiddleware); // MUST allow credentials
+  app.use(securityHeaders);
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   app.use(cookieParser());
   app.use(morgan("dev"));
 
+  const authRateLimit = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 25,
+    message: "Too many auth requests. Please try again shortly.",
+  });
+
   /* health */
   app.get("/health", (_, res) => {
+    res.json({ status: "ok", service: "NeighborhoodRider API" });
+  });
+  app.get("/api/health", (_, res) => {
     res.json({ status: "ok", service: "NeighborhoodRider API" });
   });
 
@@ -123,13 +140,15 @@ async function startServer() {
   });
 
   /* auth */
-  app.post("/api/auth/login", loginRoute);
-  app.post("/api/auth/register", registerRoute);
+  app.post("/api/auth/login", authRateLimit, validateLoginPayload, loginRoute);
+  app.post("/api/auth/google", authRateLimit, googleAuthRoute);
+  app.post("/api/auth/register", authRateLimit, validateRegisterPayload, registerRoute);
   app.post("/api/auth/refresh", refreshRoute);
   app.post("/api/auth/logout", logoutRoute);
   app.get("/api/auth/me", requireAuth, meRoute);
   app.post("/api/auth/forgot-password", forgotPasswordRoute);
   app.post("/api/auth/reset-password/:token", resetPasswordRoute);
+  app.post("/api/auth/change-password", requireAuth, changePasswordRoute);
 
   /* orders */
   app.post("/api/orders/create", requireAuth, createOrder);
@@ -170,7 +189,6 @@ async function startServer() {
   /* vendors */
   app.post("/api/vendors/register", requireAuth, vendorRegister);
   app.get("/api/vendors/inventory", requireAuth, vendorInventory.getInventory);
-  app.post("/api/vendors/inventory", requireAuth, vendorInventory.addItem);
   app.post("/api/vendors/inventory", requireAuth, vendorInventory.addItem);
   app.delete("/api/vendors/inventory/:itemId", requireAuth, vendorInventory.removeItem);
   app.patch("/api/vendors/me", requireAuth, vendorSettings.updateVendor);
@@ -241,6 +259,7 @@ async function startServer() {
   });
 
   /* admin */
+  app.use("/api/admin", requireAuth, requireAdmin, auditAdminAction("ADMIN_API_MUTATION"));
   app.use(
     "/api/admin/dashboard",
     requireAuth,
@@ -252,8 +271,6 @@ async function startServer() {
   app.get("/api/admin/vendors", requireAuth, requireAdmin, adminVendors.listVendors);
   app.patch("/api/admin/vendors/:id/approve", requireAuth, requireAdmin, adminVendors.updateVendorStatus);
 
-  app.use("/api/admin/orders", requireAuth, requireAdmin, adminOrders);
-  app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
   app.use("/api/admin/finance", requireAuth, requireAdmin, financeRoute);
   app.use("/api/admin/test", requireAuth, requireAdmin, adminTestFlow);
 
@@ -283,11 +300,7 @@ async function startServer() {
   /* socket */
   const io = new Server(server, {
     cors: {
-      origin: [
-        "https://neighbourhood-rider.vercel.app",
-        "http://localhost:3000",
-        process.env.CLIENT_URL
-      ].filter(Boolean),
+      origin: getAllowedOrigins(),
       credentials: true,
     },
   });

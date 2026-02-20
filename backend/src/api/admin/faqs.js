@@ -2,6 +2,7 @@ import express from "express";
 import FAQ from "../../models/FAQ.js";
 import requireAuth from "../../middleware/requireAuth.js";
 import requireAdmin from "../../middleware/requireAdmin.js";
+import { ok, fail } from "../../lib/response.js";
 
 const router = express.Router();
 
@@ -9,9 +10,9 @@ const router = express.Router();
 router.get("/", async (req, res) => {
     try {
         const faqs = await FAQ.find({ isPublished: true }).sort({ createdAt: -1 });
-        res.json(faqs);
+        return ok(res, faqs);
     } catch (err) {
-        res.status(500).json({ error: "Failed to fetch FAQs" });
+        return fail(res, "Failed to fetch FAQs", 500);
     }
 });
 
@@ -19,9 +20,9 @@ router.get("/", async (req, res) => {
 router.get("/all", requireAuth, requireAdmin, async (req, res) => {
     try {
         const faqs = await FAQ.find().sort({ createdAt: -1 });
-        res.json(faqs);
+        return ok(res, faqs);
     } catch (err) {
-        res.status(500).json({ error: "Failed to fetch FAQs" });
+        return fail(res, "Failed to fetch FAQs", 500);
     }
 });
 
@@ -30,9 +31,9 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
     try {
         const { question, answer, category, isPublished } = req.body;
         const faq = await FAQ.create({ question, answer, category, isPublished });
-        res.status(201).json(faq);
+        return ok(res, faq, 201);
     } catch (err) {
-        res.status(500).json({ error: "Failed to create FAQ" });
+        return fail(res, "Failed to create FAQ", 500);
     }
 });
 
@@ -45,9 +46,9 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
             { question, answer, category, isPublished },
             { new: true }
         );
-        res.json(faq);
+        return ok(res, faq);
     } catch (err) {
-        res.status(500).json({ error: "Failed to update FAQ" });
+        return fail(res, "Failed to update FAQ", 500);
     }
 });
 
@@ -55,9 +56,9 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
         await FAQ.findByIdAndDelete(req.params.id);
-        res.json({ message: "FAQ deleted" });
+        return ok(res, { message: "FAQ deleted" });
     } catch (err) {
-        res.status(500).json({ error: "Failed to delete FAQ" });
+        return fail(res, "Failed to delete FAQ", 500);
     }
 });
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { API_URL } from "../../lib/config";
+import { apiFetch, apiGetCached } from "../../lib/api";
 import { useNotify } from "../../context/NotificationContext";
 import { socket } from "../../lib/socket.js";
 import { FaBoxOpen, FaMoneyBillWave, FaMotorcycle, FaQuestionCircle, FaBell, FaStore, FaCog, FaUsers } from "react-icons/fa";
@@ -38,20 +38,14 @@ export default function AdminDashboard() {
   /* 🛠️ Actions */
   const handleAssignOrder = async (orderId, riderId) => {
     try {
-      const res = await fetch(`${API_URL}/api/orders/assign`, {
+      await apiFetch("/api/orders/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ orderId, riderId })
       });
-
-      if (res.ok) {
-        notify("Order assigned successfully!", "success");
-        setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: "RIDER_ASSIGNED" } : o));
-        setSelectedOrderForAssignment(null);
-      } else {
-        notify("Failed to assign order", "error");
-      }
+      notify("Order assigned successfully!", "success");
+      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: "RIDER_ASSIGNED" } : o));
+      setSelectedOrderForAssignment(null);
     } catch (err) {
       console.error(err);
       notify("Error assigning order", "error");
@@ -71,8 +65,7 @@ export default function AdminDashboard() {
   }, [notify]);
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/dashboard`, { credentials: "include" });
-      const data = await res.json();
+      const data = await apiGetCached("/api/admin/dashboard", { ttlMs: 5000 });
       setStats(data);
     } catch (err) { console.error(err); }
   }, []);
@@ -101,24 +94,21 @@ export default function AdminDashboard() {
 
   const fetchRiders = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/riders`, { credentials: "include" });
-      const data = await res.json();
+      const data = await apiFetch("/api/admin/riders");
       setRiders(data);
     } catch (err) { console.error(err); }
   }, []);
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/orders`, { credentials: "include" });
-      const data = await res.json();
+      const data = await apiFetch("/api/admin/orders");
       setOrders(data);
     } catch (err) { console.error(err); }
   }, []);
 
   const fetchFaqs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/faqs/all`, { credentials: "include" }); // Fetch ALL for admin
-      const data = await res.json();
+      const data = await apiFetch("/api/faqs/all"); // Fetch ALL for admin
       setFaqs(data);
     } catch (err) { console.error(err); }
   }, []);
@@ -127,8 +117,7 @@ export default function AdminDashboard() {
 
   const fetchVendors = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/vendors`, { credentials: "include" });
-      const data = await res.json();
+      const data = await apiFetch("/api/admin/vendors");
       setVendors(data);
     } catch (err) { console.error(err); }
   }, []);
@@ -146,9 +135,7 @@ export default function AdminDashboard() {
     if (!testFlowOrderId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/admin/orders`, { credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await apiFetch("/api/admin/orders");
         setOrders(data);
         const match = data.find(o => o._id === testFlowOrderId);
         if (match) setTestFlowStep(match.status);
@@ -162,10 +149,10 @@ export default function AdminDashboard() {
 
   /* 🛠️ Actions */
   const handleApproveRider = async (id, status) => {
-    const res = await fetch(`${API_URL}/api/admin/riders/${id}/approve`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status })
+    const data = await apiFetch(`/api/admin/riders/${id}/approve`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status })
     });
-    if (res.ok) {
+    if (data) {
       notify(`Rider ${status}`, "success");
       fetchRiders();
       setSelectedRider(null);
@@ -173,10 +160,10 @@ export default function AdminDashboard() {
   };
 
   const handleApproveVendor = async (id, status) => {
-    const res = await fetch(`${API_URL}/api/admin/vendors/${id}/approve`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status })
+    const data = await apiFetch(`/api/admin/vendors/${id}/approve`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status })
     });
-    if (res.ok) {
+    if (data) {
       notify(`Vendor ${status}`, "success");
       fetchVendors();
       setSelectedVendor(null);
@@ -186,19 +173,18 @@ export default function AdminDashboard() {
   const handleAddFaq = async (e) => {
     e.preventDefault();
     const url = newFaq._id
-      ? `${API_URL}/api/faqs/${newFaq._id}`
-      : `${API_URL}/api/faqs`;
+      ? `/api/faqs/${newFaq._id}`
+      : "/api/faqs";
 
     const method = newFaq._id ? "PUT" : "POST";
 
-    const res = await fetch(url, {
+    const data = await apiFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify(newFaq)
     });
 
-    if (res.ok) {
+    if (data) {
       notify(newFaq._id ? "FAQ Updated" : "FAQ Added", "success");
       setNewFaq({ question: "", answer: "", isPublished: true });
       fetchFaqs();
@@ -206,31 +192,21 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteFaq = async (id) => {
-    const res = await fetch(`${API_URL}/api/faqs/${id}`, {
-      method: "DELETE", credentials: "include"
-    });
-    if (res.ok) {
-      notify("FAQ Deleted", "info");
-      setFaqs(prev => prev.filter(f => f._id !== id));
-    }
+    await apiFetch(`/api/faqs/${id}`, { method: "DELETE" });
+    notify("FAQ Deleted", "info");
+    setFaqs(prev => prev.filter(f => f._id !== id));
   }
 
   const runTestSeedVendors = async () => {
     try {
       setTestFlowLoading(true);
-      const res = await fetch(`${API_URL}/api/admin/test/seed-vendors`, {
+      const data = await apiFetch("/api/admin/test/seed-vendors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ count: 3 })
       });
-      const data = await res.json();
-      if (res.ok) {
-        notify(`Seeded ${data.createdCount} vendors`, "success");
-        fetchVendors();
-      } else {
-        notify(data.message || "Failed to seed vendors", "error");
-      }
+      notify(`Seeded ${data.createdCount} vendors`, "success");
+      fetchVendors();
     } catch (e) {
       notify("Seed failed", "error");
     } finally {
@@ -242,26 +218,18 @@ export default function AdminDashboard() {
     try {
       setTestFlowLoading(true);
       setTestFlowStep("Creating order");
-      const res = await fetch(`${API_URL}/api/admin/test/flow`, {
+      const data = await apiFetch("/api/admin/test/flow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({})
       });
-      const data = await res.json();
-      if (res.ok) {
-        notify(`Test flow started: ${data.orderId}`, "success");
-        setTestFlowStep("Order created");
-        setTestFlowOrderId(data.orderId);
-        if (data.order) {
-          setOrders(prev => [data.order, ...prev.filter(o => o._id !== data.order._id)]);
-        }
-        setActiveModal("orders");
-      } else {
-        notify(data.message || "Failed to run test flow", "error");
-        setTestFlowStep("");
-        setTestFlowOrderId("");
+      notify(`Test flow started: ${data.orderId}`, "success");
+      setTestFlowStep("Order created");
+      setTestFlowOrderId(data.orderId);
+      if (data.order) {
+        setOrders(prev => [data.order, ...prev.filter(o => o._id !== data.order._id)]);
       }
+      setActiveModal("orders");
     } catch (e) {
       notify("Test flow failed", "error");
       setTestFlowStep("");
@@ -274,17 +242,11 @@ export default function AdminDashboard() {
   const runSeedRiderOnline = async () => {
     try {
       setTestFlowLoading(true);
-      const res = await fetch(`${API_URL}/api/admin/test/seed-rider-online`, {
-        method: "POST",
-        credentials: "include"
+      await apiFetch("/api/admin/test/seed-rider-online", {
+        method: "POST"
       });
-      const data = await res.json();
-      if (res.ok) {
-        notify("Test rider created and set online", "success");
-        fetchRiders();
-      } else {
-        notify(data.message || "Failed to create test rider", "error");
-      }
+      notify("Test rider created and set online", "success");
+      fetchRiders();
     } catch (e) {
       notify("Failed to create test rider", "error");
     } finally {
@@ -295,16 +257,10 @@ export default function AdminDashboard() {
   const runSeedUser = async () => {
     try {
       setTestFlowLoading(true);
-      const res = await fetch(`${API_URL}/api/admin/test/seed-user`, {
-        method: "POST",
-        credentials: "include"
+      await apiFetch("/api/admin/test/seed-user", {
+        method: "POST"
       });
-      const data = await res.json();
-      if (res.ok) {
-        notify("Test user created", "success");
-      } else {
-        notify(data.message || "Failed to create test user", "error");
-      }
+      notify("Test user created", "success");
     } catch (e) {
       notify("Failed to create test user", "error");
     } finally {
@@ -315,18 +271,12 @@ export default function AdminDashboard() {
   const runSeedAll = async () => {
     try {
       setTestFlowLoading(true);
-      const res = await fetch(`${API_URL}/api/admin/test/seed-all`, {
-        method: "POST",
-        credentials: "include"
+      await apiFetch("/api/admin/test/seed-all", {
+        method: "POST"
       });
-      const data = await res.json();
-      if (res.ok) {
-        notify("Test user + vendor + rider created", "success");
-        fetchVendors();
-        fetchRiders();
-      } else {
-        notify(data.message || "Failed to seed all", "error");
-      }
+      notify("Test user + vendor + rider created", "success");
+      fetchVendors();
+      fetchRiders();
     } catch (e) {
       notify("Failed to seed all", "error");
     } finally {
@@ -337,17 +287,12 @@ export default function AdminDashboard() {
   const toggleGpsSim = async (orderId) => {
     const nextAction = gpsSimOrders[orderId] ? "stop" : "start";
     try {
-      const res = await fetch(`${API_URL}/api/admin/test/simulate-gps`, {
+      await apiFetch("/api/admin/test/simulate-gps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ orderId, action: nextAction })
       });
-      if (res.ok) {
-        setGpsSimOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
-      } else {
-        notify("Failed to toggle GPS simulation", "error");
-      }
+      setGpsSimOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
     } catch (e) {
       notify("Failed to toggle GPS simulation", "error");
     }
@@ -621,19 +566,14 @@ export default function AdminDashboard() {
                           onClick={async () => {
                             if (!window.confirm("Confirm payment to Rider? This will mark the order as Completed.")) return;
                             try {
-                              const res = await fetch(`${API_URL}/api/orders/pay`, {
+                              await apiFetch("/api/orders/pay", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                credentials: "include",
                                 body: JSON.stringify({ orderId: order._id })
                               });
-                              if (res.ok) {
-                                notify("Order Paid & Completed!", "success");
-                                fetchOrders();
-                                fetchDashboard();
-                              } else {
-                                notify("Payment failed", "error");
-                              }
+                              notify("Order Paid & Completed!", "success");
+                              fetchOrders();
+                              fetchDashboard();
                             } catch (e) {
                               notify("Connection error", "error");
                             }

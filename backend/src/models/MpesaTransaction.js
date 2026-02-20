@@ -18,6 +18,7 @@ const MpesaTransactionSchema = new mongoose.Schema(
 );
 
 MpesaTransactionSchema.index({ mpesaReceiptNumber: 1 }, { unique: true, sparse: true });
+MpesaTransactionSchema.index({ orderId: 1 });
 
 export default mongoose.models.MpesaTransaction ||
   mongoose.model("MpesaTransaction", MpesaTransactionSchema);

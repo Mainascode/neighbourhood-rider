@@ -1,11 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { API_URL } from "../lib/config";
+import { apiFetch } from "../lib/api";
 import { socket } from "../lib/socket";
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
-
-const API = API_URL;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -15,37 +13,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        let res = await fetch(`${API}/api/auth/me`, {
-          credentials: "include",
-        });
-
-        if (res.status === 401) {
-          try {
-            const refreshRes = await fetch(`${API}/api/auth/refresh`, {
-              method: "POST",
-              credentials: "include",
-            });
-            if (refreshRes.ok) {
-              res = await fetch(`${API}/api/auth/me`, {
-                credentials: "include",
-              });
-            }
-          } catch {
-            // refresh failed, user stays null
-          }
-        }
-
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-          if (data.user) {
-            if (!socket.connected) socket.connect();
-          }
-        } else {
+        const meData = await apiFetch("/api/auth/me");
+        setUser(meData.user || null);
+        if (meData.user && !socket.connected) socket.connect();
+      } catch {
+        try {
+          await apiFetch("/api/auth/refresh", { method: "POST" });
+          const meData = await apiFetch("/api/auth/me");
+          setUser(meData.user || null);
+          if (meData.user && !socket.connected) socket.connect();
+        } catch {
           setUser(null);
         }
-      } catch {
-        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -56,10 +35,9 @@ export function AuthProvider({ children }) {
     // 🔄 Silent Refresh Loop (Every 14 minutes)
     const refreshInterval = setInterval(async () => {
       try {
-        await fetch(`${API}/api/auth/refresh`, { method: "POST", credentials: "include" });
+        await apiFetch("/api/auth/refresh", { method: "POST" });
       } catch (err) {
         console.error("Auto-refresh failed", err);
-        // Optional: logout() if refresh fails hard, but better to let the next request fail to avoid abrupt UX
       }
     }, 14 * 60 * 1000); // 14 mins
 
@@ -67,39 +45,42 @@ export function AuthProvider({ children }) {
   }, []);
 
   /* ───── login ───── */
-  const login = async (email, password) => {
-    const res = await fetch(`${API}/api/auth/login`, {
+  const login = async (email, password, acceptPrivacyPolicy) => {
+    const data = await apiFetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, acceptPrivacyPolicy }),
     });
 
-    const data = await res.json();
+    setUser(data.user);
+    if (data.user && !socket.connected) socket.connect();
+  };
 
-    if (!res.ok) throw new Error(data.message || "Login failed");
+  const loginWithGoogle = async (credential, acceptPrivacyPolicy, acceptTerms) => {
+    const data = await apiFetch("/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential, acceptPrivacyPolicy, acceptTerms }),
+    });
 
     setUser(data.user);
     if (data.user && !socket.connected) socket.connect();
   };
 
   /* ───── register ───── */
-  const register = async (name, email, password, confirmPassword) => {
-    const res = await fetch(`${API}/api/auth/register`, {
+  const register = async (name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms) => {
+    const data = await apiFetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({
         name,
         email,
         password,
         confirmPassword,
+        acceptPrivacyPolicy,
+        acceptTerms,
       }),
     });
-
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.message || "Registration failed");
 
     setUser(data.user);
     if (data.user && !socket.connected) socket.connect();
@@ -107,10 +88,7 @@ export function AuthProvider({ children }) {
 
   /* ───── logout ───── */
   const logout = async () => {
-    await fetch(`${API}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
+    await apiFetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     if (socket.connected) socket.disconnect();
   };
@@ -119,7 +97,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, isAdmin, login, register, logout }}
+      value={{ user, loading, isAdmin, login, register, loginWithGoogle, logout }}
     >
       {children}
     </AuthContext.Provider>

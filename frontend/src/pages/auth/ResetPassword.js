@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_URL } from "../../lib/config";
+import { apiFetch } from "../../lib/api";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { FaLock, FaArrowLeft } from "react-icons/fa";
 
@@ -11,6 +11,8 @@ export default function ResetPassword() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,22 +24,15 @@ export default function ResetPassword() {
         setError("");
 
         try {
-            const res = await fetch(`${API_URL}/api/auth/reset-password/${token}`, {
+            await apiFetch(`/api/auth/reset-password/${token}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ password }),
             });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                setSuccess(true);
-                setTimeout(() => navigate("/login"), 3000);
-            } else {
-                setError(data.message || "Failed to reset password");
-            }
+            setSuccess(true);
+            setTimeout(() => navigate("/login"), 3000);
         } catch (err) {
-            setError("Network error. Please try again.");
+            setError(err.message || "Network error. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -78,7 +73,7 @@ export default function ResetPassword() {
                                 <div className="relative">
                                     <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                                     <input
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         required
                                         minLength={6}
                                         value={password}
@@ -86,6 +81,13 @@ export default function ResetPassword() {
                                         className="w-full bg-riderDark/50 border border-riderBlue/10 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-riderBlue focus:ring-1 focus:ring-riderBlue transition-all"
                                         placeholder="••••••••"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((s) => !s)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 hover:text-riderBlue"
+                                    >
+                                        {showPassword ? "Hide" : "Show"}
+                                    </button>
                                 </div>
                             </div>
 
@@ -94,7 +96,7 @@ export default function ResetPassword() {
                                 <div className="relative">
                                     <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                                     <input
-                                        type="password"
+                                        type={showConfirmPassword ? "text" : "password"}
                                         required
                                         minLength={6}
                                         value={confirmPassword}
@@ -102,6 +104,13 @@ export default function ResetPassword() {
                                         className="w-full bg-riderDark/50 border border-riderBlue/10 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-riderBlue focus:ring-1 focus:ring-riderBlue transition-all"
                                         placeholder="••••••••"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword((s) => !s)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 hover:text-riderBlue"
+                                    >
+                                        {showConfirmPassword ? "Hide" : "Show"}
+                                    </button>
                                 </div>
                             </div>
 

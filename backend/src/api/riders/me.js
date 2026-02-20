@@ -1,5 +1,5 @@
-import Link from "../../models/Rider.js";
 import Rider from "../../models/Rider.js";
+import { ok, fail } from "../../lib/response.js";
 
 export default async function me(req, res) {
     if (req.method === "PATCH") {
@@ -10,22 +10,22 @@ export default async function me(req, res) {
                 { isAvailable, ...(typeof isAvailable === "boolean" ? { status: isAvailable ? "ONLINE_AVAILABLE" : "OFFLINE" } : {}) },
                 { new: true }
             );
-            if (!rider) return res.status(404).json({ message: "Not a rider" });
-            return res.json(rider);
+            if (!rider) return fail(res, "Not a rider", 404);
+            return ok(res, rider);
         } catch (err) {
             console.error(err);
-            return res.status(500).json({ message: "Failed to update status" });
+            return fail(res, "Failed to update status", 500);
         }
     }
 
     try {
-        const rider = await Rider.findOne({ userId: req.user.id });
+        const rider = await Rider.findOne({ userId: req.user._id || req.user.id });
         if (!rider) {
-            return res.status(404).json({ message: "Not a rider" });
+            return fail(res, "Not a rider", 404);
         }
-        res.json(rider);
+        return ok(res, rider);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Failed to fetch rider profile" });
+        return fail(res, "Failed to fetch rider profile", 500);
     }
 }

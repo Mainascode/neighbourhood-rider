@@ -10,7 +10,7 @@ import "../index.css";
 
 import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
-import { API_URL } from "../lib/config";
+import { apiGetCached } from "../lib/api";
 
 export default function Landing() {
   const { user } = useAuth();
@@ -19,8 +19,7 @@ export default function Landing() {
   useEffect(() => {
     const fetchServerTime = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/system/time`);
-        const data = await res.json();
+        const data = await apiGetCached("/api/system/time", { ttlMs: 15000 });
         if (typeof data.hour === "number") setServerHour(data.hour);
       } catch (e) {
         // Ignore time fetch failure; fallback to no banner
