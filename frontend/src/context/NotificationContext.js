@@ -37,6 +37,10 @@ export function NotificationProvider({ children }) {
       }
     } catch (e) {
       console.error(e);
+      if (e?.code === "PUSH_NOT_CONFIGURED") {
+        console.warn("Push notifications are disabled until VAPID keys are configured on backend.");
+        return;
+      }
       notify("Failed to enable notifications.", "error");
     }
   }, [notify]);

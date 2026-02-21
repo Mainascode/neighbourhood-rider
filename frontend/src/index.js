@@ -15,3 +15,11 @@ root.render(
     </NotificationProvider>
   </GoogleOAuthProvider>
 );
+
+const splash = document.getElementById("app-splash");
+if (splash) {
+  requestAnimationFrame(() => {
+    splash.classList.add("hide");
+    setTimeout(() => splash.remove(), 450);
+  });
+}

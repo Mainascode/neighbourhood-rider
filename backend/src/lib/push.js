@@ -1,11 +1,15 @@
 import webpush from "web-push";
 import Subscription from "../models/Subscription.js";
 
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+const vapidPublicKey = (process.env.VAPID_PUBLIC_KEY || process.env.REACT_APP_VAPID_PUBLIC_KEY || "").trim();
+const vapidPrivateKey = (process.env.VAPID_PRIVATE_KEY || "").trim();
+const vapidSubject = process.env.VAPID_SUBJECT || "mailto:support@neighborhoodrider.com";
+
+if (vapidPublicKey && vapidPrivateKey) {
     webpush.setVapidDetails(
-        "mailto:support@neighborhoodrider.com",
-        process.env.VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
+        vapidSubject,
+        vapidPublicKey,
+        vapidPrivateKey
     );
 }
 

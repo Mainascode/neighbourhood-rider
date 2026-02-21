@@ -27,6 +27,14 @@ function getVapidDiagnostics(key) {
     return `len=${key.length}, prefix=${safePrefix}`;
 }
 
+class PushSetupError extends Error {
+    constructor(message, code) {
+        super(message);
+        this.name = "PushSetupError";
+        this.code = code;
+    }
+}
+
 async function getVapidPublicKey() {
     if (isValidVapidPublicKey(PUBLIC_VAPID_KEY)) return PUBLIC_VAPID_KEY;
 
@@ -34,13 +42,32 @@ async function getVapidPublicKey() {
         credentials: "include",
     });
     if (!res.ok) {
-        throw new Error("Failed to fetch public VAPID key from server.");
+        let serverMessage = "";
+        try {
+            const data = await res.json();
+            serverMessage = data?.error || data?.message || "";
+        } catch {
+            serverMessage = "";
+        }
+
+        if (res.status === 500 && /not configured/i.test(serverMessage)) {
+            throw new PushSetupError(
+                "Push not configured on server: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.",
+                "PUSH_NOT_CONFIGURED"
+            );
+        }
+
+        throw new PushSetupError(
+            `Failed to fetch public VAPID key from server (status ${res.status}${serverMessage ? `: ${serverMessage}` : ""}).`,
+            "PUSH_KEY_FETCH_FAILED"
+        );
     }
     const data = await res.json();
     const serverKey = normalizeVapidKey(data?.publicKey);
     if (!isValidVapidPublicKey(serverKey)) {
-        throw new Error(
+        throw new PushSetupError(
             `Push not configured: frontend/server VAPID key invalid (${getVapidDiagnostics(serverKey)}).`
+            , "PUSH_INVALID_KEY"
         );
     }
     return serverKey;

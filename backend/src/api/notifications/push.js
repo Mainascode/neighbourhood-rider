@@ -6,12 +6,20 @@ import requireAdmin from "../../middleware/requireAdmin.js";
 
 const router = express.Router();
 
+function getConfiguredVapidPublicKey() {
+    return (
+        process.env.VAPID_PUBLIC_KEY ||
+        process.env.REACT_APP_VAPID_PUBLIC_KEY ||
+        ""
+    ).trim();
+}
+
 // Configure VAPID (This will crash if keys aren't set, which is good for debugging)
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+if (getConfiguredVapidPublicKey() && process.env.VAPID_PRIVATE_KEY) {
     const vapidSubject = process.env.VAPID_SUBJECT || "mailto:mainaemmanuel855@gmail.com";
     webpush.setVapidDetails(
         vapidSubject,
-        process.env.VAPID_PUBLIC_KEY,
+        getConfiguredVapidPublicKey(),
         process.env.VAPID_PRIVATE_KEY
     );
 } else {
@@ -22,9 +30,11 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 // @desc    Returns public VAPID key for web push subscription
 // @access  Public
 router.get("/vapid-public-key", (_req, res) => {
-    const key = (process.env.VAPID_PUBLIC_KEY || "").trim();
+    const key = getConfiguredVapidPublicKey();
     if (!key) {
-        return res.status(500).json({ error: "VAPID public key is not configured" });
+        return res.status(500).json({
+            error: "VAPID public key is not configured (expected VAPID_PUBLIC_KEY on backend)."
+        });
     }
     return res.json({ publicKey: key });
 });
