@@ -123,11 +123,35 @@ export async function subscribeToPush(options = { prompt: true }) {
         return;
     }
 
-    // Subscribe
-    const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    });
+    const serverKeyBytes = urlBase64ToUint8Array(vapidKey);
+    let subscription = await registration.pushManager.getSubscription();
+
+    // If an old subscription exists with a different VAPID key, recreate it.
+    if (subscription) {
+        try {
+            const currentKeyBuffer = subscription.options?.applicationServerKey;
+            const currentKeyBytes = currentKeyBuffer ? new Uint8Array(currentKeyBuffer) : null;
+            const sameKey =
+                currentKeyBytes &&
+                currentKeyBytes.length === serverKeyBytes.length &&
+                currentKeyBytes.every((b, i) => b === serverKeyBytes[i]);
+
+            if (!sameKey) {
+                await subscription.unsubscribe();
+                subscription = null;
+            }
+        } catch {
+            await subscription.unsubscribe();
+            subscription = null;
+        }
+    }
+
+    if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: serverKeyBytes,
+        });
+    }
 
     // Send to backend
     await fetch(`${API_URL}/api/notifications/subscribe`, {

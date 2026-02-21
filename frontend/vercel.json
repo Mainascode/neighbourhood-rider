@@ -1,6 +1,14 @@
 {
     "rewrites": [
         {
+            "source": "/api/(.*)",
+            "destination": "https://neighbourhood-rider.onrender.com/api/$1"
+        },
+        {
+            "source": "/socket.io/(.*)",
+            "destination": "https://neighbourhood-rider.onrender.com/socket.io/$1"
+        },
+        {
             "source": "/(.*)",
             "destination": "/"
         }
