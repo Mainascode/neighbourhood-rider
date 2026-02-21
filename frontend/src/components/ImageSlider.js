@@ -5,8 +5,8 @@ import useMeasure from "react-use-measure";
 const images = [
   "biker.jpeg",
   "biker2.jpeg",
-  "biker5.jpeg",
-  "biker4.jpeg", // Repeat for seamless feeling if needed, or just loop
+  "biker3.jpeg",
+   // Repeat for seamless feeling if needed, or just loop
 ];
 
 export default function ImageSlider() {
