@@ -12,11 +12,16 @@ export function AuthProvider({ children }) {
   /* ───── restore session on refresh ───── */
   useEffect(() => {
     const loadUser = async () => {
+      const hasToken = !!localStorage.getItem("token");
       try {
         const meData = await apiFetch("/api/auth/me");
         setUser(meData.user || null);
         if (meData.user && !socket.connected) socket.connect();
       } catch {
+        if (!hasToken) {
+          setUser(null);
+          return;
+        }
         try {
           await apiFetch("/api/auth/refresh", { method: "POST" });
           const meData = await apiFetch("/api/auth/me");
@@ -34,6 +39,7 @@ export function AuthProvider({ children }) {
 
     // 🔄 Silent Refresh Loop (Every 14 minutes)
     const refreshInterval = setInterval(async () => {
+      if (!localStorage.getItem("token")) return;
       try {
         await apiFetch("/api/auth/refresh", { method: "POST" });
       } catch (err) {

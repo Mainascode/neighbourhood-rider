@@ -35,6 +35,14 @@ class PushSetupError extends Error {
     }
 }
 
+class PushAuthError extends Error {
+    constructor(message, code) {
+        super(message);
+        this.name = "PushAuthError";
+        this.code = code;
+    }
+}
+
 async function getVapidPublicKey() {
     if (isValidVapidPublicKey(PUBLIC_VAPID_KEY)) return PUBLIC_VAPID_KEY;
 
@@ -154,14 +162,23 @@ export async function subscribeToPush(options = { prompt: true }) {
     }
 
     // Send to backend
-    await fetch(`${API_URL}/api/notifications/subscribe`, {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_URL}/api/notifications/subscribe`, {
         method: "POST",
+        credentials: "include",
         body: JSON.stringify(subscription),
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}` // Assuming token is here
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
     });
+
+    if (!res.ok) {
+        if (res.status === 401) {
+            throw new PushAuthError("Unauthorized push subscription request.", "PUSH_UNAUTHORIZED");
+        }
+        throw new PushAuthError(`Push subscription request failed (${res.status}).`, "PUSH_SUBSCRIBE_FAILED");
+    }
 
     console.log("Push Notification Subscribed!");
 }

@@ -41,6 +41,9 @@ export function NotificationProvider({ children }) {
         console.warn("Push notifications are disabled until VAPID keys are configured on backend.");
         return;
       }
+      if (e?.code === "PUSH_UNAUTHORIZED") {
+        return;
+      }
       notify("Failed to enable notifications.", "error");
     }
   }, [notify]);
