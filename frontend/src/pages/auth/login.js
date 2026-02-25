@@ -54,6 +54,10 @@ export default function Login() {
       subtitle="Login to Neighborhood Rider"
     >
       <form onSubmit={submit}>
+        <p className="text-xs text-gray-500 mb-4">
+          Deployment note: configure <code>REACT_APP_SUPABASE_URL</code> and{" "}
+          <code>REACT_APP_SUPABASE_ANON_KEY</code> in Vercel/Render environment variables.
+        </p>
         {!googleOnly && (
           <>
             <input

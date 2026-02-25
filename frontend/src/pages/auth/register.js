@@ -33,7 +33,12 @@ export default function Register() {
     }
 
     try {
-      await register(name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms);
+      const result = await register(name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms);
+      if (result?.emailConfirmationRequired) {
+        notify("Account created. Please check your email to confirm your account.", "success");
+        navigate("/login");
+        return;
+      }
       notify("Account created successfully 🎉", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
@@ -63,6 +68,10 @@ export default function Register() {
       subtitle="Join Neighborhood Rider"
     >
       <form onSubmit={submit}>
+        <p className="text-xs text-gray-500 mb-4">
+          Deployment note: configure <code>REACT_APP_SUPABASE_URL</code> and{" "}
+          <code>REACT_APP_SUPABASE_ANON_KEY</code> in Vercel/Render environment variables.
+        </p>
         {!googleOnly && (
           <>
             <input

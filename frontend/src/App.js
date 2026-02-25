@@ -9,9 +9,6 @@ import AppErrorBoundary from "./components/AppErrorBoundary";
 const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/auth/login"));
 const Register = lazy(() => import("./pages/auth/register"));
-const SupabaseLogin = lazy(() => import("./pages/supabase-auth/Login"));
-const SupabaseSignup = lazy(() => import("./pages/supabase-auth/Signup"));
-const SupabaseDashboard = lazy(() => import("./pages/supabase-auth/Dashboard"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
 const ChangePassword = lazy(() => import("./pages/auth/ChangePassword"));
@@ -27,9 +24,6 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const RiderDashboard = lazy(() => import("./pages/RiderDashboard"));
 const JoinVendor = lazy(() => import("./pages/JoinVendor"));
 const VendorDashboard = lazy(() => import("./pages/vendor/VendorDashboard"));
-const SupabaseProtectedRoute = lazy(() =>
-  import("./components/supabase-auth/SupabaseProtectedRoute")
-);
 
 export default function App() {
   return (
@@ -41,16 +35,6 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/supabase/login" element={<SupabaseLogin />} />
-            <Route path="/supabase/signup" element={<SupabaseSignup />} />
-            <Route
-              path="/supabase/dashboard"
-              element={
-                <SupabaseProtectedRoute>
-                  <SupabaseDashboard />
-                </SupabaseProtectedRoute>
-              }
-            />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
