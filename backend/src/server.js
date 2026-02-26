@@ -27,7 +27,6 @@ import meRoute from "./api/auth/me.js";
 import forgotPasswordRoute from "./api/auth/forgot-password.js";
 import resetPasswordRoute from "./api/auth/reset-password.js";
 import changePasswordRoute from "./api/auth/change-password.js";
-import googleAuthRoute from "./api/auth/google.js";
 import supabaseExchangeRoute from "./api/auth/supabase-exchange.js";
 
 /* orders */
@@ -142,7 +141,6 @@ async function startServer() {
 
   /* auth */
   app.post("/api/auth/login", authRateLimit, validateLoginPayload, loginRoute);
-  app.post("/api/auth/google", authRateLimit, googleAuthRoute);
   app.post("/api/auth/supabase/exchange", authRateLimit, supabaseExchangeRoute);
   app.post("/api/auth/register", authRateLimit, validateRegisterPayload, registerRoute);
   app.post("/api/auth/refresh", refreshRoute);

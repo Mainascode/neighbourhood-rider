@@ -8,11 +8,6 @@ function isValidEmail(email) {
 }
 
 export default async function login(req, res) {
-  const googleOnly = String(process.env.GOOGLE_AUTH_ONLY || "false").toLowerCase() === "true";
-  if (googleOnly) {
-    return fail(res, "Password login is disabled. Please continue with Google.", 403);
-  }
-
   const { email, password, acceptPrivacyPolicy } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 

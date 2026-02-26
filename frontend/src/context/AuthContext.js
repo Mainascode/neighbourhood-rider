@@ -26,80 +26,47 @@ export function AuthProvider({ children }) {
 
   /* ───── restore session on refresh ───── */
   useEffect(() => {
-    if (isSupabaseConfigured) {
-      const loadSupabaseSession = async () => {
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          if (error) throw error;
-          const backendUser = await exchangeSupabaseSession(data.session);
-          setUser(backendUser);
-          if (backendUser && !socket.connected) socket.connect();
-          if (!backendUser && socket.connected) socket.disconnect();
-        } catch {
-          setUser(null);
-          if (socket.connected) socket.disconnect();
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      loadSupabaseSession();
-
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        exchangeSupabaseSession(session)
-          .then((backendUser) => {
-            setUser(backendUser);
-            if (backendUser && !socket.connected) socket.connect();
-            if (!backendUser && socket.connected) socket.disconnect();
-          })
-          .catch(() => {
-            setUser(null);
-            if (socket.connected) socket.disconnect();
-          });
-      });
-
-      return () => subscription.unsubscribe();
+    if (!isSupabaseConfigured) {
+      setUser(null);
+      setLoading(false);
+      if (socket.connected) socket.disconnect();
+      return () => {};
     }
 
-    const loadUser = async () => {
-      const hasToken = !!localStorage.getItem("token");
+    const loadSupabaseSession = async () => {
       try {
-        const meData = await apiFetch("/api/auth/me");
-        setUser(meData.user || null);
-        if (meData.user && !socket.connected) socket.connect();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        const backendUser = await exchangeSupabaseSession(data.session);
+        setUser(backendUser);
+        if (backendUser && !socket.connected) socket.connect();
+        if (!backendUser && socket.connected) socket.disconnect();
       } catch {
-        if (!hasToken) {
-          setUser(null);
-          return;
-        }
-        try {
-          await apiFetch("/api/auth/refresh", { method: "POST" });
-          const meData = await apiFetch("/api/auth/me");
-          setUser(meData.user || null);
-          if (meData.user && !socket.connected) socket.connect();
-        } catch {
-          setUser(null);
-        }
+        setUser(null);
+        if (socket.connected) socket.disconnect();
       } finally {
         setLoading(false);
       }
     };
 
-    loadUser();
+    loadSupabaseSession();
 
-    // 🔄 Silent Refresh Loop (Every 14 minutes)
-    const refreshInterval = setInterval(async () => {
-      if (!localStorage.getItem("token")) return;
-      try {
-        await apiFetch("/api/auth/refresh", { method: "POST" });
-      } catch (err) {
-        console.error("Auto-refresh failed", err);
-      }
-    }, 14 * 60 * 1000); // 14 mins
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      exchangeSupabaseSession(session)
+        .then((backendUser) => {
+          setUser(backendUser);
+          if (backendUser && !socket.connected) socket.connect();
+          if (!backendUser && socket.connected) socket.disconnect();
+        })
+        .catch(() => {
+          setUser(null);
+          if (socket.connected) socket.disconnect();
+        });
+    });
 
-    return () => clearInterval(refreshInterval);
+    return () => subscription.unsubscribe();
   }, []);
 
   /* ───── login ───── */
@@ -116,25 +83,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    const data = await apiFetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, acceptPrivacyPolicy }),
-    });
-
-    setUser(data.user);
-    if (data.user && !socket.connected) socket.connect();
-  };
-
-  const loginWithGoogle = async (credential, acceptPrivacyPolicy, acceptTerms) => {
-    const data = await apiFetch("/api/auth/google", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential, acceptPrivacyPolicy, acceptTerms }),
-    });
-
-    setUser(data.user);
-    if (data.user && !socket.connected) socket.connect();
+    throw new Error("Supabase auth is not configured. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.");
   };
 
   /* ───── register ───── */
@@ -164,21 +113,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    const data = await apiFetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        confirmPassword,
-        acceptPrivacyPolicy,
-        acceptTerms,
-      }),
-    });
-
-    setUser(data.user);
-    if (data.user && !socket.connected) socket.connect();
+    throw new Error("Supabase auth is not configured. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.");
   };
 
   /* ───── logout ───── */
@@ -195,7 +130,6 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    await apiFetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     if (socket.connected) socket.disconnect();
   };
@@ -204,7 +138,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, isAdmin, login, register, loginWithGoogle, logout }}
+      value={{ user, loading, isAdmin, login, register, logout }}
     >
       {children}
     </AuthContext.Provider>

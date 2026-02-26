@@ -8,11 +8,6 @@ function isValidEmail(email) {
 }
 
 export default async function register(req, res) {
-  const googleOnly = String(process.env.GOOGLE_AUTH_ONLY || "false").toLowerCase() === "true";
-  if (googleOnly) {
-    return fail(res, "Password registration is disabled. Please continue with Google.", 403);
-  }
-
   const { name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
