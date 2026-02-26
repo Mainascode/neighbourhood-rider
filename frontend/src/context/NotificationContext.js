@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
+import { useAuth } from "./AuthContext";
 
 const NotificationContext = createContext(undefined);
 
@@ -12,6 +13,7 @@ export const useNotify = () => {
 };
 
 export function NotificationProvider({ children }) {
+  const { user, loading } = useAuth();
   const [notification, setNotification] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
 
@@ -65,12 +67,13 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     if (!("Notification" in window)) return;
+    if (loading || !user) return;
     if (Notification.permission === "granted") {
       enableNotifications({ prompt: false });
     } else if (Notification.permission === "denied") {
       setPermissionDenied(true);
     }
-  }, [enableNotifications]);
+  }, [enableNotifications, loading, user]);
 
   const SettingsLink = () => (
     <a

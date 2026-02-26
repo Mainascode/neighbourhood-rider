@@ -6,11 +6,11 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 
 
 root.render(
-  <NotificationProvider>
-    <AuthProvider>
+  <AuthProvider>
+    <NotificationProvider>
       <App />
-    </AuthProvider>
-  </NotificationProvider>
+    </NotificationProvider>
+  </AuthProvider>
 );
 
 const splash = document.getElementById("app-splash");

@@ -72,15 +72,19 @@ export function AuthProvider({ children }) {
   /* ───── login ───── */
   const login = async (email, password, acceptPrivacyPolicy) => {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw new Error(error.message);
-      const backendUser = await exchangeSupabaseSession(data.session);
-      setUser(backendUser);
-      if (backendUser && !socket.connected) socket.connect();
-      return;
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw new Error(error.message);
+        const backendUser = await exchangeSupabaseSession(data.session);
+        setUser(backendUser);
+        if (backendUser && !socket.connected) socket.connect();
+        return;
+      } catch (err) {
+        throw toSupabaseAuthError(err);
+      }
     }
 
     throw new Error("Supabase auth is not configured. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.");
@@ -89,28 +93,32 @@ export function AuthProvider({ children }) {
   /* ───── register ───── */
   const register = async (name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms) => {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role: "user",
-            acceptPrivacyPolicy,
-            acceptTerms,
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              role: "user",
+              acceptPrivacyPolicy,
+              acceptTerms,
+            },
           },
-        },
-      });
+        });
 
-      if (error) throw new Error(error.message);
+        if (error) throw new Error(error.message);
 
-      const backendUser = await exchangeSupabaseSession(data.session);
-      setUser(backendUser);
-      if (backendUser && !socket.connected) socket.connect();
+        const backendUser = await exchangeSupabaseSession(data.session);
+        setUser(backendUser);
+        if (backendUser && !socket.connected) socket.connect();
 
-      return {
-        emailConfirmationRequired: !data.session,
-      };
+        return {
+          emailConfirmationRequired: !data.session,
+        };
+      } catch (err) {
+        throw toSupabaseAuthError(err);
+      }
     }
 
     throw new Error("Supabase auth is not configured. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.");
@@ -144,3 +152,12 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+  const toSupabaseAuthError = (err) => {
+    const message = String(err?.message || "");
+    if (/Failed to fetch/i.test(message) || /ERR_NAME_NOT_RESOLVED/i.test(message)) {
+      return new Error(
+        "Unable to reach Supabase. Check REACT_APP_SUPABASE_URL and DNS/network settings."
+      );
+    }
+    return err instanceof Error ? err : new Error("Authentication request failed.");
+  };
