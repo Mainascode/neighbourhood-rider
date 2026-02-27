@@ -1,4 +1,5 @@
 import { API_URL } from "./config";
+import { auth } from "../firebase";
 
 function normalizeVapidKey(key) {
     return (key || "")
@@ -162,7 +163,7 @@ export async function subscribeToPush(options = { prompt: true }) {
     }
 
     // Send to backend
-    const token = localStorage.getItem("token");
+    const token = await auth.currentUser?.getIdToken();
     const res = await fetch(`${API_URL}/api/notifications/subscribe`, {
         method: "POST",
         credentials: "include",

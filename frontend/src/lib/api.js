@@ -1,4 +1,5 @@
 import { API_URL } from "./config";
+import { auth } from "../firebase";
 
 const cache = new Map();
 
@@ -8,9 +9,16 @@ export async function apiFetch(path, options = {}) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers = new Headers(options.headers || {});
+    if (!headers.has("Authorization")) {
+      const token = await auth.currentUser?.getIdToken();
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+    }
+
     const res = await fetch(`${API_URL}${path}`, {
       credentials: "include",
       ...options,
+      headers,
       signal: controller.signal,
     });
 

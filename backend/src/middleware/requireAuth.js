@@ -1,6 +1,36 @@
 import { verifyAccess } from "../lib/jwt.js";
+import bcrypt from "bcryptjs";
+import User from "../models/User.js";
+import { getFirebaseAuth } from "../lib/firebaseAdmin.js";
 
-export default function requireAuth(req, res, next) {
+async function resolveFirebaseUser(decodedFirebaseToken) {
+  const email = String(decodedFirebaseToken?.email || "").trim().toLowerCase();
+  if (!email) return null;
+
+  let user = await User.findOne({ email });
+  if (!user) {
+    const placeholderPassword = await bcrypt.hash(`firebase:${email}:${Date.now()}`, 10);
+    const provider = decodedFirebaseToken?.firebase?.sign_in_provider === "google.com" ? "google" : "email";
+    user = await User.create({
+      name: decodedFirebaseToken?.name || email,
+      email,
+      password: placeholderPassword,
+      role: "user",
+      authProvider: provider,
+      privacyPolicyAcceptedAt: new Date(),
+      termsAcceptedAt: new Date(),
+    });
+  }
+
+  if (email === String(process.env.ADMIN_EMAIL || "").trim().toLowerCase() && user.role !== "admin") {
+    user.role = "admin";
+    await user.save();
+  }
+
+  return user;
+}
+
+export default async function requireAuth(req, res, next) {
   try {
     let token = req.cookies.accessToken;
 
@@ -12,13 +42,34 @@ export default function requireAuth(req, res, next) {
       return res.status(401).json({ error: "No access token" });
     }
 
-    const decoded = verifyAccess(token);
+    // First try legacy JWT tokens.
+    try {
+      const decoded = verifyAccess(token);
+      req.user = {
+        ...decoded,
+        _id: decoded._id || decoded.id,
+      };
+      return next();
+    } catch {
+      // Fallback to Firebase ID token.
+    }
+
+    const firebaseAuth = getFirebaseAuth();
+    const decodedFirebaseToken = await firebaseAuth.verifyIdToken(token);
+    const user = await resolveFirebaseUser(decodedFirebaseToken);
+    if (!user) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
 
     req.user = {
-      ...decoded,
-      _id: decoded._id || decoded.id,
+      id: user._id.toString(),
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      firebaseUid: decodedFirebaseToken.uid,
     };
-    next();
+    return next();
   } catch (err) {
     console.error("Auth Error:", err.message);
     return res.status(401).json({ error: "Invalid or expired token" });

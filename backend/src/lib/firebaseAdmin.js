@@ -29,3 +29,8 @@ export function getMessaging() {
   const firebaseApp = getFirebaseApp();
   return admin.getMessaging(firebaseApp);
 }
+
+export function getFirebaseAuth() {
+  const firebaseApp = getFirebaseApp();
+  return admin.auth(firebaseApp);
+}

@@ -6,7 +6,7 @@ import AuthCard from "./AuthCard";
 import { Link } from "react-router-dom";
 
 export default function Register() {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const { notify, enableNotifications } = useNotify();
   const navigate = useNavigate();
 
@@ -27,12 +27,27 @@ export default function Register() {
     }
 
     try {
-      await register(email, password);
+      await register(email, password, name);
       notify("Account created successfully 🎉", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
     } catch (err) {
       notify(err.message || "Registration failed", "error");
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    if (!acceptPrivacyPolicy || !acceptTerms) {
+      notify("Please accept Privacy Policy and Terms first.", "error");
+      return;
+    }
+    try {
+      await loginWithGoogle();
+      notify("Account created successfully 🎉", "success");
+      await enableNotifications({ prompt: true });
+      navigate("/");
+    } catch (err) {
+      notify(err.message || "Google signup failed", "error");
     }
   };
 
@@ -88,6 +103,14 @@ export default function Register() {
 
         <button className="w-full bg-riderMaroon hover:bg-rose-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-riderMaroon/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 uppercase tracking-wide">
           Register
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignup}
+          className="w-full mt-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-4 rounded-xl font-bold transition-all duration-300"
+        >
+          Continue with Google
         </button>
 
         <label className="flex items-start gap-2 mt-4 text-xs text-gray-600">

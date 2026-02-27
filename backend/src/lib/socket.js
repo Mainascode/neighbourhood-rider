@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import { updateOrderStatus, ORDER_STATUS } from "../lib/orderStatus.js";
+import { getFirebaseAuth } from "./firebaseAdmin.js";
 
 export default function setupSocket(io) {
   /* auth */
@@ -18,8 +19,22 @@ export default function setupSocket(io) {
         return next();
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      const user = await User.findById(decoded.id).select("_id name role");
+      let user = null;
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        user = await User.findById(decoded.id).select("_id name role");
+      } catch {
+        try {
+          const firebaseAuth = getFirebaseAuth();
+          const decodedFirebaseToken = await firebaseAuth.verifyIdToken(token);
+          const email = String(decodedFirebaseToken?.email || "").trim().toLowerCase();
+          if (email) {
+            user = await User.findOne({ email }).select("_id name role");
+          }
+        } catch {
+          user = null;
+        }
+      }
 
       if (!user) {
         socket.user = null;

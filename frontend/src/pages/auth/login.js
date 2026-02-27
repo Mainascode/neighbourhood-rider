@@ -6,7 +6,7 @@ import AuthCard from "./AuthCard";
 import { Link } from "react-router-dom";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const { notify, enableNotifications } = useNotify();
   const navigate = useNavigate();
 
@@ -24,6 +24,21 @@ export default function Login() {
       navigate("/");
     } catch (err) {
       notify(err.message || "Login failed", "error");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!acceptPrivacyPolicy) {
+      notify("Please accept the Privacy Policy first.", "error");
+      return;
+    }
+    try {
+      await loginWithGoogle();
+      notify("Welcome back 👋", "success");
+      await enableNotifications({ prompt: true });
+      navigate("/");
+    } catch (err) {
+      notify(err.message || "Google login failed", "error");
     }
   };
 
@@ -61,6 +76,14 @@ export default function Login() {
 
         <button className="w-full bg-riderMaroon hover:bg-rose-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-riderMaroon/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 uppercase tracking-wide">
           Login
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          className="w-full mt-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-4 rounded-xl font-bold transition-all duration-300"
+        >
+          Continue with Google
         </button>
 
         <label className="flex items-start gap-2 mt-4 text-xs text-gray-600">
