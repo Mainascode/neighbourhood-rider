@@ -32,10 +32,14 @@ async function resolveFirebaseUser(decodedFirebaseToken) {
 
 export default async function requireAuth(req, res, next) {
   try {
-    let token = req.cookies.accessToken;
-
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    // Prefer explicit bearer token from frontend (Firebase ID token),
+    // then fallback to legacy cookie token.
+    let token = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
+    }
+    if (!token) {
+      token = req.cookies.accessToken;
     }
 
     if (!token) {

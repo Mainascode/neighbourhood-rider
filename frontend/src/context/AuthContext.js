@@ -10,6 +10,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../firebase";
 import { socket } from "../lib/socket";
+import { apiFetch } from "../lib/api";
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -21,6 +22,20 @@ export function AuthProvider({ children }) {
 
   const mapFirebaseUser = async (firebaseUser) => {
     if (!firebaseUser) return null;
+    try {
+      const meData = await apiFetch("/api/auth/me");
+      if (meData?.user) {
+        return {
+          id: meData.user.id,
+          email: meData.user.email || firebaseUser.email || "",
+          name: meData.user.name || firebaseUser.displayName || firebaseUser.email || "User",
+          role: meData.user.role || "user",
+        };
+      }
+    } catch {
+      // fall back to Firebase user shape if backend user profile is not available yet
+    }
+
     const tokenResult = await firebaseUser.getIdTokenResult();
     return {
       id: firebaseUser.uid,
