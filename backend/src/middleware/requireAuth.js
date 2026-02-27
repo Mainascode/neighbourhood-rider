@@ -72,6 +72,9 @@ export default async function requireAuth(req, res, next) {
     return next();
   } catch (err) {
     console.error("Auth Error:", err.message);
+    if (String(err?.message || "").includes("Firebase Admin env not configured")) {
+      return res.status(500).json({ error: "Firebase Admin is not configured on the backend" });
+    }
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
