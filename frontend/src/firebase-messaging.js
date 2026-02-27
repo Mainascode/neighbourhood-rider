@@ -6,6 +6,7 @@ let messagingInstance = null;
 function getMessagingSafe() {
   if (typeof window === "undefined") return null;
   if (!("serviceWorker" in navigator)) return null;
+  if (!app?.options?.messagingSenderId) return null;
   if (!messagingInstance) {
     messagingInstance = getMessaging(app);
   }
@@ -38,4 +39,3 @@ export function onMessageListener() {
     onMessage(messaging, (payload) => resolve(payload));
   });
 }
-
