@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
 import { useAuth } from "./AuthContext";
+import { apiFetch } from "../lib/api";
+import { onMessageListener, requestNotificationPermission } from "../firebase-messaging";
 
 const NotificationContext = createContext(undefined);
 
@@ -28,9 +30,19 @@ export function NotificationProvider({ children }) {
 
   const enableNotifications = useCallback(async (options = { prompt: true }) => {
     try {
-      const { registerServiceWorker, subscribeToPush } = await import("../lib/pushConfig");
-      await registerServiceWorker();
-      await subscribeToPush(options);
+      if (!("serviceWorker" in navigator)) return;
+      await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+
+      if (options.prompt === false && Notification.permission !== "granted") return;
+      const fcmToken = await requestNotificationPermission();
+      if (fcmToken) {
+        await apiFetch("/api/notifications/register-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fcmToken }),
+        });
+      }
+
       if (Notification.permission === "granted") {
         notify("Notifications enabled! 🔔", "success");
         setPermissionDenied(false);
@@ -39,16 +51,30 @@ export function NotificationProvider({ children }) {
       }
     } catch (e) {
       console.error(e);
-      if (e?.code === "PUSH_NOT_CONFIGURED") {
-        console.warn("Push notifications are disabled until VAPID keys are configured on backend.");
-        return;
-      }
-      if (e?.code === "PUSH_UNAUTHORIZED") {
-        return;
-      }
       notify("Failed to enable notifications.", "error");
     }
   }, [notify]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user) return () => {};
+
+    const bindForegroundMessage = async () => {
+      while (!cancelled) {
+        const payload = await onMessageListener();
+        if (cancelled || !payload) break;
+        const title = payload?.notification?.title || "Notification";
+        const body = payload?.notification?.body || "";
+        notify(`${title}${body ? `: ${body}` : ""}`, "info");
+      }
+    };
+
+    bindForegroundMessage();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, notify]);
 
   useEffect(() => {
     const handleNotification = (payload) => {

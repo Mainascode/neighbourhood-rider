@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
   termsAcceptedAt: Date,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  fcmTokens: {
+    type: [String],
+    default: [],
+  },
 
 
   refreshTokens: [refreshSchema],

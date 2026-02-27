@@ -1,37 +1,36 @@
-import webpush from "web-push";
-import Subscription from "../models/Subscription.js";
-
-const vapidPublicKey = (process.env.VAPID_PUBLIC_KEY || process.env.REACT_APP_VAPID_PUBLIC_KEY || "").trim();
-const vapidPrivateKey = (process.env.VAPID_PRIVATE_KEY || "").trim();
-const vapidSubject = process.env.VAPID_SUBJECT || "mailto:support@neighborhoodrider.com";
-
-if (vapidPublicKey && vapidPrivateKey) {
-    webpush.setVapidDetails(
-        vapidSubject,
-        vapidPublicKey,
-        vapidPrivateKey
-    );
-}
+import User from "../models/User.js";
+import { getMessaging } from "../config/firebaseAdmin.js";
 
 export async function sendPushNotification(userId, title, body, url = "/") {
     try {
-        const subscriptions = await Subscription.find({ userId });
-        if (!subscriptions.length) return;
+        const user = await User.findById(userId).select("fcmTokens");
+        if (!user?.fcmTokens?.length) return;
 
-        const payload = JSON.stringify({ title, body, url });
+        const tokens = Array.from(new Set(user.fcmTokens));
+        const messaging = getMessaging();
+        const result = await messaging.sendEachForMulticast({
+            tokens,
+            notification: { title, body },
+            data: { url: String(url || "/") },
+        });
 
-        const promises = subscriptions.map((sub) =>
-            webpush.sendNotification(
-                { endpoint: sub.endpoint, keys: sub.keys },
-                payload
-            ).catch(err => {
-                if (err.statusCode === 410 || err.statusCode === 404) {
-                    Subscription.deleteOne({ _id: sub._id }).exec();
-                }
-            })
-        );
+        const invalidTokens = [];
+        result.responses.forEach((response, idx) => {
+            if (response.success) return;
+            const code = response.error?.code || "";
+            if (
+                code.includes("registration-token-not-registered") ||
+                code.includes("invalid-argument")
+            ) {
+                invalidTokens.push(tokens[idx]);
+            }
+        });
 
-        await Promise.all(promises);
+        if (invalidTokens.length) {
+            await User.findByIdAndUpdate(userId, {
+                $pull: { fcmTokens: { $in: invalidTokens } },
+            });
+        }
     } catch (error) {
         console.error("Push Error:", error);
     }
