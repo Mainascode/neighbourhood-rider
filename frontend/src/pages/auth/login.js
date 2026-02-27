@@ -18,7 +18,7 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     try {
-      await login(email, password, acceptPrivacyPolicy);
+      await login(email, password);
       notify("Welcome back 👋", "success");
       await enableNotifications({ prompt: true });
       navigate("/");

@@ -11,8 +11,7 @@ const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
   password: String,
-  authProvider: { type: String, enum: ["email", "google", "supabase"], default: "email" },
-  supabaseId: { type: String, unique: true, sparse: true },
+  authProvider: { type: String, enum: ["email", "google"], default: "email" },
   role: {
     type: String,
     enum: ["user", "admin", "rider", "vendor"],

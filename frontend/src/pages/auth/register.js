@@ -27,12 +27,7 @@ export default function Register() {
     }
 
     try {
-      const result = await register(name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms);
-      if (result?.emailConfirmationRequired) {
-        notify("Account created. Please check your email to confirm your account.", "success");
-        navigate("/login");
-        return;
-      }
+      await register(email, password);
       notify("Account created successfully 🎉", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
