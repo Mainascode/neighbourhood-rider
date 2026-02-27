@@ -2,11 +2,9 @@
 import { io } from "socket.io-client";
 
 const REMOTE_SOCKET_URL = "https://neighbourhood-rider.onrender.com";
-const isVercelHosted =
-  typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname);
 
 const SOCKET_URL =
-  process.env.REACT_APP_API_URL || (isVercelHosted ? window.location.origin : REMOTE_SOCKET_URL);
+  process.env.REACT_APP_API_URL || REMOTE_SOCKET_URL;
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
