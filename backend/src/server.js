@@ -181,6 +181,7 @@ async function startServer() {
   app.post("/api/riders/register", requireAuth, riderRegister);
   app.use("/api/riders/nearby", requireAuth, nearbyRiders);
   app.get("/api/riders/me", requireAuth, riderMe);
+  app.patch("/api/riders/me", requireAuth, riderMe);
   app.post("/api/riders/go-online", requireAuth, goOnline);
   app.post("/api/riders/go-offline", requireAuth, goOffline);
   app.post("/api/riders/heartbeat", requireAuth, heartbeat);
