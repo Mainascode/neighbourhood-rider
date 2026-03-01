@@ -107,7 +107,6 @@ export default function Order() {
             try {
                 const data = await apiFetch(`/api/orders/${activeOrder._id}/timeline`, {
                     method: "GET",
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
                 });
                 setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
             } catch (e) { }
@@ -136,7 +135,6 @@ export default function Order() {
             try {
                 const data = await apiFetch("/api/orders/my", {
                     method: "GET",
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
                 });
                 if (data && data.length > 0) {
                     // Find active order
@@ -296,7 +294,7 @@ export default function Order() {
 
             const data = await apiFetch("/api/orders/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     vendorId: selectedVendor._id,
                     items: cart,
@@ -358,7 +356,7 @@ export default function Order() {
 
             const data = await apiFetch("/api/orders/pay-delivery", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body)
             });
 
@@ -853,7 +851,7 @@ export default function Order() {
                                             try {
                                                 await apiFetch(`/api/orders/${activeOrder._id}/cancel`, {
                                                     method: "POST",
-                                                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                                                    headers: { "Content-Type": "application/json" },
                                                     body: JSON.stringify({ reason: "USER_CANCELLED" })
                                                 });
                                                 setActiveOrder(prev => prev ? { ...prev, status: "CANCELLED" } : prev);
@@ -895,7 +893,7 @@ export default function Order() {
                                             try {
                                                 await apiFetch("/api/orders/confirm-receipt", {
                                                     method: "POST",
-                                                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                                                    headers: { "Content-Type": "application/json" },
                                                     body: JSON.stringify({ orderId: activeOrder._id })
                                                 });
                                                 alert("Receipt Confirmed! The rider can now complete the order.");
