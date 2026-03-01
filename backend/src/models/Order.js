@@ -28,7 +28,7 @@ const OrderSchema = new mongoose.Schema({
   items: [],
   status: {
     type: String,
-    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY", "DELIVERED", "CANCELLED", "REFUNDED"],
+    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "ON_THE_WAY", "DELIVERED", "CANCELLED", "REFUNDED"],
     default: "CREATED",
   },
   vendorCancelReason: {

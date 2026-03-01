@@ -26,6 +26,24 @@ function normalizeSourceIp(req) {
     return candidate.replace(/^::ffff:/, "");
 }
 
+function shouldEnforceCallbackSignature() {
+    return String(process.env.MPESA_ENFORCE_SIGNATURE || "false").toLowerCase() === "true";
+}
+
+function isLiveHttpsUrl(urlValue) {
+    try {
+        const parsed = new URL(String(urlValue || ""));
+        if (parsed.protocol !== "https:") return false;
+        const host = parsed.hostname.toLowerCase();
+        if (host === "localhost" || host === "127.0.0.1") return false;
+        if (host.endsWith(".local")) return false;
+        if (host.includes("example.com")) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 const getMpesaToken = async () => {
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
@@ -83,6 +101,12 @@ export const initiateSTKPush = async (req, res) => {
 
         const stkUrl = `${getMpesaBaseUrl()}/mpesa/stkpush/v1/processrequest`;
         const callbackUrl = process.env.MPESA_CALLBACK_URL || `${process.env.API_URL}/api/payments/mpesa/callback`;
+        if (process.env.NODE_ENV === "production" && !isLiveHttpsUrl(callbackUrl)) {
+            return res.status(500).json({
+                success: false,
+                message: "MPESA_CALLBACK_URL must be a live HTTPS endpoint in production.",
+            });
+        }
 
         const data = {
             BusinessShortCode: shortCode,
@@ -103,6 +127,7 @@ export const initiateSTKPush = async (req, res) => {
         });
 
         const checkoutRequestId = response.data.CheckoutRequestID;
+        const merchantRequestId = response.data.MerchantRequestID;
         if (checkoutRequestId) {
             await Order.findByIdAndUpdate(orderId, {
                 mpesaCheckoutRequestId: checkoutRequestId,
@@ -114,6 +139,27 @@ export const initiateSTKPush = async (req, res) => {
                     initiatedAt: new Date()
                 }
             });
+            await MpesaTransaction.findOneAndUpdate(
+                { checkoutRequestId },
+                {
+                    checkoutRequestId,
+                    merchantRequestId,
+                    orderId: order._id,
+                    amount: amt,
+                    phoneNumber,
+                    status: "INITIATED",
+                    initiatedAt: new Date(),
+                    initiationRaw: response.data,
+                },
+                { upsert: true, new: true }
+            );
+            await PaymentEventLog.create({
+                eventType: "STK_INIT_SUCCESS",
+                checkoutRequestId,
+                orderId: order._id,
+                resultDesc: "STK push initiated",
+                raw: response.data,
+            }).catch(() => { });
         }
 
         res.status(200).json({ success: true, message: "STK Push Initiated", data: response.data });
@@ -144,6 +190,12 @@ export const handleMpesaCallback = async (req, res) => {
         const allowedIps = parseAllowedCallbackIps();
         const sourceIp = normalizeSourceIp(req);
         if (allowedIps.length && !allowedIps.includes(sourceIp)) {
+            await PaymentEventLog.create({
+                eventType: "CALLBACK_AUTH_FAILED",
+                sourceIp,
+                resultDesc: "IP not allowlisted",
+                raw: { headers: req.headers },
+            }).catch(() => { });
             return res.status(403).json({ message: "IP not allowed" });
         }
 
@@ -151,17 +203,30 @@ export const handleMpesaCallback = async (req, res) => {
         const secret = process.env.MPESA_CALLBACK_SECRET;
         const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
 
-        if (!signature || !secret) {
+        // Daraja callbacks are typically secured via source IP allowlist.
+        // Signature validation is optional and can be enforced with MPESA_ENFORCE_SIGNATURE=true.
+        if (secret && signature) {
+            const expected = crypto
+                .createHmac("sha256", secret)
+                .update(rawBody)
+                .digest("hex");
+            if (signature !== expected) {
+                await PaymentEventLog.create({
+                    eventType: "CALLBACK_AUTH_FAILED",
+                    sourceIp,
+                    resultDesc: "Invalid callback signature",
+                    raw: { headers: req.headers },
+                }).catch(() => { });
+                return res.status(403).json({ message: "Invalid signature" });
+            }
+        } else if (shouldEnforceCallbackSignature()) {
+            await PaymentEventLog.create({
+                eventType: "CALLBACK_AUTH_FAILED",
+                sourceIp,
+                resultDesc: "Signature required but missing",
+                raw: { headers: req.headers },
+            }).catch(() => { });
             return res.status(401).json({ message: "Missing signature or secret" });
-        }
-
-        const expected = crypto
-            .createHmac("sha256", secret)
-            .update(rawBody)
-            .digest("hex");
-
-        if (signature !== expected) {
-            return res.status(403).json({ message: "Invalid signature" });
         }
 
         const parsedBody = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString("utf-8")) : req.body;
@@ -173,6 +238,7 @@ export const handleMpesaCallback = async (req, res) => {
         const checkoutRequestId = Body.stkCallback.CheckoutRequestID;
         const resultCode = Body.stkCallback.ResultCode;
         const resultDesc = Body.stkCallback.ResultDesc;
+        const merchantRequestId = Body.stkCallback.MerchantRequestID;
 
         // Record callback and enforce idempotency
         const existingTx = await MpesaTransaction.findOne({ checkoutRequestId });
@@ -245,7 +311,7 @@ export const handleMpesaCallback = async (req, res) => {
                 };
 
                 const currentStatus = normalizeOrderStatus(order.status);
-                if (currentStatus !== ORDER_STATUS.PAYMENT_CONFIRMED) {
+                if ([ORDER_STATUS.CREATED, ORDER_STATUS.PAYMENT_PENDING].includes(currentStatus)) {
                     await updateOrderStatus({
                         orderId: order._id,
                         fromStatusRaw: order.status,
@@ -311,13 +377,16 @@ export const handleMpesaCallback = async (req, res) => {
                 { checkoutRequestId },
                 {
                     checkoutRequestId,
+                    merchantRequestId,
                     mpesaReceiptNumber,
                     orderId: order?._id,
                     amount: Number(amount),
                     phoneNumber,
+                    status: "SUCCESS",
                     resultCode,
                     resultDesc,
                     raw: Body,
+                    callbackReceivedAt: new Date(),
                     processedAt: new Date(),
                     sourceIp
                 },
@@ -361,10 +430,13 @@ export const handleMpesaCallback = async (req, res) => {
                 { checkoutRequestId },
                 {
                     checkoutRequestId,
+                    merchantRequestId,
                     orderId: order?._id,
+                    status: "FAILED",
                     resultCode,
                     resultDesc,
                     raw: Body,
+                    callbackReceivedAt: new Date(),
                     processedAt: new Date(),
                     sourceIp
                 },
@@ -403,5 +475,36 @@ export const handleMpesaCallback = async (req, res) => {
         });
         // Return 500 to let upstream webhook sender retry.
         res.status(500).json({ message: "Error processing callback" });
+    }
+};
+
+export const getMpesaTransactionStatus = async (req, res) => {
+    try {
+        const checkoutRequestId = String(req.params.checkoutRequestId || "").trim();
+        if (!checkoutRequestId) {
+            return res.status(400).json({ message: "checkoutRequestId is required" });
+        }
+
+        const tx = await MpesaTransaction.findOne({ checkoutRequestId }).lean();
+        if (!tx) return res.status(404).json({ message: "Transaction not found" });
+
+        return res.status(200).json({
+            checkoutRequestId: tx.checkoutRequestId,
+            merchantRequestId: tx.merchantRequestId || null,
+            orderId: tx.orderId || null,
+            status: tx.status || "INITIATED",
+            resultCode: tx.resultCode ?? null,
+            resultDesc: tx.resultDesc || null,
+            mpesaReceiptNumber: tx.mpesaReceiptNumber || null,
+            amount: tx.amount ?? null,
+            phoneNumber: tx.phoneNumber || null,
+            initiatedAt: tx.initiatedAt || null,
+            callbackReceivedAt: tx.callbackReceivedAt || null,
+            processedAt: tx.processedAt || null,
+            sourceIp: tx.sourceIp || null,
+        });
+    } catch (err) {
+        console.error("Get M-Pesa transaction status error:", err);
+        return res.status(500).json({ message: "Failed to fetch transaction status" });
     }
 };

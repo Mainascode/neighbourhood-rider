@@ -27,7 +27,8 @@ export async function getOrderStatus(req, res) {
             "PAYMENT_CONFIRMED",
             "VENDOR_ACCEPTED",
             "PREPARING",
-            "READY_FOR_PICKUP"
+            "READY_FOR_PICKUP",
+            "PENDING_RIDER"
         ].includes(normalizedStatus);
 
         const response = {

@@ -83,9 +83,19 @@ export default function AdminDashboard() {
       fetchDashboard(); // Refresh stats
     });
 
+    socket.on("admin:reminder", (payload) => {
+      addNotification(payload?.body || "It is 9:00 PM. Run rider batch payouts.", "info");
+    });
+
+    socket.on("admin:order:pending_rider", (payload) => {
+      addNotification(payload?.message || "Order waiting for rider availability.", "error");
+    });
+
     return () => {
       socket.off("client:searching");
       socket.off("admin:order:new");
+      socket.off("admin:reminder");
+      socket.off("admin:order:pending_rider");
     };
   }, [addNotification, fetchDashboard]);
 

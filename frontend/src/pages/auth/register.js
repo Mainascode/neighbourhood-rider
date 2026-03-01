@@ -6,12 +6,13 @@ import AuthCard from "./AuthCard";
 import { Link } from "react-router-dom";
 
 export default function Register() {
-  const { register, loginWithGoogle } = useAuth();
+  const { register, loginWithGoogle, completeProfile } = useAuth();
   const { notify, enableNotifications } = useNotify();
   const navigate = useNavigate();
 
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,6 +22,16 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
 
+    if (!acceptPrivacyPolicy || !acceptTerms) {
+      notify("Please accept Privacy Policy and Terms first.", "error");
+      return;
+    }
+
+    if (!phone.trim()) {
+      notify("Phone number is required for rider accounts.", "error");
+      return;
+    }
+
     if (password !== confirmPassword) {
       notify("Passwords do not match", "error");
       return;
@@ -28,6 +39,11 @@ export default function Register() {
 
     try {
       await register(email, password, name);
+      await completeProfile({
+        phone,
+        acceptPrivacyPolicy: true,
+        acceptTerms: true,
+      });
       notify("Account created successfully 🎉", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
@@ -41,8 +57,17 @@ export default function Register() {
       notify("Please accept Privacy Policy and Terms first.", "error");
       return;
     }
+    if (!phone.trim()) {
+      notify("Phone number is required for rider accounts.", "error");
+      return;
+    }
     try {
       await loginWithGoogle();
+      await completeProfile({
+        phone,
+        acceptPrivacyPolicy: true,
+        acceptTerms: true,
+      });
       notify("Account created successfully 🎉", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
@@ -63,6 +88,15 @@ export default function Register() {
           className="w-full mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-riderBlue text-riderLight placeholder-gray-400 transition-all focus:bg-white"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          required
+        />
+
+        <input
+          type="tel"
+          placeholder="Phone Number"
+          className="w-full mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-riderBlue text-riderLight placeholder-gray-400 transition-all focus:bg-white"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
           required
         />
 

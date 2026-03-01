@@ -8,15 +8,11 @@ function isValidEmail(email) {
 }
 
 export default async function login(req, res) {
-  const { email, password, acceptPrivacyPolicy } = req.body;
+  const { email, password } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
   if (!isValidEmail(normalizedEmail)) {
     return fail(res, "Please use a valid email address", 400);
-  }
-
-  if (!acceptPrivacyPolicy) {
-    return fail(res, "You must accept the Privacy Policy to continue", 400);
   }
 
   const user = await User.findOne({ email: normalizedEmail });
@@ -34,9 +30,6 @@ export default async function login(req, res) {
     user.role = "admin";
   }
 
-  if (!user.privacyPolicyAcceptedAt) {
-    user.privacyPolicyAcceptedAt = new Date();
-  }
   await user.save();
 
   // ✅ Auto-set Rider to ONLINE

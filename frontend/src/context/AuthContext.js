@@ -29,7 +29,10 @@ export function AuthProvider({ children }) {
           id: meData.user.id,
           email: meData.user.email || firebaseUser.email || "",
           name: meData.user.name || firebaseUser.displayName || firebaseUser.email || "User",
+          phone: meData.user.phone || "",
           role: meData.user.role || "user",
+          privacyPolicyAcceptedAt: meData.user.privacyPolicyAcceptedAt || null,
+          termsAcceptedAt: meData.user.termsAcceptedAt || null,
         };
       }
     } catch {
@@ -41,7 +44,10 @@ export function AuthProvider({ children }) {
       id: firebaseUser.uid,
       email: firebaseUser.email || "",
       name: firebaseUser.displayName || firebaseUser.email || "User",
+      phone: "",
       role: tokenResult?.claims?.role || "user",
+      privacyPolicyAcceptedAt: null,
+      termsAcceptedAt: null,
     };
   };
 
@@ -71,6 +77,7 @@ export function AuthProvider({ children }) {
     const mappedUser = await mapFirebaseUser(creds.user);
     setUser(mappedUser);
     await connectSocketWithFirebaseToken(creds.user);
+    return mappedUser;
   };
 
   /* ───── register ───── */
@@ -82,6 +89,7 @@ export function AuthProvider({ children }) {
     const mappedUser = await mapFirebaseUser(creds.user);
     setUser(mappedUser);
     await connectSocketWithFirebaseToken(creds.user);
+    return mappedUser;
   };
 
   const loginWithGoogle = async () => {
@@ -89,6 +97,20 @@ export function AuthProvider({ children }) {
     const mappedUser = await mapFirebaseUser(creds.user);
     setUser(mappedUser);
     await connectSocketWithFirebaseToken(creds.user);
+    return mappedUser;
+  };
+
+  const completeProfile = async ({ phone, acceptPrivacyPolicy, acceptTerms }) => {
+    const data = await apiFetch("/api/auth/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, acceptPrivacyPolicy, acceptTerms }),
+    });
+    if (data?.user) {
+      setUser(data.user);
+      return data.user;
+    }
+    return null;
   };
 
   /* ───── logout ───── */
@@ -102,7 +124,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, isAdmin, login, register, loginWithGoogle, logout }}
+      value={{ user, loading, isAdmin, login, register, loginWithGoogle, completeProfile, logout }}
     >
       {children}
     </AuthContext.Provider>

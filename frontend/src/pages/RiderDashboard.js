@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
-import { socket } from "../lib/socket.js";
+import { socket, emitRiderOnline, emitRiderHeartbeat, emitRiderOffline } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
 import { apiGetCached, invalidateCache } from "../lib/api";
 
@@ -16,6 +16,9 @@ export default function RiderDashboard({ tab = "orders" }) {
     const [riderProfile, setRiderProfile] = useState(null);
     const [faqs, setFaqs] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [incomingRequest, setIncomingRequest] = useState(null);
+    const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false);
+    const [requestTimeLeft, setRequestTimeLeft] = useState(0);
     const [userLocation, setUserLocation] = useState(null);
     const [acceptTimers, setAcceptTimers] = useState({});
 
@@ -119,6 +122,32 @@ export default function RiderDashboard({ tab = "orders" }) {
                 fetchAssignments();
             } else {
                 notify(data.error || "Failed to accept order", "error");
+            }
+        } catch (e) {
+            notify("Connection error", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRejectOrder = async (orderId) => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${API_URL}/api/riders/reject-order`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId }),
+                credentials: "include"
+            });
+            const data = await res.json();
+            if (data.success) {
+                notify("Order rejected. Looking for another rider.", "info");
+                setIncomingRequest(null);
+                setRequestTimeLeft(0);
+                invalidateCache("/api/orders/my");
+                fetchAssignments();
+            } else {
+                notify(data.error || "Failed to reject order", "error");
             }
         } catch (e) {
             notify("Connection error", "error");
@@ -242,47 +271,190 @@ export default function RiderDashboard({ tab = "orders" }) {
         }
     };
 
-    const riderStatus = riderProfile?.status;
-
     useEffect(() => {
-        if (!riderStatus || riderStatus === "OFFLINE") return;
-        if (!navigator.geolocation) return;
+        if (user?.role !== "rider") return;
 
-        const interval = setInterval(async () => {
+        const getLocation = async () => {
+            if (!navigator.geolocation) return null;
             try {
                 const position = await new Promise((resolve, reject) =>
-                    navigator.geolocation.getCurrentPosition(resolve, reject)
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
                 );
-                const location = {
+                return {
                     lat: position.coords.latitude,
                     lng: position.coords.longitude
                 };
-                await fetch(`${API_URL}/api/riders/heartbeat`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ location }),
-                    credentials: "include"
-                });
-            } catch (e) {
-                // silently ignore heartbeat failures
+            } catch {
+                return null;
             }
-        }, 30000);
+        };
 
-        return () => clearInterval(interval);
-    }, [riderStatus]);
+        const announceOnline = async () => {
+            if (!socket.connected) return;
+            const location = await getLocation();
+            emitRiderOnline(location || {});
+        };
+
+        const sendHeartbeat = async () => {
+            if (!socket.connected) return;
+            const location = await getLocation();
+            emitRiderHeartbeat(location || {});
+        };
+
+        const handleSocketConnect = () => {
+            announceOnline();
+        };
+
+        const handleOnline = () => {
+            if (!socket.connected) socket.connect();
+            announceOnline();
+        };
+
+        const handleOffline = () => {
+            emitRiderOffline("NETWORK_OFFLINE");
+            if (socket.connected) socket.disconnect();
+        };
+
+        socket.on("connect", handleSocketConnect);
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+
+        if (navigator.onLine && !socket.connected) {
+            socket.connect();
+        } else if (navigator.onLine && socket.connected) {
+            announceOnline();
+        }
+
+        const interval = setInterval(() => {
+            if (!navigator.onLine) return;
+            sendHeartbeat();
+        }, 25000);
+
+        return () => {
+            clearInterval(interval);
+            socket.off("connect", handleSocketConnect);
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+            emitRiderOffline("APP_CLOSED");
+        };
+    }, [user?.role]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const playAlertSound = () => {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                oscillator.type = "sine";
+                oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+                gainNode.gain.setValueAtTime(0.001, ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                oscillator.start();
+                oscillator.stop(ctx.currentTime + 0.4);
+            } catch {
+                // best effort
+            }
+        };
+
+        const handleDeliveryRequest = (payload) => {
+            if (!payload?.orderId && !payload?._id) return;
+            const orderId = payload.orderId || payload._id;
+            const acceptBy = Number(payload.acceptBy || (Date.now() + 30000));
+            setIncomingRequest({
+                ...payload,
+                orderId,
+                acceptBy,
+            });
+            setRequestTimeLeft(Math.max(0, Math.ceil((acceptBy - Date.now()) / 1000)));
+            setIsRequestPanelOpen(true);
+            notify(payload.title || "New Delivery Request", "info");
+            playAlertSound();
+        };
+
+        socket.on("delivery:request", handleDeliveryRequest);
+        socket.on("rider:new_order", handleDeliveryRequest);
+        socket.on(`rider:order:${user.id}`, handleDeliveryRequest);
+
+        return () => {
+            socket.off("delivery:request", handleDeliveryRequest);
+            socket.off("rider:new_order", handleDeliveryRequest);
+            socket.off(`rider:order:${user.id}`, handleDeliveryRequest);
+        };
+    }, [notify, user?.id]);
+
+    useEffect(() => {
+        if (!incomingRequest?.acceptBy) return;
+        const timer = setInterval(() => {
+            const seconds = Math.max(0, Math.ceil((incomingRequest.acceptBy - Date.now()) / 1000));
+            setRequestTimeLeft(seconds);
+            if (seconds <= 0) {
+                setIncomingRequest(null);
+                setIsRequestPanelOpen(false);
+            }
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [incomingRequest?.acceptBy]);
 
     return (
         <div className="min-h-screen bg-transparent text-riderLight p-4 md:p-6 pb-20">
+            {incomingRequest && (
+                <div className="fixed top-4 right-4 z-50 w-[92vw] max-w-sm bg-riderDark border border-riderBlue/30 rounded-2xl shadow-2xl p-4">
+                    <p className="text-xs uppercase tracking-widest text-riderMaroon font-bold">Delivery Request</p>
+                    <h3 className="font-bold text-lg mt-1">{incomingRequest.title || "New Delivery Request"}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{incomingRequest.pickupAddress || "Pickup location available"}</p>
+                    <p className="text-sm mt-2">Estimated earnings: <span className="font-bold text-green-500">KES {Number(incomingRequest.estimatedEarnings || 0)}</span></p>
+                    <p className="text-sm mt-2">Auto reassign in <span className="font-bold text-riderMaroon">{requestTimeLeft}s</span></p>
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                        <button
+                            onClick={() => handleAcceptOrder(incomingRequest.orderId)}
+                            className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold disabled:opacity-50"
+                            disabled={loading}
+                        >
+                            Accept
+                        </button>
+                        <button
+                            onClick={() => handleRejectOrder(incomingRequest.orderId)}
+                            className="bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold disabled:opacity-50"
+                            disabled={loading}
+                        >
+                            Reject
+                        </button>
+                    </div>
+                </div>
+            )}
             {/* Header with Go Back */}
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-riderLight tracking-tight">Rider Dashboard</h1>
-                <button
-                    onClick={() => window.location.href = "/"}
-                    className="flex items-center gap-2 bg-riderDark/50 hover:bg-riderBlue hover:text-white px-5 py-2.5 rounded-full border border-riderBlue/20 transition-all font-bold shadow-sm hover:shadow-lg"
-                >
-                    ← Go Back
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsRequestPanelOpen((v) => !v)}
+                        className="relative bg-riderDark/50 hover:bg-riderBlue hover:text-white px-4 py-2 rounded-full border border-riderBlue/20 transition-all font-bold"
+                    >
+                        Alerts
+                        {incomingRequest && <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-riderMaroon animate-pulse" />}
+                    </button>
+                    <button
+                        onClick={() => window.location.href = "/"}
+                        className="flex items-center gap-2 bg-riderDark/50 hover:bg-riderBlue hover:text-white px-5 py-2.5 rounded-full border border-riderBlue/20 transition-all font-bold shadow-sm hover:shadow-lg"
+                    >
+                        ← Go Back
+                    </button>
+                </div>
             </div>
+            {isRequestPanelOpen && incomingRequest && (
+                <div className="mb-4 bg-riderDark/50 border border-riderBlue/20 rounded-xl p-4">
+                    <p className="font-bold text-riderLight">{incomingRequest.title || "New Delivery Request"}</p>
+                    <p className="text-sm text-gray-600">{incomingRequest.pickupAddress || "Pickup location available"}</p>
+                    <p className="text-xs mt-1 text-riderMaroon">Expires in {requestTimeLeft}s</p>
+                </div>
+            )}
 
             <div className="flex gap-4 mb-8 border-b border-riderBlue/10 pb-2 overflow-x-auto">
                 {["orders", activeOrder ? "map" : null, "reviews", "profile", "faqs"].filter(Boolean).map((t) => (

@@ -3,6 +3,7 @@ import Order from "../../models/Order.js";
 import Rider from "../../models/Rider.js";
 import { recordRejection } from "../../lib/penalties.js";
 import { updateOrderStatus, ORDER_STATUS, normalizeOrderStatus } from "../../lib/orderStatus.js";
+import { isRuakaLaunchModeEnabled } from "../../lib/launchMode.js";
 
 /**
  * POST /api/riders/accept-order
@@ -75,11 +76,14 @@ export async function rejectOrder(req, res) {
             return res.status(403).json({ error: "You are not assigned to this order" });
         }
 
+        const launchMode = isRuakaLaunchModeEnabled();
+        const fallbackStatus = launchMode ? ORDER_STATUS.PENDING_RIDER : ORDER_STATUS.READY_FOR_PICKUP;
+
         // 1. Unassign Rider
         await updateOrderStatus({
             orderId: order._id,
             fromStatusRaw: order.status,
-            toStatus: ORDER_STATUS.READY_FOR_PICKUP,
+            toStatus: fallbackStatus,
             actor: { id: riderUser._id, role: riderUser.role, name: riderUser.name },
             source: "riders.reject-order",
             reason: "RIDER_REJECTED",
@@ -90,19 +94,22 @@ export async function rejectOrder(req, res) {
         // 2. Set Rider to ONLINE_AVAILABLE
         rider.status = "ONLINE_AVAILABLE";
         rider.isAvailable = true;
+        rider.currentOrders = 0;
         await rider.save();
 
         await recordRejection(rider._id);
 
-        const { matchOrder } = await import("../../services/matching.js");
-        const io = req.app.get("io");
-        const pickupLocation = {
-            lat: order.pickup.location.coordinates[1],
-            lng: order.pickup.location.coordinates[0]
-        };
-        matchOrder(orderId, pickupLocation, 1, [rider._id], io, Date.now());
+        if (!launchMode) {
+            const { matchOrder } = await import("../../services/matching.js");
+            const io = req.app.get("io");
+            const pickupLocation = {
+                lat: order.pickup.location.coordinates[1],
+                lng: order.pickup.location.coordinates[0]
+            };
+            matchOrder(orderId, pickupLocation, 1, [rider._id], io, Date.now());
+        }
 
-        res.json({ success: true, message: "Order rejected. Reassigning..." });
+        res.json({ success: true, message: launchMode ? "Order moved to pending rider queue." : "Order rejected. Reassigning..." });
 
     } catch (err) {
         console.error("Reject Order Error:", err);

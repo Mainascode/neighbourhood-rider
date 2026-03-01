@@ -1,4 +1,6 @@
 import Rider from "../../models/Rider.js";
+import User from "../../models/User.js";
+import { sendNotification } from "../../lib/notificationService.js";
 
 /**
  * POST /api/riders/go-online
@@ -25,6 +27,7 @@ export async function goOnline(req, res) {
             {
                 status: "ONLINE_AVAILABLE",
                 isAvailable: true,
+                isOnline: true,
                 location: {
                     type: "Point",
                     coordinates: [location.lng, location.lat], // GeoJSON order: [lng, lat]
@@ -39,6 +42,23 @@ export async function goOnline(req, res) {
         }
 
         res.json({ message: "You are now ONLINE", rider });
+
+        const users = await User.find({
+            role: "user",
+            $or: [{ location: "Ruaka" }, { location: { $exists: false } }]
+        }).select("_id");
+        await Promise.all(users.map((u) => sendNotification({
+            recipientId: u._id,
+            recipientType: "USER",
+            title: "Rider is available in your area (Ruaka)",
+            body: "🚴 Rider is available in your area (Ruaka)",
+            data: { riderId: String(rider._id), location: "Ruaka" },
+            eventType: "RIDER_AVAILABLE_RUAKA",
+            deepLink: "/order",
+            type: "ALERT",
+            category: "systemAlerts",
+            io: req.app.get("io"),
+        })));
     } catch (err) {
         console.error("Error going online:", err);
         res.status(500).json({ error: "Failed to go online" });
@@ -54,7 +74,7 @@ export async function goOffline(req, res) {
         const { reason } = req.body || {};
         const rider = await Rider.findOneAndUpdate(
             { userId: req.user._id },
-            { status: "OFFLINE", isAvailable: false, lastOfflineReason: reason || "OTHER" },
+            { status: "OFFLINE", isAvailable: false, isOnline: false, socketId: null, lastSeen: new Date(), lastOfflineReason: reason || "OTHER" },
             { new: true }
         );
 
@@ -94,6 +114,7 @@ export async function heartbeat(req, res) {
             },
             {
                 isAvailable: true,
+                isOnline: true,
                 location: {
                     type: "Point",
                     coordinates: [location.lng, location.lat],

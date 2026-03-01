@@ -3,6 +3,7 @@ import Rider from "../models/Rider.js";
 export async function findNearestRiders(lng, lat, radiusKm = 5) {
   const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
   return Rider.find({
+    isOnline: true,
     isAvailable: true,
     status: "ONLINE_AVAILABLE",
     lastSeen: { $gt: twoMinutesAgo },
@@ -29,7 +30,7 @@ export async function assignBestRider(order) {
       riders = await findNearestRiders(pickup[0], pickup[1], 10); // 10km radius
     } else {
       // Placeholder location order -> Find any available rider
-      riders = await Rider.find({ isAvailable: true, status: "ONLINE_AVAILABLE", lastSeen: { $gt: twoMinutesAgo } }).limit(5);
+      riders = await Rider.find({ isOnline: true, isAvailable: true, status: "ONLINE_AVAILABLE", lastSeen: { $gt: twoMinutesAgo } }).limit(5);
     }
 
     if (riders.length > 0) {

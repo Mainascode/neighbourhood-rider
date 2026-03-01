@@ -22,7 +22,7 @@ export function startRiderCleanupJob() {
                         lastSeen: { $lt: twoMinutesAgo }
                     },
                     {
-                        $set: { status: "OFFLINE", isAvailable: false }
+                        $set: { status: "OFFLINE", isAvailable: false, isOnline: false, socketId: null }
                     }
                 );
 

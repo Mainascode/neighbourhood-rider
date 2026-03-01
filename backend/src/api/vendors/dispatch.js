@@ -2,10 +2,12 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
 import Vendor from "../../models/Vendor.js";
+import Rider from "../../models/Rider.js";
 import { assignBestRider, findNearestRiders } from "../../lib/matchRider.js";
 import requireAuth from "../../middleware/auth.js";
 import { sendNotification } from "../../lib/notificationService.js";
 import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
+import { isRuakaLaunchModeEnabled } from "../../lib/launchMode.js";
 
 /**
  * POST /api/vendors/orders/dispatch
@@ -56,19 +58,31 @@ export default async function handler(req, res) {
             set: { riderId: assignedRider._id, riderAssignedAt: new Date() },
         });
 
-        await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_BUSY", isAvailable: false });
+        await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_BUSY", isAvailable: false, currentOrders: 1 });
 
         const io = req.app.get("io");
         if (io) {
+            const riderPayload = {
+                _id: String(order._id),
+                orderId: String(order._id),
+                status: ORDER_STATUS.RIDER_ASSIGNED,
+                title: "New Delivery Request",
+                body: `Pickup at ${order.pickup?.address || vendor.storeName || "pickup location"} • Earn KES ${Number(order.deliveryFee || 0)}`,
+                pickupAddress: order.pickup?.address || vendor.storeName || "Pickup location",
+                estimatedEarnings: Number(order.deliveryFee || 0),
+                acceptBy: Date.now() + 30000,
+            };
             io.to(`order:${order._id}`).emit("order:update", order);
-            io.emit(`rider:order:${assignedRider.userId}`, order);
+            io.emit(`rider:order:${assignedRider.userId}`, riderPayload);
+            io.to(`rider:${assignedRider.userId}`).emit("rider:new_order", riderPayload);
+            io.to(`rider:${assignedRider.userId}`).emit("delivery:request", riderPayload);
         }
 
         await sendNotification({
             recipientId: assignedRider.userId,
             recipientType: "RIDER",
-            title: "New delivery request",
-            body: `${vendor.storeName} needs a delivery. Tap to accept.`,
+            title: "New Delivery Request",
+            body: `Pickup at ${order.pickup?.address || vendor.storeName || "pickup location"} • Earn KES ${Number(order.deliveryFee || 0)}`,
             data: { orderId: String(order._id) },
             eventType: "NEW_DELIVERY_REQUEST",
             deepLink: "/rider/dashboard",
@@ -77,6 +91,44 @@ export default async function handler(req, res) {
             category: "orderUpdates",
             io: req.app.get("io"),
         });
+
+        // Auto-reassign after 30s if no rider response
+        setTimeout(async () => {
+            try {
+                const launchMode = isRuakaLaunchModeEnabled();
+                const currentOrder = await Order.findById(order._id);
+                if (!currentOrder) return;
+                const stillPending = currentOrder.status === ORDER_STATUS.RIDER_ASSIGNED
+                    && currentOrder.riderId?.toString() === assignedRider._id.toString();
+                if (!stillPending) return;
+
+                await updateOrderStatus({
+                    orderId: currentOrder._id,
+                    fromStatusRaw: currentOrder.status,
+                    toStatus: launchMode ? ORDER_STATUS.PENDING_RIDER : ORDER_STATUS.READY_FOR_PICKUP,
+                    actor: { role: "system", name: "vendors.dispatch.timeout" },
+                    source: "vendors.dispatch.timeout",
+                    reason: "RIDER_TIMEOUT",
+                    io: req.app.get("io"),
+                    set: { riderId: null },
+                });
+
+                await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_AVAILABLE", isAvailable: true, currentOrders: 0 });
+
+                if (!launchMode) {
+                    const { matchOrder } = await import("../../services/matching.js");
+                    const pickup = {
+                        lat: currentOrder.pickup?.location?.coordinates?.[1],
+                        lng: currentOrder.pickup?.location?.coordinates?.[0],
+                    };
+                    if (Number.isFinite(pickup.lat) && Number.isFinite(pickup.lng)) {
+                        matchOrder(String(currentOrder._id), pickup, 1, [String(assignedRider._id)], req.app.get("io"), Date.now());
+                    }
+                }
+            } catch (err) {
+                console.error("Vendor dispatch timeout reassign error:", err);
+            }
+        }, 30000);
 
         return res.json({ success: true, message: "Rider requested and assigned", assignedRider: assignedRider.name });
     } else {

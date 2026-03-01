@@ -1,5 +1,6 @@
 import Vendor from "../../models/Vendor.js";
 import User from "../../models/User.js";
+import { sendNotification } from "../../lib/notificationService.js";
 
 /**
  * GET /api/admin/vendors
@@ -49,6 +50,26 @@ export async function updateVendorStatus(req, res) {
         }
 
         await vendor.save();
+
+        if (status === "approved") {
+            const users = await User.find({
+                role: "user",
+                $or: [{ location: "Ruaka" }, { location: { $exists: false } }]
+            }).select("_id");
+
+            await Promise.all(users.map((u) => sendNotification({
+                recipientId: u._id,
+                recipientType: "USER",
+                title: "Vendor is now open",
+                body: "🛒 Vendors in Ruaka are open and ready",
+                data: { vendorId: String(vendor._id), location: "Ruaka" },
+                eventType: "VENDOR_OPEN_RUAKA",
+                deepLink: "/order",
+                type: "ALERT",
+                category: "systemAlerts",
+                io: req.app.get("io"),
+            })));
+        }
 
         res.json(vendor);
     } catch (err) {

@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
       status: { $in: ["DELIVERED", "PAYMENT_PENDING"] },
     });
 
-    const activeRiders = await Rider.countDocuments({ online: true });
+    const activeRiders = await Rider.countDocuments({ isOnline: true });
     const totalRiders = await Rider.countDocuments(); // Total registered riders
     const totalVendors = await Vendor.countDocuments(); // Total registered vendors
     const totalUsers = await User.countDocuments({ role: "user" }); // Total customers

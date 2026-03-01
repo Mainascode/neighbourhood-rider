@@ -17,8 +17,8 @@ async function resolveFirebaseUser(decodedFirebaseToken) {
       password: placeholderPassword,
       role: "user",
       authProvider: provider,
-      privacyPolicyAcceptedAt: new Date(),
-      termsAcceptedAt: new Date(),
+      privacyPolicyAcceptedAt: null,
+      termsAcceptedAt: null,
     });
   }
 

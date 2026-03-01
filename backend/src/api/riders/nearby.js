@@ -13,17 +13,23 @@ router.get("/", async (req, res) => {
     return res.status(400).json({ message: "Location required" });
   }
 
+  const parsedLat = Number(lat);
+  const parsedLng = Number(lng);
+  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+    return res.status(400).json({ message: "Invalid coordinates" });
+  }
+
   const riders = await Rider.find({
     location: {
       $near: {
         $geometry: {
           type: "Point",
-          coordinates: [lng, lat],
+          coordinates: [parsedLng, parsedLat],
         },
         $maxDistance: 5000, // 5km
       },
     },
-    online: true,
+    isOnline: true,
   }).limit(10);
 
   res.json(riders);

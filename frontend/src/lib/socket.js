@@ -10,6 +10,10 @@ export const socket = io(SOCKET_URL, {
   autoConnect: false,
   withCredentials: true,
   path: "/socket.io",
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
 });
 
 /**
@@ -28,5 +32,23 @@ export const connectSocket = (token) => {
 export const disconnectSocket = () => {
   if (socket.connected) {
     socket.disconnect();
+  }
+};
+
+export const emitRiderOnline = (payload = {}) => {
+  if (socket.connected) {
+    socket.emit("rider:online", payload);
+  }
+};
+
+export const emitRiderHeartbeat = (payload = {}) => {
+  if (socket.connected) {
+    socket.emit("rider:heartbeat", payload);
+  }
+};
+
+export const emitRiderOffline = (reason = "CLIENT_OFFLINE") => {
+  if (socket.connected) {
+    socket.emit("rider:offline", { reason });
   }
 };

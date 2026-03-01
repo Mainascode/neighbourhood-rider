@@ -72,6 +72,22 @@ export default async function handler(req, res) {
             }
         }
 
+        if (order.userId) {
+            await sendNotification({
+                recipientId: order.userId,
+                recipientType: "USER",
+                title: "Rider arrived",
+                body: "Your rider picked up the order and is heading to you.",
+                data: { orderId: String(orderId), status: ORDER_STATUS.ON_THE_WAY },
+                eventType: "RIDER_ARRIVED",
+                deepLink: "/orders",
+                orderId: String(orderId),
+                type: "ALERT",
+                category: "orderUpdates",
+                io: req.app.get("io"),
+            });
+        }
+
         res.status(200).json({ success: true, message: "Pickup confirmed", order });
     } catch (error) {
         console.error(error);

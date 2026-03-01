@@ -27,6 +27,7 @@ import meRoute from "./api/auth/me.js";
 import forgotPasswordRoute from "./api/auth/forgot-password.js";
 import resetPasswordRoute from "./api/auth/reset-password.js";
 import changePasswordRoute from "./api/auth/change-password.js";
+import profileRoute from "./api/auth/profile.js";
 
 /* orders */
 import createOrder from "./api/orders/create.js";
@@ -90,6 +91,7 @@ import cron from "node-cron";
 import { runDailyPayouts } from "./api/payments/payouts.js";
 import { startRiderCleanupJob } from "./jobs/rider-cleanup.js";
 import { startOrderRecoveryJob } from "./jobs/order-recovery.js";
+import { startAdminPayoutReminderJob } from "./jobs/admin-reminder.js";
 import vendorCancelOrder from "./api/vendors/cancel.js";
 async function startServer() {
   const app = express();
@@ -144,6 +146,7 @@ async function startServer() {
   app.post("/api/auth/refresh", refreshRoute);
   app.post("/api/auth/logout", logoutRoute);
   app.get("/api/auth/me", requireAuth, meRoute);
+  app.patch("/api/auth/profile", requireAuth, profileRoute);
   app.post("/api/auth/forgot-password", forgotPasswordRoute);
   app.post("/api/auth/reset-password/:token", resetPasswordRoute);
   app.post("/api/auth/change-password", requireAuth, changePasswordRoute);
@@ -306,6 +309,7 @@ async function startServer() {
   app.set("io", io);
   setupSocket(io);
   startOrderRecoveryJob(io);
+  startAdminPayoutReminderJob(io);
 
   /* 404 */
   app.use((_, res) => {

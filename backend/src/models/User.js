@@ -10,6 +10,7 @@ const refreshSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
+  phone: String,
   password: String,
   authProvider: { type: String, enum: ["email", "google"], default: "email" },
   role: {
@@ -17,6 +18,7 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin", "rider", "vendor"],
     default: "user",
   },
+  location: { type: String, default: "Ruaka", index: true },
   privacyPolicyAcceptedAt: Date,
   termsAcceptedAt: Date,
   resetPasswordToken: String,

@@ -15,5 +15,5 @@ export async function getRiderAcceptTimeoutSeconds(orderId) {
 
   let settings = await SystemSetting.findOne({ key: "global_config" });
   if (!settings) settings = await SystemSetting.create({});
-  return settings.riderAcceptTimeoutSeconds || 15;
+  return settings.riderAcceptTimeoutSeconds || 30;
 }

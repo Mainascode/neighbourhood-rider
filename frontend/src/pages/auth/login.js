@@ -3,22 +3,36 @@ import { useAuth } from "../../context/AuthContext";
 import { useNotify } from "../../context/NotificationContext";
 import { useNavigate } from "react-router-dom";
 import AuthCard from "./AuthCard";
-import { Link } from "react-router-dom";
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, completeProfile } = useAuth();
   const { notify, enableNotifications } = useNotify();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
-  const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
+
+  const finalizeFirstTimeRequirements = async (loggedInUser) => {
+    const needsRiderPhone = loggedInUser?.role === "rider" && !loggedInUser?.phone;
+
+    if (needsRiderPhone && !phone.trim()) {
+      throw new Error("Phone number is required for rider accounts.");
+    }
+
+    if (needsRiderPhone) {
+      await completeProfile({
+        phone,
+      });
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     try {
-      await login(email, password);
+      const loggedInUser = await login(email, password);
+      await finalizeFirstTimeRequirements(loggedInUser);
       notify("Welcome back 👋", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
@@ -28,12 +42,9 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!acceptPrivacyPolicy) {
-      notify("Please accept the Privacy Policy first.", "error");
-      return;
-    }
     try {
-      await loginWithGoogle();
+      const loggedInUser = await loginWithGoogle();
+      await finalizeFirstTimeRequirements(loggedInUser);
       notify("Welcome back 👋", "success");
       await enableNotifications({ prompt: true });
       navigate("/");
@@ -55,6 +66,14 @@ export default function Login() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+        />
+
+        <input
+          type="tel"
+          placeholder="Phone Number (Required for riders)"
+          className="w-full mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-riderBlue text-riderLight placeholder-gray-400 transition-all focus:bg-white"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
         />
 
         <div className="relative mb-6">
@@ -85,19 +104,6 @@ export default function Login() {
         >
           Continue with Google
         </button>
-
-        <label className="flex items-start gap-2 mt-4 text-xs text-gray-600">
-          <input
-            type="checkbox"
-            checked={acceptPrivacyPolicy}
-            onChange={(e) => setAcceptPrivacyPolicy(e.target.checked)}
-            required
-            className="mt-0.5"
-          />
-          <span>
-            I accept the <Link to="/privacy" className="text-riderBlue font-bold hover:underline">Privacy Policy</Link>.
-          </span>
-        </label>
 
         <p className="text-center text-sm text-gray-500 mt-6 font-medium">
           Don’t have an account?{" "}

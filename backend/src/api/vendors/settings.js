@@ -2,6 +2,7 @@
 import Vendor from "../../models/Vendor.js";
 import User from "../../models/User.js";
 import { ok, fail } from "../../lib/response.js";
+import { sendNotification } from "../../lib/notificationService.js";
 
 /**
  * PATCH /api/vendors/me
@@ -9,13 +10,15 @@ import { ok, fail } from "../../lib/response.js";
  */
 export async function updateVendor(req, res) {
     try {
-        const { storeName, description, phone, location, address, logo, coverImage, isManuallyClosed, riderAcceptTimeoutSeconds } = req.body;
+        const { storeName, description, phone, location, address, logo, coverImage, isManuallyClosed, isOpen, riderAcceptTimeoutSeconds } = req.body;
 
         const vendor = await Vendor.findOne({ userId: req.user.id });
 
         if (!vendor) {
             return fail(res, "Vendor profile not found", 404);
         }
+
+        const previousOpenState = Boolean(vendor.isOpen && !vendor.isManuallyClosed);
 
         // Update fields if provided
         if (storeName) vendor.storeName = storeName;
@@ -30,6 +33,9 @@ export async function updateVendor(req, res) {
             vendor.isManuallyClosed = isManuallyClosed;
             vendor.manualClosedAt = isManuallyClosed ? new Date() : null;
         }
+        if (typeof isOpen === "boolean") {
+            vendor.isOpen = isOpen;
+        }
 
         if (riderAcceptTimeoutSeconds !== undefined) {
             vendor.riderAcceptTimeoutSeconds = riderAcceptTimeoutSeconds;
@@ -43,6 +49,26 @@ export async function updateVendor(req, res) {
         // If storeName changed, maybe we want to re-verify? For now, let's allow updates freely.
 
         await vendor.save();
+
+        const currentOpenState = Boolean(vendor.isOpen && !vendor.isManuallyClosed);
+        if (currentOpenState && !previousOpenState) {
+            const users = await User.find({
+                role: "user",
+                $or: [{ location: "Ruaka" }, { location: { $exists: false } }]
+            }).select("_id");
+            await Promise.all(users.map((u) => sendNotification({
+                recipientId: u._id,
+                recipientType: "USER",
+                title: "Vendor is now open",
+                body: "🛒 Vendors in Ruaka are open and ready",
+                data: { vendorId: String(vendor._id), location: "Ruaka" },
+                eventType: "VENDOR_OPEN_RUAKA",
+                deepLink: "/order",
+                type: "ALERT",
+                category: "systemAlerts",
+                io: req.app.get("io"),
+            })));
+        }
 
         return ok(res, vendor);
     } catch (err) {

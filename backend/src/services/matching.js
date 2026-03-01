@@ -4,6 +4,8 @@ import { recordAssignment } from "../lib/penalties.js";
 import { ORDER_STATUS, updateOrderStatus } from "../lib/orderStatus.js";
 import Order from "../models/Order.js";
 import { getRiderAcceptTimeoutSeconds } from "../lib/riderConfig.js";
+import { sendNotification } from "../lib/notificationService.js";
+import { isRuakaLaunchModeEnabled } from "../lib/launchMode.js";
 
 /**
  * Finds the nearest available rider to the given location.
@@ -25,6 +27,8 @@ export async function findNearestAvailableRider(pickupLocation, excludeRiderIds 
     const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
 
     const query = {
+        isOnline: true,
+        isAvailable: true,
         status: "ONLINE_AVAILABLE",
         lastSeen: { $gt: twoMinutesAgo },
         location: {
@@ -112,7 +116,7 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider, io) {
  */
 export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRiderIds = [], io, startedAt = Date.now()) {
     const acceptSeconds = await getRiderAcceptTimeoutSeconds(orderId);
-    const RESPONSE_TIMEOUT_MS = Math.max(5, Number(acceptSeconds || 15)) * 1000;
+    const RESPONSE_TIMEOUT_MS = Math.max(30, Number(acceptSeconds || 30)) * 1000;
     const TOTAL_RETRY_WINDOW_MS = 4 * 60 * 1000; // 4 minutes total
     const deadlineAt = startedAt + TOTAL_RETRY_WINDOW_MS;
 
@@ -173,6 +177,16 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
         console.log(`Assigned Rider ${assignedRider.name} to Order ${orderId}`);
 
         if (io) {
+            const riderPayload = {
+                _id: orderId,
+                orderId,
+                status: ORDER_STATUS.RIDER_ASSIGNED,
+                title: "New Delivery Request",
+                body: `Pickup at ${assignResult?.order?.pickup?.address || "pickup location"} • Earn KES ${Number(assignResult?.order?.deliveryFee || 0) || 0}`,
+                pickupAddress: assignResult?.order?.pickup?.address || "Pickup location",
+                estimatedEarnings: Number(assignResult?.order?.deliveryFee || 0) || 0,
+                acceptBy: Date.now() + RESPONSE_TIMEOUT_MS,
+            };
             io.to(`order:${orderId}`).emit("order:rider_assigned", {
                 rider: {
                     id: assignedRider._id,
@@ -181,14 +195,25 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
                     phone: assignedRider.phone
                 }
             });
-            io.emit(`rider:order:${assignedRider.userId}`, {
-                _id: orderId,
-                status: ORDER_STATUS.RIDER_ASSIGNED,
-                acceptBy: Date.now() + RESPONSE_TIMEOUT_MS,
+            io.emit(`rider:order:${assignedRider.userId}`, riderPayload);
+            io.to(`rider:${assignedRider.userId}`).emit("rider:new_order", riderPayload);
+            io.to(`rider:${assignedRider.userId}`).emit("delivery:request", riderPayload);
+        }
+
+        if (assignedRider.userId) {
+            await sendNotification({
+                recipientId: assignedRider.userId,
+                recipientType: "RIDER",
+                title: "New Delivery Request",
+                body: `Pickup at ${assignResult?.order?.pickup?.address || "pickup location"} • Earn KES ${Number(assignResult?.order?.deliveryFee || 0) || 0}`,
+                data: { orderId: String(orderId) },
+                eventType: "NEW_DELIVERY_REQUEST",
+                deepLink: "/rider/dashboard",
+                orderId: String(orderId),
+                type: "ALERT",
+                category: "orderUpdates",
+                io,
             });
-            // Also notify the rider specifically?
-            // io.to(`rider:${assignedRider.userId}`).emit("rider:new_order", { orderId, pickupLocation }); 
-            // (Assumes riders join room `rider:{userId}`)
         }
 
         // --- TIMEOUT / REJECTION HANDLER ---
@@ -203,11 +228,13 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
             const checkOrder = await Order.findById(orderId);
             if (checkOrder && checkOrder.status === ORDER_STATUS.RIDER_ASSIGNED && checkOrder.riderId.toString() === assignedRider._id.toString()) {
                 console.log(`Rider ${assignedRider.name} timed out for Order ${orderId}. Reassigning...`);
+                const launchMode = isRuakaLaunchModeEnabled();
+                const fallbackStatus = launchMode ? ORDER_STATUS.PENDING_RIDER : ORDER_STATUS.READY_FOR_PICKUP;
 
                 await updateOrderStatus({
                     orderId,
                     fromStatusRaw: checkOrder.status,
-                    toStatus: ORDER_STATUS.READY_FOR_PICKUP,
+                    toStatus: fallbackStatus,
                     actor: { role: "system", name: "matching_service" },
                     source: "services.matching",
                     reason: "RIDER_TIMEOUT",
@@ -218,11 +245,13 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
 
                 // 2. Set rider to available again (or maybe penalty?)
                 // Assuming they just missed it, set available.
-                await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_AVAILABLE", isAvailable: true });
+                await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_AVAILABLE", isAvailable: true, currentOrders: 0 });
 
                 // 3. Retry with exclusion
                 // recursive call
-                matchOrder(orderId, pickupLocation, attempt + 1, [...excludeRiderIds, assignedRider._id], io, startedAt);
+                if (!launchMode) {
+                    matchOrder(orderId, pickupLocation, attempt + 1, [...excludeRiderIds, assignedRider._id], io, startedAt);
+                }
             }
         }, RESPONSE_TIMEOUT_MS);
 

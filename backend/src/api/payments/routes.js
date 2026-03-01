@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { initiateSTKPush, handleMpesaCallback } from './mpesaController.js';
+import { initiateSTKPush, handleMpesaCallback, getMpesaTransactionStatus } from './mpesaController.js';
 import requireAuth from "../../middleware/requireAuth.js";
 import requireAdmin from "../../middleware/requireAdmin.js";
 import { createRateLimiter } from "../../middleware/rateLimiter.js";
@@ -16,6 +16,7 @@ const paymentRateLimit = createRateLimiter({
 
 router.post('/mpesa/pay', requireAuth, paymentRateLimit, validateStkPushPayload, initiateSTKPush);
 router.post('/mpesa/callback', express.raw({ type: 'application/json' }), handleMpesaCallback);
+router.get('/mpesa/status/:checkoutRequestId', requireAuth, getMpesaTransactionStatus);
 
 // Admin triggering payouts manually or via cron
 import { processBatchPayouts } from './payouts.js';

@@ -9,7 +9,7 @@ import LiveMap from "../components/LiveMap";
 import { useNotify } from "../context/NotificationContext";
 
 export default function MyOrders() {
-    useNotify();
+    const { notify } = useNotify();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("pending");
@@ -20,6 +20,7 @@ export default function MyOrders() {
     // Tracking State
     const [trackingOrder, setTrackingOrder] = useState(null);
     const [riderLocation, setRiderLocation] = useState(null);
+    const [lastTrackingNoticeAt, setLastTrackingNoticeAt] = useState(0);
 
 
     const fetchOrders = useCallback(async () => {
@@ -29,7 +30,7 @@ export default function MyOrders() {
             setOrders(rows);
 
             // ✨ Auto-Open Map for Active Orders
-            const activeOrder = rows.find(o => ["RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status));
+            const activeOrder = rows.find(o => ["PENDING_RIDER", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status));
             if (activeOrder) {
                 setTrackingOrder(activeOrder);
                 setActiveTab("pending");
@@ -66,6 +67,10 @@ export default function MyOrders() {
 
         const handleLocationUpdate = (data) => {
             setRiderLocation({ lat: data.lat, lng: data.lng });
+            if (Date.now() - lastTrackingNoticeAt > 30000) {
+                notify("Live tracking update received.", "info", 2000);
+                setLastTrackingNoticeAt(Date.now());
+            }
         };
 
         socket.on("rider:location:update", handleLocationUpdate);
@@ -73,7 +78,7 @@ export default function MyOrders() {
         return () => {
             socket.off("rider:location:update", handleLocationUpdate);
         };
-    }, [trackingOrder]);
+    }, [lastTrackingNoticeAt, notify, trackingOrder]);
 
     useEffect(() => {
         if (!trackingOrder) return;
@@ -123,7 +128,7 @@ export default function MyOrders() {
     };
 
     const filteredOrders = orders.filter((order) => {
-        if (activeTab === "pending") return ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(order.status);
+        if (activeTab === "pending") return ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(order.status);
         if (activeTab === "completed") return ["DELIVERED"].includes(order.status);
         if (activeTab === "cancelled") return ["CANCELLED", "REFUNDED"].includes(order.status);
         if (activeTab === "history") return true;
@@ -214,7 +219,7 @@ export default function MyOrders() {
                             onClick={() => setActiveTab("pending")}
                             label="Pending"
                             icon={<FaClock />}
-                            count={orders.filter(o => ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status)).length}
+                            count={orders.filter(o => ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "ON_THE_WAY"].includes(o.status)).length}
                         />
                         <TabButton
                             active={activeTab === "completed"}

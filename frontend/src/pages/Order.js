@@ -147,6 +147,7 @@ export default function Order() {
                         'VENDOR_ACCEPTED',
                         'PREPARING',
                         'READY_FOR_PICKUP',
+                        'PENDING_RIDER',
                         'RIDER_ASSIGNED',
                         'ON_THE_WAY',
                         'DELIVERED'

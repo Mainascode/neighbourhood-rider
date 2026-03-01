@@ -6,7 +6,7 @@ const SystemSettingSchema = new mongoose.Schema({
     riderPerKmFee: { type: Number, default: 30 },
     serviceFee: { type: Number, default: 30 },
     vendorCommissionRate: { type: Number, default: 0 }, // Percentage (0 - 100)
-    riderAcceptTimeoutSeconds: { type: Number, default: 15 },
+    riderAcceptTimeoutSeconds: { type: Number, default: 30 },
 }, { timestamps: true });
 
 export default mongoose.models.SystemSetting || mongoose.model("SystemSetting", SystemSettingSchema);

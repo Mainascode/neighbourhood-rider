@@ -4,6 +4,7 @@ import requireAdmin from "../../middleware/requireAdmin.js";
 import User from "../../models/User.js";
 import DeviceToken from "../../models/DeviceToken.js";
 import { getMessaging } from "../../config/firebaseAdmin.js";
+import { sendNotification } from "../../lib/notificationService.js";
 
 const router = express.Router();
 
@@ -66,5 +67,52 @@ router.post("/send", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-export default router;
+// POST /api/notifications/announce
+// Admin-only announcement broadcast (stored + in-app + push).
+router.post("/announce", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { title, body, recipientType = "USER", userIds = [] } = req.body || {};
+    if (!title || !body) {
+      return res.status(400).json({ error: "title and body are required" });
+    }
 
+    const normalizedType = String(recipientType).toUpperCase();
+    const allowed = ["USER", "RIDER", "VENDOR", "ADMIN"];
+    if (!allowed.includes(normalizedType)) {
+      return res.status(400).json({ error: "recipientType must be USER, RIDER, VENDOR, or ADMIN" });
+    }
+
+    let recipients = [];
+    if (Array.isArray(userIds) && userIds.length) {
+      recipients = await User.find({ _id: { $in: userIds } }).select("_id");
+    } else if (normalizedType === "USER") {
+      recipients = await User.find({ role: "user" }).select("_id");
+    } else if (normalizedType === "RIDER") {
+      recipients = await User.find({ role: "rider" }).select("_id");
+    } else if (normalizedType === "VENDOR") {
+      recipients = await User.find({ role: "vendor" }).select("_id");
+    } else {
+      recipients = await User.find({ role: "admin" }).select("_id");
+    }
+
+    await Promise.all(recipients.map((recipient) => sendNotification({
+      recipientId: recipient._id,
+      recipientType: normalizedType,
+      title,
+      body,
+      data: { announcement: "true" },
+      eventType: "APP_ANNOUNCEMENT",
+      deepLink: "/",
+      type: "ALERT",
+      category: "systemAlerts",
+      io: req.app.get("io"),
+    })));
+
+    return res.json({ success: true, recipientCount: recipients.length });
+  } catch (error) {
+    console.error("Announcement send error:", error);
+    return res.status(500).json({ error: "Failed to broadcast announcement" });
+  }
+});
+
+export default router;

@@ -27,6 +27,7 @@ const VendorSchema = new mongoose.Schema({
     riderAcceptTimeoutSeconds: { type: Number },
 
     // Fixed Operating Hours (06:00 - 21:00) - Managed via virtual
+    isOpen: { type: Boolean, default: true, index: true },
     status: {
         type: String,
         enum: ["pending", "approved", "rejected"],
@@ -62,60 +63,16 @@ const VendorSchema = new mongoose.Schema({
         toObject: { virtuals: true }
     });
 
-// Auto-Calculate Open Status
-VendorSchema.virtual("isOpen").get(function () {
-    const now = new Date();
-    const currentHour = now.getHours(); // Local server time (EAT UTC+3)
-
-    // Fixed Hours: 06:00 - 21:00
-    const OPEN_TIME = 6;
-    const CLOSE_TIME = 21;
-
-    return currentHour >= OPEN_TIME && currentHour < CLOSE_TIME;
-});
-
 // UX Virtuals
 VendorSchema.virtual("availabilityState").get(function () {
-    const now = new Date();
-    const currentHour = now.getHours();
-
-    if (currentHour >= 6 && currentHour < 21) {
+    if (this.isOpen && !this.isManuallyClosed) {
         return "OPEN";
-    } else if (currentHour < 6) {
-        return "CLOSED (Opens at 6:00 AM)";
-    } else {
-        return "CLOSED (Closed for the day)";
     }
+    return "CLOSED";
 });
 
 VendorSchema.virtual("nextOpenTime").get(function () {
-    const now = new Date();
-    const currentHour = now.getHours();
-
-    const nextOpen = new Date(now);
-    nextOpen.setMinutes(0, 0, 0); // Reset mins/secs
-
-    if (currentHour >= 21) {
-        // Closed for day, opens tomorrow 6 AM
-        nextOpen.setDate(nextOpen.getDate() + 1);
-        nextOpen.setHours(6);
-    } else if (currentHour < 6) {
-        // Early morning, opens today 6 AM
-        nextOpen.setHours(6);
-    } else {
-        // Currently open, next open time is... now? or tomorrow?
-        // Usually implied "Opens at..." is for closed shops.
-        // Let's set it to tomorrow 6 AM if it's open, or just null/current?
-        // Prompt says "Calculate nextOpenTime dynamically". 
-        // If open, maybe next Close time? But request asks for Open Time.
-        // Let's return tomorrow 6 AM just to be consistent for "next" cycle.
-        nextOpen.setDate(nextOpen.getDate() + 1);
-        nextOpen.setHours(6);
-    }
-
-    // Format: "YYYY-MM-DD HH:mm" or ISO?
-    // Let's return ISO string for frontend formatting
-    return nextOpen.toISOString();
+    return this.isOpen && !this.isManuallyClosed ? null : new Date(Date.now() + 60 * 60 * 1000).toISOString();
 });
 
 VendorSchema.index({ location: "2dsphere" });

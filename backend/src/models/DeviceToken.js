@@ -5,7 +5,7 @@ const DeviceTokenSchema = new mongoose.Schema(
     recipientId: { type: mongoose.Schema.Types.ObjectId, required: true },
     recipientType: {
       type: String,
-      enum: ["USER", "VENDOR", "RIDER"],
+      enum: ["USER", "VENDOR", "RIDER", "ADMIN"],
       required: true,
     },
     deviceToken: { type: String, required: true },

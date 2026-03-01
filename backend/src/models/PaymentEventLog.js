@@ -4,7 +4,7 @@ const PaymentEventLogSchema = new mongoose.Schema(
   {
     eventType: {
       type: String,
-      enum: ["STK_INIT_FAILED", "CALLBACK_FAILED", "CALLBACK_PAYMENT_FAILED"],
+      enum: ["STK_INIT_FAILED", "CALLBACK_FAILED", "CALLBACK_PAYMENT_FAILED", "CALLBACK_AUTH_FAILED", "STK_INIT_SUCCESS"],
       required: true,
     },
     checkoutRequestId: { type: String },

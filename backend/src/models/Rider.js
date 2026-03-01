@@ -7,7 +7,11 @@ const RiderSchema = new mongoose.Schema({
   idNumber: String,
   idPicture: String, // URL or Base64
   riderPicture: String, // URL or Base64
+  locationName: { type: String, default: "Ruaka", index: true },
+  isOnline: { type: Boolean, default: false },
+  socketId: { type: String, default: null },
   isAvailable: { type: Boolean, default: true },
+  currentOrders: { type: Number, default: 0 },
   approvalStatus: {
     type: String,
     enum: ["pending", "approved", "rejected"],
@@ -24,8 +28,15 @@ const RiderSchema = new mongoose.Schema({
     default: "electric_motorcycle"
   },
   location: {
-    type: { type: String, enum: ["Point"] },
-    coordinates: [Number], // [lng, lat]
+    type: {
+      type: String,
+      enum: ["Point"],
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      default: [36.8219, -1.2921],
+    },
   },
   lastSeen: Date,
   lastOfflineReason: { type: String },
@@ -50,6 +61,8 @@ const RiderSchema = new mongoose.Schema({
 
 RiderSchema.index({ location: "2dsphere" });
 RiderSchema.index({ phone: 1 }, { sparse: true });
+RiderSchema.index({ isOnline: 1, lastSeen: -1 });
+RiderSchema.index({ socketId: 1 }, { sparse: true });
 
 export default mongoose.models.Rider ||
   mongoose.model("Rider", RiderSchema);
