@@ -47,7 +47,11 @@ export default async function me(req, res) {
             return ok(res, rider);
         } catch (err) {
             console.error(err);
-            return fail(res, "Failed to update status", 500);
+            const statusCode = Number(err?.statusCode) || 500;
+            const message = statusCode >= 500
+                ? (err?.message || "Failed to update status")
+                : (err?.message || "Invalid profile update payload");
+            return fail(res, message, statusCode);
         }
     }
 
