@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
-import { socket, emitRiderOnline, emitRiderHeartbeat, emitRiderOffline } from "../lib/socket.js";
+import { socket, emitRiderOnline, emitRiderHeartbeat } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
 import { apiFetch, apiGetCached, invalidateCache } from "../lib/api";
 
@@ -358,7 +358,6 @@ export default function RiderDashboard({ tab = "orders" }) {
         };
 
         const handleOffline = () => {
-            emitRiderOffline("NETWORK_OFFLINE");
             if (socket.connected) socket.disconnect();
         };
 
@@ -382,7 +381,6 @@ export default function RiderDashboard({ tab = "orders" }) {
             socket.off("connect", handleSocketConnect);
             window.removeEventListener("online", handleOnline);
             window.removeEventListener("offline", handleOffline);
-            emitRiderOffline("APP_CLOSED");
         };
     }, [user?.role]);
 

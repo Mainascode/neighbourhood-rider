@@ -24,13 +24,14 @@ export async function findNearestAvailableRider(pickupLocation, excludeRiderIds 
         throw new Error("Invalid pickup location");
     }
 
-    const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
+    const staleWindowMs = Number(process.env.RIDER_MATCH_STALE_MS || 24 * 60 * 60 * 1000);
+    const staleCutoff = new Date(Date.now() - staleWindowMs);
 
     const query = {
         isOnline: true,
         isAvailable: true,
         status: "ONLINE_AVAILABLE",
-        lastSeen: { $gt: twoMinutesAgo },
+        lastSeen: { $gt: staleCutoff },
         location: {
             $near: {
                 $geometry: {

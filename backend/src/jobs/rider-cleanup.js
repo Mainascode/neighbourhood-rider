@@ -3,9 +3,9 @@ import cron from "node-cron";
 import Rider from "../models/Rider.js";
 
 /**
- * Runs every 120 seconds (2 minutes)
- * Checks for riders with status != OFFLINE
- * and lastSeen < (now - 120s)
+ * Runs every 2 minutes.
+ * Marks riders OFFLINE only after a long stale window.
+ * This keeps riders reachable for push notifications even when app/socket is closed.
  * Sets them to OFFLINE
  */
 export function startRiderCleanupJob() {
@@ -14,15 +14,16 @@ export function startRiderCleanupJob() {
     cron.schedule("*/2 * * * *", async () => {
         console.log("⏱️ Running Rider Auto-Offline Cleanup Job...");
         try {
-            const twoMinutesAgo = new Date(Date.now() - 120 * 1000);
+            const staleWindowMs = Number(process.env.RIDER_OFFLINE_STALE_MS || 24 * 60 * 60 * 1000);
+            const staleCutoff = new Date(Date.now() - staleWindowMs);
 
                 const result = await Rider.updateMany(
                     {
                         status: { $ne: "OFFLINE" },
-                        lastSeen: { $lt: twoMinutesAgo }
+                        lastSeen: { $lt: staleCutoff }
                     },
                     {
-                        $set: { status: "OFFLINE", isAvailable: false, isOnline: false, socketId: null }
+                        $set: { status: "OFFLINE", isAvailable: false, isOnline: false, socketId: null, lastOfflineReason: "STALE_PRESENCE" }
                     }
                 );
 

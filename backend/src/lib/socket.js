@@ -110,6 +110,44 @@ async function markRiderOffline({ riderUserId, socketId, reason }) {
   }
 }
 
+async function markRiderDisconnected({ riderUserId, socketId, reason }) {
+  const riderId = String(riderUserId);
+  if (socketId) {
+    await redisSRem(`socket:rider:${riderId}`, socketId);
+    await redisDel(`rider:socket:${socketId}`);
+  }
+
+  const openSockets = await redisSCard(`socket:rider:${riderId}`);
+  const members = openSockets > 0 ? await redisSMembers(`socket:rider:${riderId}`) : [];
+  const activeSocketId = members[0] || null;
+
+  const rider = await Rider.findOne({ userId: riderUserId }).select("_id status penalties isOnline");
+  if (!rider || rider.penalties?.isDisabled) return;
+
+  const status = rider.status === "OFFLINE" ? "ONLINE_AVAILABLE" : rider.status || "ONLINE_AVAILABLE";
+
+  await Rider.updateOne(
+    { _id: rider._id },
+    {
+      $set: {
+        // Keep rider online for push-based alerts even if websocket drops.
+        isOnline: true,
+        socketId: activeSocketId,
+        status,
+        lastSeen: new Date(),
+        lastOfflineReason: reason || "SOCKET_DISCONNECT",
+      },
+    }
+  );
+
+  await redisHSet(`presence:rider:${riderId}`, {
+    isOnline: "1",
+    status: String(status),
+    lastSeen: String(Date.now()),
+  });
+  await redisExpire(`presence:rider:${riderId}`, 3600);
+}
+
 function clearRiderHeartbeatTimeout(riderUserId) {
   const key = String(riderUserId);
   const existing = riderHeartbeatTimeouts.get(key);
@@ -124,7 +162,7 @@ function scheduleRiderHeartbeatTimeout({ riderUserId, socketId }) {
   clearRiderHeartbeatTimeout(key);
 
   const timeout = setTimeout(async () => {
-    await markRiderOffline({
+    await markRiderDisconnected({
       riderUserId,
       socketId,
       reason: "HEARTBEAT_TIMEOUT",
@@ -365,7 +403,8 @@ export default function setupSocket(io) {
     socket.on("disconnect", async () => {
       console.log("❌ socket disconnected:", socket.user?.name || "anonymous");
       if (!isRider(socket)) return;
-      await markRiderOffline({
+      clearRiderHeartbeatTimeout(socket.user._id);
+      await markRiderDisconnected({
         riderUserId: socket.user._id,
         socketId: socket.id,
         reason: "SOCKET_DISCONNECT",
