@@ -1,6 +1,7 @@
 import Rider from "../../models/Rider.js";
 import User from "../../models/User.js";
 import { ok, fail } from "../../lib/response.js";
+import { uploadProfileImage } from "../../lib/profileImageUpload.js";
 
 function normalizePhone(input) {
     const raw = String(input || "").trim();
@@ -24,7 +25,17 @@ export default async function me(req, res) {
             }
 
             if (typeof riderPicture === "string" && riderPicture.trim()) {
-                update.riderPicture = riderPicture.trim();
+                const trimmedPicture = riderPicture.trim();
+                if (/^data:image\//i.test(trimmedPicture)) {
+                    const { imageUrl } = await uploadProfileImage({
+                        dataUrl: trimmedPicture,
+                        userId: req.user._id,
+                        category: "rider",
+                    });
+                    update.riderPicture = imageUrl;
+                } else {
+                    update.riderPicture = trimmedPicture;
+                }
             }
 
             const rider = await Rider.findOneAndUpdate(
