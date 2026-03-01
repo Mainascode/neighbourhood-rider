@@ -17,7 +17,8 @@ export default function VendorDashboard({ initialTab = "overview" }) {
     const [activeTab, setActiveTab] = useState(initialTab);
     const [inventory, setInventory] = useState([]);
     const [orders, setOrders] = useState([]); // State for orders
-    const [newItem, setNewItem] = useState({ name: "", price: "", image: "" });
+    const [newItem, setNewItem] = useState({ name: "", price: "", image: "", autoGenerateImage: false, imageCategory: "food" });
+    const [aiGeneratingImage, setAiGeneratingImage] = useState(false);
     const [loading, setLoading] = useState(false);
     const [bootstrapping, setBootstrapping] = useState(true);
 
@@ -142,12 +143,37 @@ export default function VendorDashboard({ initialTab = "overview" }) {
             });
             invalidateCache("/api/vendors/inventory");
             setInventory(updatedInventory);
-            setNewItem({ name: "", price: "", image: "" });
+            setNewItem({ name: "", price: "", image: "", autoGenerateImage: false, imageCategory: "food" });
             notify("Item added successfully", "success");
         } catch (err) {
             notify(err.message || "Error adding item", "error");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleGenerateImageWithAI = async () => {
+        if (!newItem.name.trim()) {
+            notify("Enter item name before generating image", "error");
+            return;
+        }
+        setAiGeneratingImage(true);
+        try {
+            const data = await apiFetch("/api/vendors/products/generate-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newItem.name, category: newItem.imageCategory || "food" })
+            });
+            if (!data?.imageUrl) {
+                notify("AI image generation failed", "error");
+                return;
+            }
+            setNewItem((prev) => ({ ...prev, image: data.imageUrl, autoGenerateImage: true }));
+            notify("AI image generated. Preview updated.", "success");
+        } catch (err) {
+            notify(err.message || "Failed to generate AI image", "error");
+        } finally {
+            setAiGeneratingImage(false);
         }
     };
 
@@ -417,10 +443,51 @@ export default function VendorDashboard({ initialTab = "overview" }) {
                                     <input
                                         type="file"
                                         className="w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-riderBlue/10 file:text-riderBlue hover:file:bg-riderBlue/20"
+                                        disabled={newItem.autoGenerateImage}
                                         onChange={e => handleImageUpload(e)}
                                     />
                                 </div>
                             </div>
+                            <div className="mt-4 flex flex-col md:flex-row md:items-center gap-3">
+                                <label className="inline-flex items-center gap-2 text-sm text-gray-400">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(newItem.autoGenerateImage)}
+                                        onChange={(e) => setNewItem({ ...newItem, autoGenerateImage: e.target.checked, image: e.target.checked ? "" : newItem.image })}
+                                    />
+                                    AI generate image using premium delivery prompt
+                                </label>
+                                <select
+                                    value={newItem.imageCategory || "food"}
+                                    disabled={!newItem.autoGenerateImage}
+                                    onChange={(e) => setNewItem({ ...newItem, imageCategory: e.target.value })}
+                                    className="bg-riderDark/50 border border-riderBlue/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-riderBlue disabled:opacity-50"
+                                >
+                                    <option value="food">Food</option>
+                                    <option value="grocery">Grocery</option>
+                                    <option value="pharmacy">Pharmacy</option>
+                                </select>
+                            </div>
+                            {newItem.autoGenerateImage && (
+                                <div className="mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerateImageWithAI}
+                                        disabled={aiGeneratingImage || loading}
+                                        className="bg-white border border-riderBlue/20 hover:bg-riderBlue/10 text-riderBlue font-bold py-2 px-4 rounded-xl text-sm disabled:opacity-60"
+                                    >
+                                        {aiGeneratingImage ? "Generating image..." : (newItem.image ? "Regenerate with AI" : "Generate with AI")}
+                                    </button>
+                                </div>
+                            )}
+                            {newItem.image && (
+                                <div className="mt-4">
+                                    <p className="text-xs text-gray-500 font-bold uppercase mb-2">Image Preview</p>
+                                    <div className="w-40 h-40 rounded-xl overflow-hidden border border-riderBlue/20 bg-riderDark/50">
+                                        <img src={newItem.image} alt="Generated product preview" className="w-full h-full object-cover" />
+                                    </div>
+                                </div>
+                            )}
                             <button
                                 onClick={handleAddItem}
                                 disabled={loading}

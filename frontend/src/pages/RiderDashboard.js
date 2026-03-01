@@ -3,13 +3,13 @@ import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { socket, emitRiderOnline, emitRiderHeartbeat, emitRiderOffline } from "../lib/socket.js";
 import LiveMap from "../components/LiveMap";
-import { apiGetCached, invalidateCache } from "../lib/api";
+import { apiFetch, apiGetCached, invalidateCache } from "../lib/api";
 
 import { API_URL } from "../lib/config";
 import ReviewList from "../components/ReviewList";
 
 export default function RiderDashboard({ tab = "orders" }) {
-    const { user } = useAuth();
+    const { user, completeProfile } = useAuth();
     const { notify } = useNotify();
     const [activeTab, setActiveTab] = useState(tab);
     const [assignments, setAssignments] = useState([]);
@@ -21,6 +21,9 @@ export default function RiderDashboard({ tab = "orders" }) {
     const [requestTimeLeft, setRequestTimeLeft] = useState(0);
     const [userLocation, setUserLocation] = useState(null);
     const [acceptTimers, setAcceptTimers] = useState({});
+    const [editPhone, setEditPhone] = useState("");
+    const [editRiderPicture, setEditRiderPicture] = useState("");
+    const [savingProfile, setSavingProfile] = useState(false);
 
     useEffect(() => {
         setActiveTab(tab);
@@ -58,6 +61,8 @@ export default function RiderDashboard({ tab = "orders" }) {
         try {
             const data = await apiGetCached("/api/riders/me", { ttlMs: 10000 });
             setRiderProfile(data);
+            setEditPhone(data?.phone || "");
+            setEditRiderPicture(data?.riderPicture || "");
         } catch (err) {
             console.error(err);
         }
@@ -268,6 +273,48 @@ export default function RiderDashboard({ tab = "orders" }) {
             }
         } catch (e) {
             notify("Failed to update status", "error");
+        }
+    };
+
+    const handleRiderPictureChange = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            notify("Please select an image file.", "error");
+            return;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+            notify("Image is too large. Max size is 3MB.", "error");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = typeof reader.result === "string" ? reader.result : "";
+            if (result) setEditRiderPicture(result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleSaveProfile = async () => {
+        try {
+            setSavingProfile(true);
+            const payload = {
+                phone: editPhone,
+                riderPicture: editRiderPicture || undefined,
+            };
+            const res = await apiFetch("/api/riders/me", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const updated = res?.rider || res;
+            setRiderProfile(updated);
+            await completeProfile({ phone: editPhone });
+            notify("Profile updated successfully.", "success");
+        } catch (err) {
+            notify(err.message || "Failed to update profile", "error");
+        } finally {
+            setSavingProfile(false);
         }
     };
 
@@ -660,11 +707,24 @@ export default function RiderDashboard({ tab = "orders" }) {
                 <div className="bg-riderDark/50 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-riderBlue/10 max-w-2xl mx-auto">
                     <div className="md:flex gap-8 items-start">
                         <div className="mb-6 md:mb-0 shrink-0">
-                            <img src={riderProfile.riderPicture || "https://placehold.co/400"} alt="Profile" className="w-40 h-40 rounded-full object-cover bg-riderDark/30 border-4 border-riderMaroon shadow-2xl" />
+                            <img src={editRiderPicture || riderProfile.riderPicture || "https://placehold.co/400"} alt="Profile" className="w-40 h-40 rounded-full object-cover bg-riderDark/30 border-4 border-riderMaroon shadow-2xl" />
+                            <label className="mt-3 inline-block text-xs bg-riderBlue/10 hover:bg-riderBlue/20 text-riderBlue px-3 py-1.5 rounded-full cursor-pointer font-bold">
+                                Upload Picture
+                                <input type="file" accept="image/*" className="hidden" onChange={handleRiderPictureChange} />
+                            </label>
                         </div>
                         <div className="flex-1">
                             <h3 className="text-3xl font-bold mb-1 text-riderLight">{riderProfile.name}</h3>
-                            <p className="text-riderMaroon font-mono mb-6">{riderProfile.phone}</p>
+                            <div className="mb-6">
+                                <label className="text-xs uppercase tracking-wider text-gray-500 block mb-1">Phone Number</label>
+                                <input
+                                    type="tel"
+                                    value={editPhone}
+                                    onChange={(e) => setEditPhone(e.target.value)}
+                                    className="w-full md:w-72 bg-riderDark/30 border border-riderBlue/20 rounded-xl px-3 py-2 text-riderLight"
+                                    placeholder="Phone Number"
+                                />
+                            </div>
                             <div className="mb-6 bg-riderDark/30 p-4 rounded-xl text-sm">
                                 <p className="text-gray-500 uppercase tracking-wider text-xs mb-1">Logged In As</p>
                                 <p className="font-bold text-riderLight">{user?.name || riderProfile.name}</p>
@@ -691,6 +751,13 @@ export default function RiderDashboard({ tab = "orders" }) {
                                     <span className="font-bold text-riderLight font-mono">{riderProfile.idNumber}</span>
                                 </div>
                             </div>
+                            <button
+                                onClick={handleSaveProfile}
+                                disabled={savingProfile}
+                                className="mt-5 bg-riderMaroon hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold disabled:opacity-60"
+                            >
+                                {savingProfile ? "Saving..." : "Save Profile"}
+                            </button>
                         </div>
                     </div>
                 </div>

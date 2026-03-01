@@ -1,1 +1,1 @@
-export { getFirebaseApp, getFirebaseAuth, getMessaging } from "../config/firebaseAdmin.js";
+export { getFirebaseApp, getFirebaseAuth, getMessaging, getFirestore, getStorageBucket } from "../config/firebaseAdmin.js";

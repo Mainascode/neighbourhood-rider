@@ -62,6 +62,7 @@ import vendorInventory from "./api/vendors/inventory.js";
 import vendorPublic from "./api/vendors/public.js";
 import vendorDispatch from "./api/vendors/dispatch.js";
 import vendorSettings from "./api/vendors/settings.js";
+import { generateProductImage } from "./api/vendors/ai-product.js";
 
 /* admin */
 import adminDashboard from "./api/admin/dashboard.js";
@@ -192,6 +193,8 @@ async function startServer() {
   app.get("/api/vendors/inventory", requireAuth, vendorInventory.getInventory);
   app.post("/api/vendors/inventory", requireAuth, vendorInventory.addItem);
   app.delete("/api/vendors/inventory/:itemId", requireAuth, vendorInventory.removeItem);
+  app.post("/api/vendors/products/generate-image", requireAuth, generateProductImage);
+  app.post("/api/vendors/generate-product-image", requireAuth, generateProductImage);
   app.patch("/api/vendors/me", requireAuth, vendorSettings.updateVendor);
   app.delete("/api/vendors/me", requireAuth, vendorSettings.deleteVendor);
   app.get("/api/vendors/me", requireAuth, vendorSettings.getVendorProfile);

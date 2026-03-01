@@ -36,3 +36,12 @@ export function getFirebaseAuth() {
   return admin.auth(getFirebaseApp());
 }
 
+export function getFirestore() {
+  return admin.firestore(getFirebaseApp());
+}
+
+export function getStorageBucket() {
+  const appInstance = getFirebaseApp();
+  const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.appspot.com`;
+  return admin.storage(appInstance).bucket(bucketName);
+}
