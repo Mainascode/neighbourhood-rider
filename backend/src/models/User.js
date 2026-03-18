@@ -1,35 +1,21 @@
-// backend/src/models/User.js
 import mongoose from "mongoose";
 
-const refreshSchema = new mongoose.Schema({
-  token: String,
-  device: String,
-  createdAt: { type: Date, default: Date.now },
-});
-
 const userSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  phone: String,
-  password: String,
-  authProvider: { type: String, enum: ["email", "google"], default: "email" },
+  name: { type: String, required: true, trim: true },
+  email: { type: String, unique: true, required: true, lowercase: true, trim: true },
+  phone: { type: String, default: "" },
+  password: { type: String, required: true },
   role: {
     type: String,
     enum: ["user", "admin", "rider", "vendor"],
     default: "user",
   },
   location: { type: String, default: "Ruaka", index: true },
-  privacyPolicyAcceptedAt: Date,
-  termsAcceptedAt: Date,
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  fcmTokens: {
-    type: [String],
-    default: [],
-  },
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  freeDeliveryCredits: { type: Number, default: 0 },
+  referralRewardGranted: { type: Boolean, default: false },
+  hasCompletedOrder: { type: Boolean, default: false },
+}, { timestamps: true });
 
-
-  refreshTokens: [refreshSchema],
-});
-
-export default mongoose.model("User", userSchema);
+export default mongoose.models.User || mongoose.model("User", userSchema);

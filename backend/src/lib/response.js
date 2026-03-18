@@ -1,11 +1,9 @@
-export function ok(res, data = null, status = 200) {
-  return res.status(status).json({ success: true, data });
+import { NextResponse } from "next/server";
+
+export function ok(data = {}, init = {}) {
+  return NextResponse.json(data, init);
 }
 
-export function fail(res, message = "Request failed", status = 400, details = null) {
-  return res.status(status).json({
-    success: false,
-    error: message,
-    ...(details ? { details } : {}),
-  });
+export function fail(message, status = 400, extras = {}) {
+  return NextResponse.json({ message, ...extras }, { status });
 }

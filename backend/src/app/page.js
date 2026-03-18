@@ -1,66 +1,26 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import connectDB from "../lib/db.js";
+import Product from "../models/Product.js";
+import { ensureDefaultProducts, ensureSystemSettings } from "../lib/bootstrap.js";
+import { calculateDeliveryFee } from "../lib/delivery.js";
+import { getCurrentUser } from "../lib/auth.js";
+import LandingPage from "../components/landing-page.js";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  await connectDB();
+  await ensureDefaultProducts();
+  const settings = await ensureSystemSettings();
+  const products = await Product.find({ isActive: true }).sort({ featured: -1, createdAt: -1 }).limit(6).lean();
+  const user = await getCurrentUser();
+  const delivery = calculateDeliveryFee({ weather: settings.weather });
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <LandingPage
+      products={products}
+      user={user}
+      weather={settings.weather}
+      deliveryPreview={delivery.fee}
+    />
   );
 }

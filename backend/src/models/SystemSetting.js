@@ -1,12 +1,10 @@
 import mongoose from "mongoose";
 
 const SystemSettingSchema = new mongoose.Schema({
-    key: { type: String, default: "global_config", unique: true }, // Singleton pattern
-    riderBaseFee: { type: Number, default: 50 },
-    riderPerKmFee: { type: Number, default: 30 },
-    serviceFee: { type: Number, default: 30 },
-    vendorCommissionRate: { type: Number, default: 0 }, // Percentage (0 - 100)
-    riderAcceptTimeoutSeconds: { type: Number, default: 30 },
+    key: { type: String, default: "global_config", unique: true },
+    weather: { type: String, enum: ["sunny", "rainy"], default: "sunny" },
+    referralUnlockCount: { type: Number, default: 2 },
+    referralRewardCredits: { type: Number, default: 1 },
 }, { timestamps: true });
 
 export default mongoose.models.SystemSetting || mongoose.model("SystemSetting", SystemSettingSchema);
