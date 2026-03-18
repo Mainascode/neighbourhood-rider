@@ -8,13 +8,13 @@ export default function LandingPage({ products, user, weather, deliveryPreview }
       <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:py-20">
         <div className="space-y-6">
           <span className="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1 text-sm text-emerald-200">
-            Fast neighborhood delivery for Ruaka market runs
+            Admin-run delivery service for Ruaka Gathigi Estate
           </span>
           <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-white sm:text-6xl">
-            Groceries, essentials, and same-day doorstep delivery.
+            Food and supermarket delivery without the marketplace complexity.
           </h1>
           <p className="max-w-2xl text-lg leading-8 text-slate-300">
-            Neighbourhood Rider keeps checkout simple: browse, pay with M-PESA, and track every order from pending to delivered.
+            Browse essentials, pay with M-PESA before processing, and track your order from paid to delivered.
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <Link
@@ -40,7 +40,7 @@ export default function LandingPage({ products, user, weather, deliveryPreview }
         <div className="grid gap-4 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-6 shadow-2xl shadow-amber-950/20">
           <div className="flex items-center justify-between text-sm text-slate-300">
             <span>Popular picks</span>
-            <span>Admin-managed inventory</span>
+            <span>Admin-managed food and essentials</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {products.map((product) => (

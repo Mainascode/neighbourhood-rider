@@ -8,6 +8,7 @@ import { SERVICE_AREAS } from "../../../../lib/constants.js";
 import { ensureSystemSettings } from "../../../../lib/bootstrap.js";
 import { calculateDeliveryFee } from "../../../../lib/delivery.js";
 import { initiateMpesaStkPush } from "../../../../lib/mpesa.js";
+import { notifyAdmin, notifyUser } from "../../../../lib/notificationService.js";
 import { fail, ok } from "../../../../lib/response.js";
 
 export async function POST(request) {
@@ -64,7 +65,7 @@ export async function POST(request) {
 
   const itemsTotal = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
   const deliveryMeta = calculateDeliveryFee({
-    weather: settings.weather,
+    weather: settings.isRaining ? "rainy" : "sunny",
     freeDelivery: dbUser.freeDeliveryCredits > 0,
   });
 
@@ -81,6 +82,7 @@ export async function POST(request) {
     weather: deliveryMeta.weather,
     deliveryWindow: deliveryMeta.timeWindow,
     freeDeliveryApplied: deliveryMeta.isFreeDelivery,
+    status: "pending",
     paymentStatus: "pending",
   });
 
@@ -106,6 +108,7 @@ export async function POST(request) {
   order.paymentStatus = payment.status;
 
   if (payment.status === "paid") {
+    order.status = "paid";
     order.paidAt = new Date();
     if (order.freeDeliveryApplied && dbUser.freeDeliveryCredits > 0) {
       dbUser.freeDeliveryCredits -= 1;
@@ -115,6 +118,27 @@ export async function POST(request) {
   }
 
   await order.save();
+
+  await Promise.all([
+    notifyAdmin({
+      eventType: "ORDER_CREATED",
+      orderId: order._id,
+      title: "New order placed",
+      body: `${order.customerName} placed order #${order._id.toString().slice(-6)} for KES ${order.totalPrice}.`,
+      deepLink: "/admin",
+      data: { senderId: dbUser._id.toString() },
+    }),
+    notifyUser({
+      recipientId: dbUser._id,
+      eventType: payment.status === "paid" ? "PAYMENT_CONFIRMED" : "ORDER_CREATED",
+      orderId: order._id,
+      title: payment.status === "paid" ? "Payment confirmed" : "Order received",
+      body: payment.status === "paid"
+        ? `Your payment for order #${order._id.toString().slice(-6)} has been confirmed.`
+        : `Order #${order._id.toString().slice(-6)} was created. Complete the M-PESA prompt to confirm payment.`,
+      deepLink: `/orders?highlight=${order._id.toString()}`,
+    }),
+  ]);
 
   return ok({
     message: stk.isMock

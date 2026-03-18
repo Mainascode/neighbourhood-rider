@@ -1,0 +1,29 @@
+import mongoose from "mongoose";
+
+const MpesaTransactionSchema = new mongoose.Schema(
+  {
+    checkoutRequestId: { type: String, required: true, unique: true },
+    mpesaReceiptNumber: { type: String },
+    orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
+    merchantRequestId: { type: String },
+    amount: { type: Number },
+    phoneNumber: { type: String },
+    resultCode: { type: Number },
+    resultDesc: { type: String },
+    initiatedAt: { type: Date },
+    callbackReceivedAt: { type: Date },
+    status: { type: String, enum: ["INITIATED", "SUCCESS", "FAILED"], default: "INITIATED" },
+    initiationRaw: { type: Object },
+    raw: { type: Object },
+    processedAt: { type: Date },
+    receivedAt: { type: Date, default: Date.now },
+    sourceIp: { type: String },
+  },
+  { timestamps: true }
+);
+
+MpesaTransactionSchema.index({ mpesaReceiptNumber: 1 }, { unique: true, sparse: true });
+MpesaTransactionSchema.index({ orderId: 1 });
+
+export default mongoose.models.MpesaTransaction ||
+  mongoose.model("MpesaTransaction", MpesaTransactionSchema);

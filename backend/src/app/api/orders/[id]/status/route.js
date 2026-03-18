@@ -3,6 +3,7 @@ import Order from "../../../../../models/Order.js";
 import User from "../../../../../models/User.js";
 import { requireApiAdmin } from "../../../../../lib/api-auth.js";
 import { applyReferralRewardIfEligible } from "../../../../../lib/referrals.js";
+import { notifyUser } from "../../../../../lib/notificationService.js";
 import { fail, ok } from "../../../../../lib/response.js";
 import { ORDER_STATUSES } from "../../../../../lib/constants.js";
 
@@ -37,6 +38,19 @@ export async function PATCH(request, { params }) {
     order.deliveredAt = undefined;
   }
 
+  if (body.status === "processing" || body.status === "on_the_way" || body.status === "delivered") {
+    order.paymentStatus = "paid";
+  }
+
   await order.save();
+  await notifyUser({
+    recipientId: order.userId,
+    eventType: "ORDER_STATUS_UPDATED",
+    orderId: order._id,
+    title: "Order status updated",
+    body: `Your order #${order._id.toString().slice(-6)} is now ${body.status.replace("_", " ")}.`,
+    deepLink: `/orders?highlight=${order._id.toString()}`,
+    data: { senderId: admin.id },
+  });
   return ok({ message: "Order status updated." });
 }

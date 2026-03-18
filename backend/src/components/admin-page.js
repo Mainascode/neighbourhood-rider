@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNotifications } from "../app/providers.js";
 
 const EMPTY_PRODUCT = {
   id: "",
@@ -13,10 +14,35 @@ const EMPTY_PRODUCT = {
   image: "/globe.svg",
 };
 
+function normalizeStatus(status) {
+  if (status === "purchased") {
+    return "processing";
+  }
+
+  if (status === "on_delivery") {
+    return "on_the_way";
+  }
+
+  if (status === "pending") {
+    return "paid";
+  }
+
+  return status;
+}
+
+function formatStatus(status) {
+  const normalized = normalizeStatus(status);
+  if (normalized === "on_the_way") {
+    return "On the way";
+  }
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1).replaceAll("_", " ");
+}
+
 export default function AdminPage({ initialOverview }) {
   const [overview, setOverview] = useState(initialOverview);
   const [productForm, setProductForm] = useState(EMPTY_PRODUCT);
   const [message, setMessage] = useState("");
+  const { notifications } = useNotifications();
 
   async function refreshOverview() {
     const response = await fetch("/api/admin/overview");
@@ -36,7 +62,7 @@ export default function AdminPage({ initialOverview }) {
     const response = await fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ weather }),
+      body: JSON.stringify({ weather, isRaining: weather === "rainy" }),
     });
     const data = await response.json();
     setMessage(data.message || "");
@@ -85,7 +111,7 @@ export default function AdminPage({ initialOverview }) {
       <section className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-amber-200">Admin dashboard</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Control weather, inventory, orders, and feedback.</h1>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Control weather, products, paid orders, and deliveries.</h1>
         </div>
         <div className="flex gap-2 rounded-full bg-slate-900 p-1">
           {["sunny", "rainy"].map((weather) => (
@@ -97,7 +123,7 @@ export default function AdminPage({ initialOverview }) {
                 overview.settings.weather === weather ? "bg-amber-400 text-slate-950" : "text-slate-300"
               }`}
             >
-              {weather}
+              {weather === "rainy" ? "Rainy" : "Sunny"}
             </button>
           ))}
         </div>
@@ -110,6 +136,27 @@ export default function AdminPage({ initialOverview }) {
         <MetricCard label="Paid payments" value={overview.metrics.paidPayments} />
         <MetricCard label="Ratings" value={overview.metrics.ratings} />
         <MetricCard label="Revenue" value={`KES ${overview.metrics.revenue}`} />
+      </section>
+
+      <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/5 p-6">
+        <h2 className="text-2xl font-semibold text-white">Recent notifications</h2>
+        <div className="mt-5 grid gap-3">
+          {notifications.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-slate-400">
+              No notifications yet.
+            </div>
+          ) : null}
+          {notifications.slice(0, 6).map((notification) => (
+            <div key={notification.id} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm">
+              <p className="font-medium text-white">{notification.title}</p>
+              <p className="mt-1 text-slate-300">{notification.message}</p>
+              <p className="mt-2 text-slate-500">
+                {notification.createdAtLabel}
+                {notification.orderLabel ? ` • ${notification.orderLabel}` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
@@ -187,7 +234,7 @@ export default function AdminPage({ initialOverview }) {
 
         <section className="grid gap-8">
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-            <h2 className="text-2xl font-semibold text-white">Incoming orders</h2>
+            <h2 className="text-2xl font-semibold text-white">Paid and active orders</h2>
             <div className="mt-5 grid gap-4">
               {overview.orders.map((order) => (
                 <article key={order.id} className="rounded-3xl border border-white/10 bg-slate-900/80 p-4">
@@ -197,8 +244,13 @@ export default function AdminPage({ initialOverview }) {
                       <h3 className="mt-1 text-lg font-semibold text-white">KES {order.totalPrice}</h3>
                       <p className="mt-1 text-sm text-slate-300">{order.area} • {order.address}</p>
                       <p className="mt-1 text-sm text-slate-300">
-                        {order.paymentStatus} • {order.status} • Delivery fee KES {order.deliveryFee}
+                        Payment {order.paymentStatus} • {formatStatus(order.status)} • Delivery fee KES {order.deliveryFee}
                       </p>
+                      <div className="mt-2 grid gap-1 text-sm text-slate-400">
+                        {order.items?.map((item) => (
+                          <span key={`${order.id}-${item.name}`}>{item.name} x {item.quantity} • KES {item.subtotal}</span>
+                        ))}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-400">
                         <span>{order.createdAtLabel}</span>
                         <a className="text-amber-300" href={`/api/orders/${order.id}/receipt`} target="_blank">
@@ -206,10 +258,10 @@ export default function AdminPage({ initialOverview }) {
                         </a>
                       </div>
                     </div>
-                    <select className="input max-w-52" value={order.status} onChange={(e) => updateOrderStatus(order.id, e.target.value)}>
-                      <option value="pending">Pending</option>
-                      <option value="purchased">Purchased</option>
-                      <option value="on_delivery">On Delivery</option>
+                    <select className="input max-w-52" value={normalizeStatus(order.status)} onChange={(e) => updateOrderStatus(order.id, e.target.value)}>
+                      <option value="paid">Paid</option>
+                      <option value="processing">Processing</option>
+                      <option value="on_the_way">On the way</option>
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>

@@ -21,6 +21,7 @@ export default function ShopPage({ initialProducts, initialWeather, deliveryPrev
   });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const isRaining = weather === "rainy";
 
   useEffect(() => {
     setCheckoutState((current) => ({
@@ -106,7 +107,7 @@ export default function ShopPage({ initialProducts, initialWeather, deliveryPrev
       <section className="mb-10 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-amber-200">Neighborhood delivery</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Shop essentials and pay before we dispatch.</h1>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Shop food and essentials, then pay before we process.</h1>
           {user ? (
             <p className="mt-3 text-sm text-slate-300">
               Referral code: <strong className="text-white">{user.referralCode}</strong> • Free deliveries:{" "}
@@ -115,7 +116,8 @@ export default function ShopPage({ initialProducts, initialWeather, deliveryPrev
           ) : null}
         </div>
         <div className="grid gap-2 text-sm text-slate-300">
-          <span>Weather: <strong className="capitalize text-white">{weather}</strong></span>
+          <span>Weather: <strong className="text-white">{isRaining ? "Rainy" : "Sunny"}</strong></span>
+          <span>Coverage: <strong className="text-white">Ruaka - Gathigi Estate only</strong></span>
           <span>Delivery fee preview: <strong className="text-white">KES {deliveryFee}</strong></span>
         </div>
       </section>
@@ -183,7 +185,7 @@ export default function ShopPage({ initialProducts, initialWeather, deliveryPrev
             <div className="flex justify-between text-base font-semibold text-white"><span>Final total</span><span>KES {total}</span></div>
           </div>
           <p className="mt-4 text-xs leading-6 text-slate-400">
-            Delivery fee follows EAT pricing windows: 6am-9am and 6pm-10pm are premium windows, while 9am-5pm is standard pricing.
+            Delivery fee uses server-side EAT timing and the admin-controlled rainy or sunny flag.
           </p>
 
           <form onSubmit={handleCheckout} className="mt-6 grid gap-3">
@@ -192,7 +194,7 @@ export default function ShopPage({ initialProducts, initialWeather, deliveryPrev
             <select className="input" value={checkoutState.area} onChange={(e) => setCheckoutState((current) => ({ ...current, area: e.target.value }))}>
               {SERVICE_AREAS.map((area) => <option key={area}>{area}</option>)}
             </select>
-            <textarea className="input min-h-28" placeholder="Exact delivery address" value={checkoutState.address} onChange={(e) => setCheckoutState((current) => ({ ...current, address: e.target.value }))} required />
+            <textarea className="input min-h-28" placeholder="Exact Gathigi Estate delivery address" value={checkoutState.address} onChange={(e) => setCheckoutState((current) => ({ ...current, address: e.target.value }))} required />
             {message ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">{message}</p> : null}
             <button disabled={loading || cart.length === 0} type="submit" className="rounded-full bg-emerald-400 px-5 py-3 font-semibold text-slate-950 disabled:opacity-50">
               {loading ? "Submitting..." : "Pay with M-PESA and place order"}

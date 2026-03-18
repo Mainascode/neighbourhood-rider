@@ -8,7 +8,7 @@ const INITIAL_SIGNUP = {
   name: "",
   email: "",
   phone: "",
-  location: "Ruaka",
+  location: "Ruaka - Gathigi Estate",
   password: "",
   referralCode: "",
 };
@@ -62,7 +62,7 @@ export default function AuthPage({ initialMode = "login" }) {
           Checkout starts with a simple account.
         </h1>
         <p className="max-w-lg text-base leading-7 text-slate-300">
-          Customers can browse, pay, track, and rate deliveries. The admin account uses the email configured in the environment.
+          Customers in Ruaka Gathigi Estate can browse, pay, track, and rate deliveries. The admin account uses the email configured in the environment.
         </p>
       </section>
 
@@ -88,9 +88,7 @@ export default function AuthPage({ initialMode = "login" }) {
               <input className="input" placeholder="Full name" value={activeValues.name} onChange={(e) => setActiveValues((current) => ({ ...current, name: e.target.value }))} required />
               <input className="input" placeholder="Phone number" value={activeValues.phone} onChange={(e) => setActiveValues((current) => ({ ...current, phone: e.target.value }))} required />
               <select className="input" value={activeValues.location} onChange={(e) => setActiveValues((current) => ({ ...current, location: e.target.value }))}>
-                <option>Ruaka</option>
-                <option>Gachie</option>
-                <option>Gathiga</option>
+                <option>Ruaka - Gathigi Estate</option>
               </select>
             </>
           )}

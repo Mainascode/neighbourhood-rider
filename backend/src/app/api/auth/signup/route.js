@@ -17,7 +17,7 @@ export async function POST(request) {
   }
 
   if (!SERVICE_AREAS.includes(location)) {
-    return fail("Service area must be Ruaka, Gachie, or Gathiga.");
+    return fail("Service area must be Ruaka - Gathigi Estate.");
   }
 
   await connectDB();

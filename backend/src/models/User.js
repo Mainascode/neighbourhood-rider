@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin", "rider", "vendor"],
     default: "user",
   },
-  location: { type: String, default: "Ruaka", index: true },
+  location: { type: String, default: "Ruaka - Gathigi Estate", index: true },
   referralCode: { type: String, unique: true, sparse: true },
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   freeDeliveryCredits: { type: Number, default: 0 },

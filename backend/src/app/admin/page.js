@@ -34,7 +34,7 @@ export default async function AdminScreen() {
   return (
     <AdminPage
       initialOverview={{
-        settings: { weather: settings.weather },
+        settings: { weather: settings.weather, isRaining: settings.isRaining },
         metrics: {
           orders: orderCount,
           paidPayments: paidPaymentCount,
@@ -54,10 +54,23 @@ export default async function AdminScreen() {
         orders: orders.map((order) => ({
           id: order._id.toString(),
           customerName: order.customerName,
+          customerPhone: order.customerPhone,
           area: order.area,
+          address: order.address,
           totalPrice: order.totalPrice,
+          deliveryFee: order.deliveryFee,
           paymentStatus: order.paymentStatus,
           status: order.status,
+          items: order.items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+          })),
+          createdAtLabel: new Intl.DateTimeFormat("en-KE", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: "Africa/Nairobi",
+          }).format(order.createdAt),
         })),
         payments: payments.map((payment) => ({
           id: payment._id.toString(),

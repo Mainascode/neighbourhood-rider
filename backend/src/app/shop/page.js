@@ -20,7 +20,7 @@ export default async function ShopScreen() {
   const settings = await ensureSystemSettings();
   const products = await Product.find({ isActive: true }).sort({ featured: -1, createdAt: -1 }).lean();
   const delivery = calculateDeliveryFee({
-    weather: settings.weather,
+    weather: settings.isRaining ? "rainy" : "sunny",
     freeDelivery: user.freeDeliveryCredits > 0,
   });
 
@@ -34,7 +34,7 @@ export default async function ShopScreen() {
         price: product.price,
         unit: product.unit,
       }))}
-      initialWeather={settings.weather}
+      initialWeather={settings.isRaining ? "rainy" : "sunny"}
       deliveryPreview={delivery.fee}
     />
   );

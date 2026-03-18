@@ -24,7 +24,7 @@ export async function GET() {
   ]);
 
   return ok({
-    settings: { weather: settings.weather },
+    settings: { weather: settings.weather, isRaining: settings.isRaining },
     metrics: {
       orders: await Order.countDocuments(),
       paidPayments: await Payment.countDocuments({ status: "paid" }),
@@ -54,6 +54,11 @@ export async function GET() {
       deliveryFee: order.deliveryFee,
       paymentStatus: order.paymentStatus,
       status: order.status,
+      items: order.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      })),
       createdAtLabel: new Intl.DateTimeFormat("en-KE", {
         dateStyle: "medium",
         timeStyle: "short",

@@ -14,7 +14,13 @@ export async function ensureSystemSettings() {
   const existing = await SystemSetting.findOne({ key: "global_config" });
 
   if (!existing) {
-    return SystemSetting.create({ key: "global_config", weather: "sunny" });
+    return SystemSetting.create({ key: "global_config", weather: "sunny", isRaining: false });
+  }
+
+  const nextIsRaining = existing.weather === "rainy";
+  if (existing.isRaining !== nextIsRaining) {
+    existing.isRaining = nextIsRaining;
+    await existing.save();
   }
 
   return existing;

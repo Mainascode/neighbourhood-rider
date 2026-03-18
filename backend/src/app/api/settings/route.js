@@ -6,7 +6,7 @@ import { fail, ok } from "../../../lib/response.js";
 export async function GET() {
   await connectDB();
   const settings = await ensureSystemSettings();
-  return ok({ weather: settings.weather });
+  return ok({ weather: settings.weather, isRaining: settings.isRaining });
 }
 
 export async function PATCH(request) {
@@ -18,7 +18,8 @@ export async function PATCH(request) {
   const body = await request.json();
   await connectDB();
   const settings = await ensureSystemSettings();
-  settings.weather = body.weather === "rainy" ? "rainy" : "sunny";
+  settings.isRaining = body.isRaining === true || body.weather === "rainy";
+  settings.weather = settings.isRaining ? "rainy" : "sunny";
   await settings.save();
-  return ok({ message: "Weather updated.", weather: settings.weather });
+  return ok({ message: "Weather updated.", weather: settings.weather, isRaining: settings.isRaining });
 }

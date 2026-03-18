@@ -1,12 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNotifications } from "../app/providers.js";
 
 const STAGES = ["pending", "purchased", "on_delivery", "delivered"];
+const STATUS_STAGES = ["paid", "processing", "on_the_way", "delivered"];
+
+function normalizeStatus(status) {
+  if (status === "purchased") {
+    return "processing";
+  }
+
+  if (status === "on_delivery") {
+    return "on_the_way";
+  }
+
+  if (status === "pending") {
+    return "paid";
+  }
+
+  return status;
+}
+
+function formatStatus(status) {
+  const normalized = normalizeStatus(status);
+  if (normalized === "on_the_way") {
+    return "On the way";
+  }
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1).replaceAll("_", " ");
+}
 
 export default function OrdersPage({ initialOrders, highlight = "" }) {
   const [orders, setOrders] = useState(initialOrders);
   const [message, setMessage] = useState("");
+  const { notifications } = useNotifications();
 
   useEffect(() => {
     async function refreshOrders() {
@@ -65,14 +92,14 @@ export default function OrdersPage({ initialOrders, highlight = "" }) {
                 <div className="mt-4 grid gap-2 text-sm text-slate-300">
                   <span>Payment: <strong className="text-white capitalize">{order.paymentStatus}</strong></span>
                   <span>Delivery fee: <strong className="text-white">KES {order.deliveryFee}</strong></span>
-                  <span>Status: <strong className="text-white capitalize">{order.status.replace("_", " ")}</strong></span>
+                  <span>Status: <strong className="text-white">{formatStatus(order.status)}</strong></span>
                   <span>Receipt: <a className="text-amber-300" href={`/api/orders/${order.id}/receipt`} target="_blank">View</a></span>
                 </div>
               </div>
               <div className="grid gap-3 lg:min-w-80">
-                {STAGES.map((stage) => (
-                  <div key={stage} className={`rounded-2xl border px-4 py-3 text-sm capitalize ${STAGES.indexOf(order.status) >= STAGES.indexOf(stage) ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 text-slate-400"}`}>
-                    {stage.replace("_", " ")}
+                {STATUS_STAGES.map((stage) => (
+                  <div key={stage} className={`rounded-2xl border px-4 py-3 text-sm ${STATUS_STAGES.indexOf(normalizeStatus(order.status)) >= STATUS_STAGES.indexOf(stage) ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 text-slate-400"}`}>
+                    {formatStatus(stage)}
                   </div>
                 ))}
               </div>
@@ -87,6 +114,10 @@ export default function OrdersPage({ initialOrders, highlight = "" }) {
               ))}
             </div>
 
+            <OrderNotifications
+              notifications={notifications.filter((notification) => notification.orderId === order.id)}
+            />
+
             {order.status === "delivered" && !order.ratingSubmitted ? (
               <RatingForm orderId={order.id} onSubmit={submitRating} />
             ) : null}
@@ -100,6 +131,27 @@ export default function OrdersPage({ initialOrders, highlight = "" }) {
         ) : null}
       </div>
     </main>
+  );
+}
+
+function OrderNotifications({ notifications }) {
+  if (!notifications.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-4">
+      <p className="text-sm font-medium text-white">Recent order updates</p>
+      <div className="mt-3 grid gap-2">
+        {notifications.slice(0, 3).map((notification) => (
+          <div key={notification.id} className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-slate-300">
+            <p className="font-medium text-white">{notification.title}</p>
+            <p className="mt-1">{notification.message}</p>
+            <p className="mt-2 text-xs text-slate-500">{notification.createdAtLabel}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

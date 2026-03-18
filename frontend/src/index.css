@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    font-family: 'Outfit', sans-serif;
+    /* Hero-style Background */
+    @apply bg-riderBlack;
+    background-image: radial-gradient(#F97316 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-attachment: fixed;
+    /* Opacity handled via color or overlay, but here we hardcode the dot color which is already distinctive */
+
+    @apply text-riderLight;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-riderBlack;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-riderBlue/80 rounded-full hover:bg-riderBlue;
+}
+
+/* 💃 Animations */
+@layer utilities {
+    .animate-blob {
+        animation: blob 10s infinite;
+    }
+
+    .animation-delay-2000 {
+        animation-delay: 2s;
+    }
+
+    .animation-delay-4000 {
+        animation-delay: 4s;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes blob {
+    0% {
+        transform: translate(0px, 0px) scale(1);
+    }
+
+    33% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
+    }
+
+    100% {
+        transform: translate(0px, 0px) scale(1);
+    }
+}
+
+/* 🧊 Glassmorphism Helper */
+.glass {
+    @apply bg-riderBlack/80 border border-riderBlue/10 shadow-xl;
+}
