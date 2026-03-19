@@ -239,18 +239,18 @@ export default function Order() {
       <OperatingHoursBanner />
       <Navbar />
 
-      <main className="flex-grow pt-24 pb-12 px-4 md:px-6">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-[1.6fr_0.9fr] gap-8">
+      <main className="flex-grow pt-20 md:pt-24 pb-24 md:pb-12 px-3 md:px-6 safe-pad-bottom">
+        <div className="max-w-7xl mx-auto grid gap-5 md:gap-8 lg:grid-cols-[1.6fr_0.9fr]">
           <section className="space-y-8">
-            <div className="rounded-3xl bg-white p-8 border border-gray-100 shadow-sm">
+            <div className="rounded-[1.75rem] md:rounded-3xl bg-white p-4 sm:p-6 md:p-8 border border-gray-100 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold text-riderLight">Ruaka Grocery & Food Delivery</h1>
-                  <p className="text-gray-500 mt-2">
-                    Single-admin delivery service for Gathigi Estate. Add items, pay by M-Pesa, and track your order status.
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-riderLight leading-tight">Grocery & Food Delivery</h1>
+                  <p className="text-sm md:text-base text-gray-500 mt-2 max-w-2xl">
+                    Add items quickly, pay by M-Pesa, and follow every delivery update from your phone.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-gray-200 px-4 py-3 bg-gray-50 text-sm">
+                <div className="rounded-2xl border border-gray-200 px-4 py-3 bg-gray-50 text-sm self-start md:self-auto">
                   <div className="font-bold text-riderLight">
                     Weather: {weatherMode === "rainy" ? "Rainy" : "Sunny"}
                   </div>
@@ -258,12 +258,12 @@ export default function Order() {
                 </div>
               </div>
 
-              <div className="flex gap-3 overflow-x-auto pb-2 mb-6">
+              <div className="flex gap-3 overflow-x-auto pb-2 mb-6 -mx-1 px-1">
                 {["all", "supermarket", "food", "drinks"].map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
+                    className={`min-h-[44px] px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
                       selectedCategory === category
                         ? "bg-riderMaroon text-white border-riderMaroon"
                         : "bg-white text-gray-500 border-gray-200 hover:border-riderMaroon/50"
@@ -274,7 +274,7 @@ export default function Order() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
                 {filteredProducts.map((product) => (
                   <article
                     key={product._id}
@@ -287,10 +287,10 @@ export default function Order() {
                         <div className="w-full h-full flex items-center justify-center text-4xl">🛍️</div>
                       )}
                     </div>
-                    <div className="p-5">
+                    <div className="p-4 md:p-5">
                       <div className="flex justify-between gap-3 items-start">
                         <div>
-                          <h3 className="font-bold text-riderLight text-lg">{product.name}</h3>
+                          <h3 className="font-bold text-riderLight text-base md:text-lg leading-snug">{product.name}</h3>
                           <p className="text-xs text-gray-500 uppercase tracking-wide">{product.category}</p>
                         </div>
                         <span className="text-riderMaroon font-bold">KES {product.price}</span>
@@ -300,7 +300,7 @@ export default function Order() {
                       </p>
                       <button
                         onClick={() => addToCart(product)}
-                        className="mt-4 w-full bg-riderBlue hover:bg-blue-600 text-white py-3 rounded-xl font-bold transition-all"
+                        className="mt-4 w-full min-h-[46px] bg-riderBlue hover:bg-blue-600 text-white py-3 rounded-xl font-bold transition-all"
                       >
                         Add to Cart
                       </button>
@@ -311,7 +311,7 @@ export default function Order() {
             </div>
 
             {activeOrder && (
-              <section className="rounded-3xl bg-white p-8 border border-gray-100 shadow-sm">
+              <section className="rounded-[1.75rem] md:rounded-3xl bg-white p-4 sm:p-6 md:p-8 border border-gray-100 shadow-sm">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-riderLight">Order Tracking</h2>
@@ -322,7 +322,7 @@ export default function Order() {
                   </span>
                 </div>
 
-                <div className="grid md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
                     { key: "PAYMENT_PENDING", label: "Paid" },
                     { key: "PROCESSING", label: "Processing" },
@@ -334,12 +334,12 @@ export default function Order() {
                     return (
                       <div
                         key={step.key}
-                        className={`rounded-2xl border px-4 py-5 text-center ${
+                        className={`rounded-2xl border px-3 md:px-4 py-4 md:py-5 text-center ${
                           active ? "bg-riderMaroon text-white border-riderMaroon" : "bg-gray-50 text-gray-500 border-gray-200"
                         }`}
                       >
                         <div className="text-xs uppercase tracking-wide font-bold mb-2">Step {index + 1}</div>
-                        <div className="font-bold">{step.label}</div>
+                        <div className="font-bold text-sm md:text-base leading-snug">{step.label}</div>
                       </div>
                     );
                   })}
@@ -373,8 +373,8 @@ export default function Order() {
           </section>
 
           <aside className="space-y-6">
-            <section className="rounded-3xl bg-white p-6 border border-gray-100 shadow-sm sticky top-28">
-              <h2 className="text-2xl font-bold text-riderLight mb-1">Cart Summary</h2>
+            <section className="rounded-[1.75rem] md:rounded-3xl bg-white p-4 sm:p-6 border border-gray-100 shadow-sm sticky top-24 md:top-28">
+              <h2 className="text-xl md:text-2xl font-bold text-riderLight mb-1">Cart Summary</h2>
               <p className="text-sm text-gray-500 mb-6">Service area: Ruaka, Gathigi Estate only.</p>
 
               <div className="space-y-3 mb-5">
@@ -385,7 +385,7 @@ export default function Order() {
                 ) : (
                   cart.map((item) => (
                     <div key={item._id} className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
-                      <div className="flex justify-between gap-3">
+                      <div className="flex justify-between gap-3 items-start">
                         <div>
                           <h3 className="font-bold text-riderLight">{item.name}</h3>
                           <p className="text-xs text-gray-500">KES {item.price} each</p>
@@ -393,9 +393,9 @@ export default function Order() {
                         <div className="text-right">
                           <div className="font-bold text-riderMaroon">KES {item.price * item.quantity}</div>
                           <div className="flex items-center gap-2 mt-2 justify-end">
-                            <button onClick={() => updateQuantity(item._id, -1)} className="w-8 h-8 rounded-full bg-white border border-gray-200 font-bold">-</button>
+                            <button onClick={() => updateQuantity(item._id, -1)} className="w-9 h-9 rounded-full bg-white border border-gray-200 font-bold">-</button>
                             <span className="font-bold text-riderLight">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item._id, 1)} className="w-8 h-8 rounded-full bg-white border border-gray-200 font-bold">+</button>
+                            <button onClick={() => updateQuantity(item._id, 1)} className="w-9 h-9 rounded-full bg-white border border-gray-200 font-bold">+</button>
                           </div>
                         </div>
                       </div>
@@ -422,7 +422,7 @@ export default function Order() {
               <button
                 onClick={placeOrder}
                 disabled={!cart.length || isSubmitting}
-                className="mt-6 w-full bg-riderMaroon hover:bg-rose-700 disabled:opacity-50 text-white py-4 rounded-2xl font-bold transition-all"
+                className="mt-6 w-full min-h-[50px] bg-riderMaroon hover:bg-rose-700 disabled:opacity-50 text-white py-4 rounded-2xl font-bold transition-all"
               >
                 {isSubmitting ? "Creating Order..." : "Checkout with M-Pesa"}
               </button>
@@ -441,7 +441,7 @@ export default function Order() {
                   <button
                     onClick={handleMpesaPayment}
                     disabled={isPaying}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold"
+                    className="w-full min-h-[48px] bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold"
                   >
                     {isPaying ? "Sending STK Push..." : `Pay KES ${activeOrder.amount || finalTotal}`}
                   </button>

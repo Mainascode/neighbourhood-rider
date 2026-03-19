@@ -12,6 +12,25 @@ body {
     /* Opacity handled via color or overlay, but here we hardcode the dot color which is already distinctive */
 
     @apply text-riderLight;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+}
+
+#root {
+    min-height: 100vh;
+}
+
+input,
+button,
+textarea,
+select {
+    font: inherit;
+}
+
+input,
+textarea,
+select {
+    font-size: 16px;
 }
 
 /* Custom Scrollbar */
@@ -79,4 +98,14 @@ body {
 /* 🧊 Glassmorphism Helper */
 .glass {
     @apply bg-riderBlack/80 border border-riderBlue/10 shadow-xl;
+}
+
+@supports (padding: max(0px)) {
+    .safe-pad-bottom {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .safe-pad-top {
+        padding-top: max(1rem, env(safe-area-inset-top));
+    }
 }
