@@ -1,42 +1,89 @@
 import mongoose from "mongoose";
 
-const OrderItemSchema = new mongoose.Schema({
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-  name: { type: String, required: true },
-  quantity: { type: Number, required: true, min: 1 },
-  unitPrice: { type: Number, required: true, min: 0 },
-  subtotal: { type: Number, required: true, min: 0 },
-}, { _id: false });
-
 const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  items: { type: [OrderItemSchema], default: [] },
-  customerName: { type: String, required: true },
-  customerPhone: { type: String, required: true },
-  area: { type: String, required: true },
-  address: { type: String, required: true },
+  pickup: {
+    address: String,
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point"
+      },
+      coordinates: [Number]
+    }
+  },
+  vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
+  dropoff: {
+    address: String,
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point"
+      },
+      coordinates: [Number]
+    }
+  },
+  items: [],
   status: {
     type: String,
-    enum: ["pending", "paid", "processing", "on_the_way", "purchased", "on_delivery", "delivered", "cancelled"],
-    default: "pending",
+    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "ON_THE_WAY", "DELIVERED", "CANCELLED", "REFUNDED"],
+    default: "CREATED",
   },
-  paymentStatus: {
+  vendorCancelReason: {
     type: String,
-    enum: ["pending", "initiated", "paid", "failed"],
-    default: "pending",
+    enum: ["OUT_OF_STOCK", "TOO_BUSY", "STORE_CLOSED", "SYSTEM_ERROR"],
   },
-  paidAt: { type: Date },
+  paid: { type: Boolean, default: false }, // Overall Payment (legacy / rider)
+  goodsPaid: { type: Boolean, default: false }, // Vendor Payment Status
+  amount: { type: Number, default: 0, immutable: true }, // Total Amount (Goods + Fee)
+  goodsTotal: { type: Number, default: 0, immutable: true }, // Cost of Items
+  deliveryFee: { type: Number, default: 50, immutable: true }, // Rider Fee (Fixed 50)
+  isDeliveryFeePaid: { type: Boolean, default: false }, // Delivery Fee Payment Status
+  riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
+  isBotOrder: { type: Boolean, default: false },
+  isReviewed: { type: Boolean, default: false },
+  isReceived: { type: Boolean, default: false }, // User confirmed receipt
+  completionOtp: { type: String }, // OTP to verify delivery (Legacy/Optional)
+  mpesaCheckoutRequestId: { type: String }, // For tracking Mpesa STK Push
+  paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'cash' },
+  paymentData: { type: Object }, // Store full callback data
+  riderAssignedAt: { type: Date },
+  pickedUpAt: { type: Date },
   deliveredAt: { type: Date },
-  itemsTotal: { type: Number, required: true, min: 0 },
-  deliveryFee: { type: Number, required: true, min: 0 },
-  totalPrice: { type: Number, required: true, min: 0 },
-  weather: { type: String, enum: ["sunny", "rainy"], default: "sunny" },
-  deliveryWindow: { type: String, default: "daytime" },
-  freeDeliveryApplied: { type: Boolean, default: false },
-  referralCreditConsumed: { type: Boolean, default: false },
-  paymentMethod: { type: String, enum: ["mpesa"], default: "mpesa" },
-  mpesaCheckoutRequestId: { type: String },
-  paymentData: { type: Object, default: {} },
+  statusUpdatedAt: { type: Date },
+  prepTimeMinutes: { type: Number, default: 20 },
+  etaMinutes: { type: Number },
+  prepAlertedAt: { type: Date },
+  overdueFlaggedAt: { type: Date },
+  lateOrder: { type: Boolean, default: false },
+
+  // Scheduling
+  scheduledFor: { type: Date }, // If set, order is for future
+  isScheduled: { type: Boolean, default: false },
+
+  // Detailed Pricing Breakdown
+  pricing: {
+    type: {
+    goodsTotal: Number,
+    deliveryFee: Number, // The fee charged to customer
+    serviceFee: Number,  // KES 30
+    totalCost: Number
+    },
+    immutable: true,
+  },
+
+  // Calculated Splits
+  distribution: {
+    type: {
+    vendorPayout: Number,
+    riderPayout: Number,
+    adminRevenue: Number,
+    splits: Object
+    },
+    immutable: true,
+  }
 }, { timestamps: true });
 
 OrderSchema.index({ mpesaCheckoutRequestId: 1 }, { sparse: true });

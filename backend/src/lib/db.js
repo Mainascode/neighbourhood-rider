@@ -1,30 +1,33 @@
 import mongoose from "mongoose";
 
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+const connectDB = async () => {
+  try {
+    const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
 
-if (!MONGO_URI) {
-  throw new Error("Missing MONGO_URI or MONGODB_URI");
-}
+    if (!uri) {
+      throw new Error("MONGO_URI or MONGODB_URI environment variable is not defined");
+    }
 
-const globalForMongoose = globalThis;
+    // Verify URI format (basic check)
+    if (!uri.startsWith("mongodb")) {
+      console.error("Invalid URI format. Must start with mongodb:// or mongodb+srv://");
+    }
 
-if (!globalForMongoose.__mongoose) {
-  globalForMongoose.__mongoose = { conn: null, promise: null };
-}
+    // Mask password for logging
+    const maskedUri = uri.replace(/:([^:@]+)@/, ":****@");
+    console.log(`Attempting to connect with URI: ${maskedUri}`);
 
-export async function connectDB() {
-  if (globalForMongoose.__mongoose.conn) {
-    return globalForMongoose.__mongoose.conn;
+    const conn = await mongoose.connect(uri);
+    console.log(`MongoDB connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error("MongoDB connection failed:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    if (error.reason) console.error("Error reason:", error.reason);
+    process.exit(1);
   }
+};
 
-  if (!globalForMongoose.__mongoose.promise) {
-    globalForMongoose.__mongoose.promise = mongoose.connect(MONGO_URI, {
-      bufferCommands: false,
-    });
-  }
-
-  globalForMongoose.__mongoose.conn = await globalForMongoose.__mongoose.promise;
-  return globalForMongoose.__mongoose.conn;
-}
 
 export default connectDB;
+export { connectDB };
