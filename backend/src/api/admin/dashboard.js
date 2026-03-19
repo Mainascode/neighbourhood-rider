@@ -1,9 +1,8 @@
 import express from "express";
 import Order from "../../models/Order.js";
-import Rider from "../../models/Rider.js";
 import Payment from "../../models/Payment.js";
-import Vendor from "../../models/Vendor.js";
 import User from "../../models/User.js";
+import SystemSetting from "../../models/SystemSetting.js";
 
 const router = express.Router();
 
@@ -13,15 +12,19 @@ const router = express.Router();
  */
 router.get("/", async (req, res) => {
   try {
+    let settings = await SystemSetting.findOne({ key: "global_config" });
+    if (!settings) {
+      settings = await SystemSetting.create({});
+    }
+
     const totalOrders = await Order.countDocuments();
     const unpaidOrders = await Order.countDocuments({
-      status: { $in: ["DELIVERED", "PAYMENT_PENDING"] },
+      paid: false,
     });
-
-    const activeRiders = await Rider.countDocuments({ isOnline: true });
-    const totalRiders = await Rider.countDocuments(); // Total registered riders
-    const totalVendors = await Vendor.countDocuments(); // Total registered vendors
     const totalUsers = await User.countDocuments({ role: "user" }); // Total customers
+    const paidOrders = await Order.countDocuments({ paid: true });
+    const processingOrders = await Order.countDocuments({ status: { $in: ["PAID", "PROCESSING", "ON_THE_WAY"] } });
+    const completedOrders = await Order.countDocuments({ status: "DELIVERED" });
 
     const totalRevenue = await Payment.aggregate([
       { $match: { status: "PAID" } },
@@ -31,11 +34,12 @@ router.get("/", async (req, res) => {
     res.json({
       totalOrders,
       unpaidOrders,
-      activeRiders,
-      totalRiders,
-      totalVendors,
       totalUsers,
+      paidOrders,
+      processingOrders,
+      completedOrders,
       totalRevenue: totalRevenue[0]?.total || 0,
+      isRaining: Boolean(settings.isRaining),
     });
   } catch (err) {
     console.error(err);

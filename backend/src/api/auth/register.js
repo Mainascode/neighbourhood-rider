@@ -8,7 +8,7 @@ function isValidEmail(email) {
 }
 
 export default async function register(req, res) {
-  const { name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms } = req.body;
+  const { name, email, password, confirmPassword, acceptPrivacyPolicy, acceptTerms, location } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
   if (!name || !normalizedEmail || !password)
@@ -35,6 +35,7 @@ export default async function register(req, res) {
     password: hashed,
     role: "user",
     authProvider: "email",
+    location: location || "Ruaka - Gathigi Estate",
     privacyPolicyAcceptedAt: new Date(),
     termsAcceptedAt: new Date(),
   });

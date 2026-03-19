@@ -1,10 +1,9 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
+import SystemSetting from "../../models/SystemSetting.js";
 import requireAuth from "../../middleware/auth.js";
 import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
-import { sendNotification } from "../../lib/notificationService.js";
-import Rider from "../../models/Rider.js";
-import { isRuakaLaunchModeEnabled } from "../../lib/launchMode.js";
+import { notifyAdmin, notifyUser } from "../../lib/notificationService.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
@@ -12,52 +11,59 @@ export default async function handler(req, res) {
   const user = requireAuth(req);
   await connectDB();
 
-  const { pickupLng, pickupLat, address, dropoff, dropoffLat, dropoffLng } = req.body;
+  const { pickupLng, pickupLat, address, dropoff, dropoffLat, dropoffLng, isScheduled, scheduledFor } = req.body;
 
   /* Time Validation */
   // Late orders are allowed; no blocking here.
 
   /* New: Handle Vendor Order */
-  const { vendorId, items } = req.body;
+  const { vendorId, items = [] } = req.body;
+  const normalizedItems = Array.isArray(items)
+    ? items.map((item) => ({
+      _id: item._id,
+      name: item.name,
+      price: Number(item.price) || 0,
+      quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+      image: item.image || "",
+      category: item.category || "",
+    }))
+    : [];
+
+  if (!normalizedItems.length) {
+    return res.status(400).json({ error: "At least one item is required" });
+  }
 
   /* Pricing Calculation */
   const { calculateOrderPricing } = await import("../../lib/pricing.js");
-  const goodsTotal = items ? items.reduce((sum, i) => sum + i.price, 0) : 0;
+  const goodsTotal = normalizedItems.reduce((sum, i) => sum + (Number(i.price) * Number(i.quantity || 1)), 0);
 
   // Create pricing breakdown
-  const now = new Date();
-  const isLate = now.getHours() >= 21;
-  const pricingOverrides = isLate ? { baseFee: 80, perKmFee: 50 } : {};
-
   const { pricing, distribution } = await calculateOrderPricing(
     goodsTotal,
     { lat: pickupLat, lng: pickupLng },
-    { lat: dropoffLat || -1.2921, lng: dropoffLng || 36.8219 }, // Use provided dropoff or fallback
-    pricingOverrides
+    { lat: dropoffLat || -1.2667, lng: dropoffLng || 36.7383 }
   );
-
-  const Vendor = (await import("../../models/Vendor.js")).default;
-  const vendorProfile = vendorId ? await Vendor.findById(vendorId) : null;
-  if (vendorProfile?.isManuallyClosed || (vendorProfile && !vendorProfile.isOpen)) {
-    return res.status(400).json({ error: "Vendor is currently closed for orders." });
+  let settings = await SystemSetting.findOne({ key: "global_config" });
+  if (!settings) {
+    settings = await SystemSetting.create({});
   }
 
   const orderData = {
     userId: user.id,
     vendorId: vendorId || null,
-    items: items || [],
+    items: normalizedItems,
     pickup: {
-      address,
+      address: address || "Ruaka - Gathigi Estate",
       location: {
         type: "Point",
-        coordinates: [pickupLng, pickupLat]
+        coordinates: [pickupLng || 36.7383, pickupLat || -1.2667]
       }
     },
     dropoff: {
-      address: typeof dropoff === 'string' ? dropoff : (dropoff?.address || "Client Location"),
+      address: typeof dropoff === 'string' ? dropoff : (dropoff?.address || "Ruaka - Gathigi Estate"),
       location: {
         type: "Point",
-        coordinates: [dropoffLng || 36.8219, dropoffLat || -1.2921]
+        coordinates: [dropoffLng || 36.7383, dropoffLat || -1.2667]
       }
     },
     status: ORDER_STATUS.CREATED,
@@ -69,10 +75,16 @@ export default async function handler(req, res) {
     deliveryFee: pricing.deliveryFee,
     amount: pricing.totalCost,
     etaMinutes: pricing.etaMinutes,
-    lateOrder: isLate,
+    lateOrder: false,
 
     isDeliveryFeePaid: false,
-    completionOtp: Math.floor(1000 + Math.random() * 9000).toString()
+    paymentMethod: "mpesa",
+    completionOtp: Math.floor(1000 + Math.random() * 9000).toString(),
+    isScheduled: Boolean(isScheduled),
+    scheduledFor: scheduledFor || null,
+    paymentData: {
+      isRaining: Boolean(settings.isRaining),
+    },
   };
 
   const order = await Order.create(orderData);
@@ -86,130 +98,21 @@ export default async function handler(req, res) {
     io: req.app.get("io"),
   });
 
-  await sendNotification({
+  await notifyUser({
     recipientId: user.id,
-    recipientType: "USER",
-    title: "Order confirmed",
-    body: "Your order has been received and is awaiting payment confirmation.",
-    data: { orderId: String(order._id), status: ORDER_STATUS.PAYMENT_PENDING },
-    eventType: "ORDER_CONFIRMED",
-    deepLink: "/orders",
+    title: "Order created",
+    body: "Your order has been created. Complete M-Pesa payment to continue.",
     orderId: String(order._id),
-    type: "ALERT",
-    category: "orderUpdates",
-    io: req.app.get("io"),
+    eventType: "ORDER_CREATED",
+    data: { status: ORDER_STATUS.PAYMENT_PENDING },
   });
-
-  if (isRuakaLaunchModeEnabled() && vendorProfile) {
-    const primaryRider = await Rider.findOne({ locationName: "Ruaka" }).sort({ currentOrders: 1, createdAt: 1 });
-    const io = req.app.get("io");
-
-    if (primaryRider?.isOnline && primaryRider?.isAvailable) {
-      await updateOrderStatus({
-        orderId: order._id,
-        fromStatusRaw: ORDER_STATUS.PAYMENT_PENDING,
-        toStatus: ORDER_STATUS.RIDER_ASSIGNED,
-        actor: { role: "system", name: "ruaka_launch_assignment" },
-        source: "orders.create.ruaka_launch",
-        io,
-        set: { riderId: primaryRider._id, riderAssignedAt: new Date() },
-      });
-
-      primaryRider.isAvailable = false;
-      primaryRider.currentOrders = 1;
-      primaryRider.status = "ONLINE_BUSY";
-      await primaryRider.save();
-
-      const deliveryRequestPayload = {
-        orderId: String(order._id),
-        _id: String(order._id),
-        status: ORDER_STATUS.RIDER_ASSIGNED,
-        title: "New Delivery in Ruaka",
-        body: "You have a new order request",
-        pickupAddress: address || "Ruaka pickup",
-        estimatedEarnings: Number(pricing.deliveryFee || 0),
-        acceptBy: Date.now() + 30000,
-      };
-
-      io?.emit(`rider:order:${primaryRider.userId}`, deliveryRequestPayload);
-      io?.to(`rider:${primaryRider.userId}`).emit("delivery:request", deliveryRequestPayload);
-      io?.to(`rider:${primaryRider.userId}`).emit("rider:new_order", deliveryRequestPayload);
-
-      await sendNotification({
-        recipientId: primaryRider.userId,
-        recipientType: "RIDER",
-        title: "New Delivery in Ruaka",
-        body: "You have a new order request",
-        data: { orderId: String(order._id) },
-        eventType: "NEW_DELIVERY_REQUEST",
-        deepLink: "/rider/dashboard",
-        orderId: String(order._id),
-        type: "ALERT",
-        category: "orderUpdates",
-        io,
-      });
-
-      await sendNotification({
-        recipientId: user.id,
-        recipientType: "USER",
-        title: "Your rider is on the way",
-        body: "A rider in Ruaka has been assigned to your order.",
-        data: { orderId: String(order._id) },
-        eventType: "RIDER_ASSIGNED",
-        deepLink: "/orders",
-        orderId: String(order._id),
-        type: "ALERT",
-        category: "orderUpdates",
-        io,
-      });
-
-      await sendNotification({
-        recipientId: user.id,
-        recipientType: "USER",
-        title: "Rider is available in your area (Ruaka)",
-        body: "We have an active rider available for your deliveries.",
-        data: { area: "Ruaka" },
-        eventType: "RIDER_AVAILABLE_RUAKA",
-        deepLink: "/order",
-        type: "ALERT",
-        category: "systemAlerts",
-        io,
-      });
-    } else {
-      await updateOrderStatus({
-        orderId: order._id,
-        fromStatusRaw: ORDER_STATUS.PAYMENT_PENDING,
-        toStatus: ORDER_STATUS.PENDING_RIDER,
-        actor: { role: "system", name: "ruaka_launch_assignment" },
-        source: "orders.create.ruaka_launch",
-        reason: "NO_RIDER_AVAILABLE",
-        io,
-      });
-
-      await sendNotification({
-        recipientId: user.id,
-        recipientType: "USER",
-        title: "No rider available at the moment",
-        body: "Your order is pending rider assignment.",
-        data: { orderId: String(order._id) },
-        eventType: "PENDING_RIDER",
-        deepLink: "/orders",
-        orderId: String(order._id),
-        type: "ALERT",
-        category: "orderUpdates",
-        io,
-      });
-
-      io?.emit("admin:order:pending_rider", {
-        orderId: String(order._id),
-        reason: "NO_RIDER_AVAILABLE",
-        message: "No rider available at the moment",
-      });
-    }
-  }
-
-  // NOTE: Vendor Notification is DEFERRED until Payment is Confirmed.
-  // See: api/payments/mpesaController.js -> handleMpesaCallback
+  await notifyAdmin({
+    title: "New order created",
+    body: `Order #${String(order._id).slice(-6)} is waiting for payment.`,
+    orderId: String(order._id),
+    deepLink: "/admin/dashboard",
+    eventType: "NEW_ORDER_CREATED",
+  });
 
   res.status(201).json({ order, suggestedRiders: [], assignedTo: null });
 }

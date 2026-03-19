@@ -5,7 +5,7 @@ export default async function me(req, res) {
   const userId = req.user?._id || req.user?.id;
   if (!userId) return fail(res, "No access token", 401);
 
-  const user = await User.findById(userId).select("_id name email role");
+  const user = await User.findById(userId).select("_id name email role phone location privacyPolicyAcceptedAt termsAcceptedAt");
   if (!user) return fail(res, "User not found", 404);
   return ok(res, {
     user: {
@@ -13,6 +13,7 @@ export default async function me(req, res) {
       name: user.name,
       email: user.email,
       phone: user.phone || "",
+      location: user.location || "Ruaka - Gathigi Estate",
       role: user.role,
       privacyPolicyAcceptedAt: user.privacyPolicyAcceptedAt || null,
       termsAcceptedAt: user.termsAcceptedAt || null,

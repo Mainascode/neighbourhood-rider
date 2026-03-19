@@ -9,43 +9,25 @@ export async function getOrderStatus(req, res) {
     try {
         const { id } = req.params;
         const order = await Order.findById(id)
-            .populate("riderId", "name phone riderPicture location vehicleType") // Populate rider details
-            .select("status riderId");
+            .select("status paid amount deliveryFee isDeliveryFeePaid goodsTotal updatedAt");
 
         if (!order) {
             return res.status(404).json({ error: "Order not found" });
         }
 
-        const isAssigned = !!order.riderId;
-
-        // Searching if pending and NOT assigned
-        // Statuses like 'assigned', 'picking_up' etc mean searching is done.
         const normalizedStatus = normalizeOrderStatus(order.status);
-        const searching = !isAssigned && [
-            "CREATED",
-            "PAYMENT_PENDING",
-            "PAYMENT_CONFIRMED",
-            "VENDOR_ACCEPTED",
-            "PREPARING",
-            "READY_FOR_PICKUP",
-            "PENDING_RIDER"
-        ].includes(normalizedStatus);
+        const searching = ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PAID"].includes(normalizedStatus);
 
         const response = {
             status: normalizedStatus,
             searching: searching,
-            riderAssigned: isAssigned,
+            riderAssigned: ["PROCESSING", "ON_THE_WAY", "DELIVERED"].includes(normalizedStatus),
+            paid: Boolean(order.paid),
+            totalPaid: Number(order.amount || 0),
+            deliveryFee: Number(order.deliveryFee || 0),
+            itemsTotal: Number(order.goodsTotal || 0),
+            updatedAt: order.updatedAt,
         };
-
-        if (isAssigned && order.riderId) {
-            response.rider = {
-                name: order.riderId.name,
-                phone: order.riderId.phone,
-                vehicleType: order.riderId.vehicleType,
-                picture: order.riderId.riderPicture,
-                location: order.riderId.location // Real-time location from Rider model
-            };
-        }
 
         res.json(response);
 

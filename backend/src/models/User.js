@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin", "rider", "vendor"],
     default: "user",
   },
-  location: { type: String, default: "Ruaka", index: true },
+  location: { type: String, default: "Ruaka - Gathigi Estate", index: true },
   privacyPolicyAcceptedAt: Date,
   termsAcceptedAt: Date,
   resetPasswordToken: String,

@@ -32,16 +32,6 @@ export default async function login(req, res) {
 
   await user.save();
 
-  // ✅ Auto-set Rider to ONLINE
-  if (user.role === "rider") {
-    const Rider = (await import("../../models/Rider.js")).default;
-    await Rider.findOneAndUpdate(
-      { userId: user._id },
-      { isAvailable: true, status: "ONLINE_AVAILABLE", approvalStatus: "approved" },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
-
   const payload = {
     id: user._id.toString(),
     email: user.email,

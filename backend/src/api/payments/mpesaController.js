@@ -4,7 +4,7 @@ import crypto from "crypto";
 import Order from '../../models/Order.js';
 import MpesaTransaction from "../../models/MpesaTransaction.js";
 import PaymentEventLog from "../../models/PaymentEventLog.js";
-import { sendNotification } from "../../lib/notificationService.js";
+import { notifyAdmin, notifyUser, sendNotification } from "../../lib/notificationService.js";
 import { updateOrderStatus, normalizeOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
 
 function getMpesaBaseUrl() {
@@ -299,6 +299,7 @@ export const handleMpesaCallback = async (req, res) => {
                     setUpdates.paid = true;
                     setUpdates.goodsPaid = true;
                     setUpdates.isDeliveryFeePaid = true;
+                    setUpdates.paymentMethod = "mpesa";
                 } else if (Math.abs(order.deliveryFee - amount) < 10) {
                     setUpdates.isDeliveryFeePaid = true;
                 }
@@ -315,7 +316,7 @@ export const handleMpesaCallback = async (req, res) => {
                     await updateOrderStatus({
                         orderId: order._id,
                         fromStatusRaw: order.status,
-                        toStatus: ORDER_STATUS.PAYMENT_CONFIRMED,
+                        toStatus: ORDER_STATUS.PAID,
                         actor: { role: "system", name: "mpesa_callback" },
                         source: "payments.mpesa_callback",
                         io: req.app.get("io"),
@@ -336,33 +337,21 @@ export const handleMpesaCallback = async (req, res) => {
                 console.log(`[M-Pesa] Funds distributed (pending) for order ${order._id}`);
 
                 // Update Status to pending_vendor if it was payment_pending
-                if (normalizeOrderStatus(order.status) === ORDER_STATUS.PAYMENT_CONFIRMED) {
-
-                    // NOTIFY VENDOR
-                    const io = req.app.get("io");
-                    if (order.vendorId) {
-                        const Vendor = (await import("../../models/Vendor.js")).default;
-                        const vendorProfile = await Vendor.findById(order.vendorId);
-
-                        if (vendorProfile && io) {
-                            io.to(`vendor:${vendorProfile.userId}`).emit("vendor:order:new", order);
-                        }
-                        if (vendorProfile?.userId) {
-                            await sendNotification({
-                                recipientId: vendorProfile.userId,
-                                recipientType: "VENDOR",
-                                title: "New paid order received",
-                                body: `New order received. Order #${order._id.slice(-6)}.`,
-                                data: { orderId: String(order._id) },
-                                eventType: "NEW_PAID_ORDER",
-                                deepLink: "/vendor/dashboard",
-                                orderId: String(order._id),
-                                type: "ALERT",
-                                category: "orderUpdates",
-                                io,
-                            });
-                        }
-                    }
+                if (matchesTotal) {
+                    await notifyAdmin({
+                        title: "Paid order ready",
+                        body: `Order #${String(order._id).slice(-6)} has been paid and is ready for processing.`,
+                        orderId: String(order._id),
+                        deepLink: "/admin/dashboard",
+                        eventType: "ORDER_PAID",
+                    });
+                    await notifyUser({
+                        recipientId: order.userId,
+                        title: "Payment received",
+                        body: "Your payment was received. We are preparing your order.",
+                        orderId: String(order._id),
+                        eventType: "ORDER_PAID",
+                    });
                 }
 
                 // Real-time notification socket for User

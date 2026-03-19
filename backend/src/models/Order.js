@@ -28,7 +28,7 @@ const OrderSchema = new mongoose.Schema({
   items: [],
   status: {
     type: String,
-    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "ON_THE_WAY", "DELIVERED", "CANCELLED", "REFUNDED"],
+    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PAID", "PROCESSING", "ON_THE_WAY", "DELIVERED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "CANCELLED", "REFUNDED"],
     default: "CREATED",
   },
   vendorCancelReason: {
@@ -39,7 +39,7 @@ const OrderSchema = new mongoose.Schema({
   goodsPaid: { type: Boolean, default: false }, // Vendor Payment Status
   amount: { type: Number, default: 0, immutable: true }, // Total Amount (Goods + Fee)
   goodsTotal: { type: Number, default: 0, immutable: true }, // Cost of Items
-  deliveryFee: { type: Number, default: 50, immutable: true }, // Rider Fee (Fixed 50)
+  deliveryFee: { type: Number, default: 50, immutable: true },
   isDeliveryFeePaid: { type: Boolean, default: false }, // Delivery Fee Payment Status
   riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
   isBotOrder: { type: Boolean, default: false },
@@ -47,7 +47,7 @@ const OrderSchema = new mongoose.Schema({
   isReceived: { type: Boolean, default: false }, // User confirmed receipt
   completionOtp: { type: String }, // OTP to verify delivery (Legacy/Optional)
   mpesaCheckoutRequestId: { type: String }, // For tracking Mpesa STK Push
-  paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'cash' },
+  paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'mpesa' },
   paymentData: { type: Object }, // Store full callback data
   riderAssignedAt: { type: Date },
   pickedUpAt: { type: Date },

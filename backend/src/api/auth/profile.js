@@ -11,13 +11,16 @@ export default async function updateAuthProfile(req, res) {
   const userId = req.user?._id || req.user?.id;
   if (!userId) return fail(res, "Unauthorized", 401);
 
-  const { phone, acceptPrivacyPolicy, acceptTerms } = req.body || {};
+  const { phone, acceptPrivacyPolicy, acceptTerms, location } = req.body || {};
   const user = await User.findById(userId);
   if (!user) return fail(res, "User not found", 404);
 
   const normalizedPhone = normalizePhone(phone);
   if (normalizedPhone) {
     user.phone = normalizedPhone;
+  }
+  if (location) {
+    user.location = String(location);
   }
 
   if (!user.privacyPolicyAcceptedAt && acceptPrivacyPolicy === true) {
@@ -42,4 +45,3 @@ export default async function updateAuthProfile(req, res) {
     },
   });
 }
-

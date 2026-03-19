@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const SystemSettingSchema = new mongoose.Schema({
     key: { type: String, default: "global_config", unique: true }, // Singleton pattern
+    isRaining: { type: Boolean, default: false },
     riderBaseFee: { type: Number, default: 50 },
     riderPerKmFee: { type: Number, default: 30 },
     serviceFee: { type: Number, default: 30 },

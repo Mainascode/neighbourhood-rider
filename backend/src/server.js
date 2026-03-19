@@ -8,6 +8,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
 import Inquiry from "./models/Inquiry.js";
+import SystemSetting from "./models/SystemSetting.js";
 
 /* core */
 import connectDB from "./lib/db.js";
@@ -167,13 +168,29 @@ async function startServer() {
   app.post("/api/orders/:id/unreachable", requireAuth, markUnreachable);
   app.use("/api/orders/recommendations", requireAuth, orderRecommendations);
   app.use("/api/wishlist", requireAuth, wishlistRoutes);
-  app.get("/api/system/time", (req, res) => {
+  app.get("/api/system/time", async (req, res) => {
     const now = new Date();
+    let settings = null;
+    try {
+      settings = await SystemSetting.findOne({ key: "global_config" }).lean();
+    } catch (error) {
+      settings = null;
+    }
+    const parts = new Intl.DateTimeFormat("en-KE", {
+      timeZone: "Africa/Nairobi",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    }).formatToParts(now);
+    const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+    const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
     res.json({
       serverTime: now.toISOString(),
-      hour: now.getHours(),
-      minute: now.getMinutes(),
+      hour,
+      minute,
       timestamp: now.getTime(),
+      timezone: "Africa/Nairobi",
+      isRaining: Boolean(settings?.isRaining),
     });
   });
 

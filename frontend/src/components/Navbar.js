@@ -20,7 +20,7 @@ export default function Navbar() {
             Welcome To
           </span>
           <span className="block font-black text-lg md:text-2xl tracking-tight bg-gradient-to-r from-riderMaroon via-riderBlue to-riderMaroon bg-clip-text text-transparent group-hover:brightness-110 transition-all">
-            Nitume Doorbell Service
+            Neighbourhood Rider
           </span>
         </span>
       </Link>
@@ -41,30 +41,17 @@ export default function Navbar() {
 
         {user?.role === "user" && (
           <>
-            <NavLink to="/order" label="Order" />
-            <NavLink to="/parcel" label="Send Parcel" />
+            <NavLink to="/order" label="Shop" />
             <NavLink to="/orders" label="My Orders" />
             <NavLink to="/faqs" label="FAQs" />
           </>
         )}
 
-        {user?.role === "rider" && (
-          <>
-            <NavLink to="/rider/dashboard" label="Rider Dashboard" />
-            <NavLink to="/rider/settings" label="Settings" />
-          </>
-        )}
-
         {user?.role === "admin" && (
           <>
-            <NavLink to="/admin/dashboard" label="Admin Panel" />
-          </>
-        )}
-
-        {user?.role === "vendor" && (
-          <>
-            <NavLink to="/vendor/dashboard" label="Vendor Dashboard" />
-            <NavLink to="/vendor/settings" label="Settings" />
+            <NavLink to="/order" label="Shop" />
+            <NavLink to="/orders" label="Orders" />
+            <NavLink to="/admin/dashboard" label="Admin Dashboard" />
           </>
         )}
 
@@ -116,28 +103,17 @@ export default function Navbar() {
 
             {user?.role === "user" && (
               <>
-                <Link to="/order" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Order</Link>
-                <Link to="/parcel" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Send Parcel</Link>
+                <Link to="/order" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Shop</Link>
                 <Link to="/orders" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
                 <Link to="/faqs" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>FAQs</Link>
               </>
             )}
 
-            {user?.role === "rider" && (
-              <>
-                <Link to="/rider/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Rider Dashboard</Link>
-                <Link to="/rider/settings" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Settings</Link>
-              </>
-            )}
-
             {user?.role === "admin" && (
-              <Link to="/admin/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Admin Panel</Link>
-            )}
-
-            {user?.role === "vendor" && (
               <>
-                <Link to="/vendor/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Vendor Dashboard</Link>
-                <Link to="/vendor/settings" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Settings</Link>
+                <Link to="/order" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Shop</Link>
+                <Link to="/orders" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Orders</Link>
+                <Link to="/admin/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Admin Dashboard</Link>
               </>
             )}
 
@@ -152,7 +128,7 @@ export default function Navbar() {
                 Logout
               </button>
             )}
-            <p className="text-xs text-center text-gray-500 mt-4">© 2025 Neighborhood Rider</p>
+            <p className="text-xs text-center text-gray-500 mt-4">Ruaka • Gathigi Estate</p>
           </div>
         </div>
       </div>

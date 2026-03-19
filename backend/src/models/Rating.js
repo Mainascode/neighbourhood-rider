@@ -8,7 +8,7 @@ const RatingSchema = new mongoose.Schema({
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
     riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
 
-    role: { type: String, enum: ["vendor", "rider"], required: true }, // Who is being rated
+    role: { type: String, enum: ["order", "vendor", "rider"], default: "order" },
 
     rating: { type: Number, required: true, min: 1, max: 5 },
     comment: { type: String, maxLength: 500 },

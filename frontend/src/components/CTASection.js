@@ -1,24 +1,27 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function CTASection() {
+  const { user } = useAuth();
+
   return (
     <section className="bg-transparent text-riderLight py-16 border-t border-riderBlue/10">
       <div className="max-w-5xl mx-auto px-6 text-center">
         <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl inline-block mb-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-riderLight relative z-10">
-            Uko ready kuanza?
+            Ready to order in Ruaka?
           </h2>
           <p className="text-gray-500 font-bold text-lg max-w-2xl mx-auto relative z-10">
-            Kama unauza, unabuy, ama unaride—sisi tuko pamoja na wewe.
+            Shop fast-moving food and supermarket essentials with one checkout and delivery updates from our admin rider.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row justify-center gap-6">
-          <Link to="/order" className="bg-riderMaroon px-8 py-4 rounded-xl font-bold text-lg text-riderLight shadow-lg hover:bg-rose-800 transition-all hover:-translate-y-1 text-center">
-            Order Sasa
+          <Link to={user ? "/order" : "/login"} className="bg-riderMaroon px-8 py-4 rounded-xl font-bold text-lg text-riderLight shadow-lg hover:bg-rose-800 transition-all hover:-translate-y-1 text-center">
+            Make Your First Order
           </Link>
-          <Link to="/join-vendor" className="bg-white border border-gray-200 text-riderLight px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-50 hover:shadow-md transition-all text-center">
-            Fungua Duka
+          <Link to="/orders" className="bg-white border border-gray-200 text-riderLight px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-50 hover:shadow-md transition-all text-center">
+            Track an Order
           </Link>
         </div>
       </div>

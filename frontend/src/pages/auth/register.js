@@ -28,7 +28,7 @@ export default function Register() {
     }
 
     if (!phone.trim()) {
-      notify("Phone number is required for rider accounts.", "error");
+      notify("Phone number is required for delivery updates.", "error");
       return;
     }
 
@@ -41,6 +41,7 @@ export default function Register() {
       await register(email, password, name);
       await completeProfile({
         phone,
+        location: "Ruaka - Gathigi Estate",
         acceptPrivacyPolicy: true,
         acceptTerms: true,
       });
@@ -65,6 +66,7 @@ export default function Register() {
       await loginWithGoogle();
       await completeProfile({
         phone,
+        location: "Ruaka - Gathigi Estate",
         acceptPrivacyPolicy: true,
         acceptTerms: true,
       });
@@ -79,7 +81,7 @@ export default function Register() {
   return (
     <AuthCard
       title="Create Account"
-      subtitle="Join Neighborhood Rider"
+      subtitle="Join Neighbourhood Rider in Ruaka"
     >
       <form onSubmit={submit}>
         <input

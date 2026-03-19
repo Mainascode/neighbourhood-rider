@@ -15,15 +15,16 @@ export default function Login() {
   const [show, setShow] = useState(false);
 
   const finalizeFirstTimeRequirements = async (loggedInUser) => {
-    const needsRiderPhone = loggedInUser?.role === "rider" && !loggedInUser?.phone;
+    const needsPhone = !loggedInUser?.phone;
 
-    if (needsRiderPhone && !phone.trim()) {
-      throw new Error("Phone number is required for rider accounts.");
+    if (needsPhone && !phone.trim()) {
+      throw new Error("Phone number is required for delivery updates.");
     }
 
-    if (needsRiderPhone) {
+    if (needsPhone) {
       await completeProfile({
         phone,
+        location: "Ruaka - Gathigi Estate",
       });
     }
   };
@@ -56,7 +57,7 @@ export default function Login() {
   return (
     <AuthCard
       title="Welcome Back"
-      subtitle="Login to Neighborhood Rider"
+      subtitle="Login to Neighbourhood Rider"
     >
       <form onSubmit={submit}>
         <input
@@ -70,7 +71,7 @@ export default function Login() {
 
         <input
           type="tel"
-          placeholder="Phone Number (Required for riders)"
+          placeholder="Phone Number"
           className="w-full mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-riderBlue text-riderLight placeholder-gray-400 transition-all focus:bg-white"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}

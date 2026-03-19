@@ -2,8 +2,7 @@ import express from "express";
 import requireAuth from "../../middleware/requireAuth.js";
 import Rating from "../../models/Rating.js";
 import Order from "../../models/Order.js";
-import Vendor from "../../models/Vendor.js";
-import Rider from "../../models/Rider.js";
+import { notifyAdmin, notifyUser } from "../../lib/notificationService.js";
 import mongoose from "mongoose";
 
 const router = express.Router();
@@ -11,14 +10,14 @@ const router = express.Router();
 // Create a Rating
 router.post("/", requireAuth, async (req, res) => {
     try {
-        const { orderId, targetId, role, rating, comment } = req.body; // role = 'vendor' or 'rider'
+        const { orderId, rating, comment } = req.body;
         const userId = req.user._id;
 
         // Validation
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ message: "Invalid rating (1-5)" });
         }
-        if (!orderId || !targetId || !["vendor", "rider"].includes(role)) {
+        if (!orderId) {
             return res.status(400).json({ message: "Invalid rating payload" });
         }
 
@@ -29,7 +28,7 @@ router.post("/", requireAuth, async (req, res) => {
         }
 
         // Check if user is the one who placed the order
-        if (order.userId.toString() !== userId) {
+        if (order.userId.toString() !== userId.toString()) {
             return res.status(403).json({ message: "Unauthorized to review this order" });
         }
 
@@ -47,9 +46,7 @@ router.post("/", requireAuth, async (req, res) => {
         const newRating = await Rating.create({
             orderId,
             userId,
-            vendorId: role === 'vendor' ? targetId : undefined,
-            riderId: role === 'rider' ? targetId : undefined,
-            role,
+            role: "order",
             rating,
             comment
         });
@@ -60,51 +57,20 @@ router.post("/", requireAuth, async (req, res) => {
         order.isReviewed = true;
         await order.save();
 
-        // --- Update Average Rating for Vendor/Rider ---
-        const ratingMatchField = role === "vendor" ? "vendorId" : "riderId";
-        const stats = await Rating.aggregate([
-            { $match: { [ratingMatchField]: new mongoose.Types.ObjectId(targetId) } },
-            {
-                $group: {
-                    _id: null,
-                    averageRating: { $avg: "$rating" },
-                    totalRatings: { $sum: 1 }
-                }
-            }
-        ]);
-
-        if (stats.length > 0) {
-            const averageRating = parseFloat(stats[0].averageRating.toFixed(2));
-            const totalRatings = stats[0].totalRatings;
-
-            if (role === "vendor") {
-                const recent = await Rating.find({ vendorId: targetId, role: "vendor" })
-                    .sort({ createdAt: -1 })
-                    .limit(50)
-                    .select("rating createdAt");
-
-                let weightedSum = 0;
-                let weightTotal = 0;
-                recent.forEach((r, idx) => {
-                    const weight = idx < 10 ? 1.5 : 1.0;
-                    weightedSum += r.rating * weight;
-                    weightTotal += weight;
-                });
-
-                const vendorScore = weightTotal > 0 ? parseFloat((weightedSum / weightTotal).toFixed(2)) : 0;
-
-                await Vendor.findByIdAndUpdate(targetId, {
-                    "metrics.rating": averageRating,
-                    "metrics.ratingCount": totalRatings,
-                    "metrics.vendorScore": vendorScore,
-                });
-            } else {
-                await Rider.findByIdAndUpdate(targetId, {
-                    "metrics.rating": averageRating,
-                    "metrics.ratingCount": totalRatings
-                });
-            }
-        }
+        await notifyAdmin({
+            title: "New order rating",
+            body: `Order #${String(orderId).slice(-6)} received a ${rating}/5 rating.`,
+            orderId: String(orderId),
+            deepLink: "/admin/dashboard",
+            eventType: "ORDER_RATING",
+        });
+        await notifyUser({
+            recipientId: userId,
+            title: "Rating saved",
+            body: "Thanks for rating your Neighbourhood Rider order.",
+            orderId: String(orderId),
+            eventType: "ORDER_RATING_SAVED",
+        });
 
         res.status(201).json({ success: true, rating: newRating });
 
@@ -118,13 +84,8 @@ router.post("/", requireAuth, async (req, res) => {
 router.get("/:targetId", async (req, res) => {
     try {
         const { targetId } = req.params;
-        const reviews = await Rating.find({
-            $or: [
-                { vendorId: targetId },
-                { riderId: targetId }
-            ]
-        })
-            .populate("reviewerId", "name") // Show reviewer name
+        const reviews = await Rating.find({ orderId: targetId })
+            .populate("userId", "name")
             .sort({ createdAt: -1 })
             .limit(20);
 
@@ -139,23 +100,13 @@ router.get("/:targetId", async (req, res) => {
 router.get("/stats/:targetId", async (req, res) => {
     try {
         const { targetId } = req.params;
+        const matchOrderId = mongoose.Types.ObjectId.isValid(targetId)
+            ? new mongoose.Types.ObjectId(targetId)
+            : targetId;
 
         const stats = await Rating.aggregate([
-            {
-                $match: {
-                    $or: [
-                        { vendorId: new mongoose.Types.ObjectId(targetId) },
-                        { riderId: new mongoose.Types.ObjectId(targetId) }
-                    ]
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    averageRating: { $avg: "$rating" },
-                    totalReviews: { $sum: 1 }
-                }
-            }
+            { $match: { orderId: matchOrderId } },
+            { $group: { _id: null, averageRating: { $avg: "$rating" }, totalReviews: { $sum: 1 } } }
         ]);
 
         if (stats.length === 0) {

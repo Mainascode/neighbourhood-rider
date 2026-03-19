@@ -15,25 +15,12 @@ export default async function confirmReceipt(req, res) {
         }
 
         const normalizedStatus = normalizeOrderStatus(order.status);
-        if (normalizedStatus !== ORDER_STATUS.ON_THE_WAY && normalizedStatus !== ORDER_STATUS.DELIVERED) {
-            // Allowing 'delivered' status too just in case rider marked it but user hadn't confirmed yet (though simplified flow implies user confirms first?)
-            // Actually, usually Rider marks "Arrived", then User checks, then User confirms, then Rider completes.
-            // Let's allow it if status is delivering or picking_up (in case of weird flow) but mainly delivering.
-            // Actually, let's just update the flag.
+        if (normalizedStatus !== ORDER_STATUS.DELIVERED) {
+            return res.status(400).json({ message: "Receipt is available after delivery" });
         }
 
         order.isReceived = true;
         await order.save();
-
-        // Notify Rider
-        const io = req.app.get("io");
-        if (io) {
-            io.to(`order:${orderId}`).emit("order:received", {
-                orderId,
-                message: "User has confirmed receipt!",
-                isReceived: true
-            });
-        }
 
         res.json({ success: true, message: "Receipt confirmed" });
     } catch (error) {

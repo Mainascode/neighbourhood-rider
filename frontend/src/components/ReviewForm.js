@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { API_URL } from "../lib/config";
-// import { useAuth } from "../context/AuthContext"; // Unused
+import { apiFetch } from "../lib/api";
 
-export default function ReviewForm({ orderId, targetId, targetRole, onReviewSubmit }) {
-    // const { user } = useAuth(); // Unused
+export default function ReviewForm({ orderId, onReviewSubmit }) {
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
     const [loading, setLoading] = useState(false);
@@ -15,31 +13,21 @@ export default function ReviewForm({ orderId, targetId, targetRole, onReviewSubm
         setError("");
 
         try {
-            const res = await fetch(`${API_URL}/api/reviews`, {
+            const data = await apiFetch("/api/reviews", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`
                 },
                 body: JSON.stringify({
                     orderId,
-                    targetId,
-                    targetRole,
                     rating,
                     comment
                 })
             });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                if (onReviewSubmit) onReviewSubmit(data.review);
-            } else {
-                setError(data.message || "Failed to submit review.");
-            }
+            if (onReviewSubmit) onReviewSubmit(data.rating);
         } catch (err) {
             console.error(err);
-            setError("Network error.");
+            setError(err.message || "Network error.");
         } finally {
             setLoading(false);
         }
