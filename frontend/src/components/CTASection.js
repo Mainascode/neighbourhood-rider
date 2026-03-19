@@ -10,10 +10,10 @@ export default function CTASection() {
         <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl inline-block mb-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-riderBlue/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-riderLight relative z-10">
-            Ready to order in Ruaka?
+            Ready to order?
           </h2>
           <p className="text-gray-500 font-bold text-lg max-w-2xl mx-auto relative z-10">
-            Shop fast-moving food and supermarket essentials with one checkout and delivery updates from our admin rider.
+            Shop food, groceries, drinks, and daily essentials with one checkout and clear delivery updates.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row justify-center gap-6">

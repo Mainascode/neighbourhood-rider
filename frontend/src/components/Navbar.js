@@ -12,12 +12,12 @@ export default function Navbar() {
   }, [user]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 text-riderLight px-4 md:px-6 py-3 md:py-4 flex justify-between items-center transition-all duration-300 shadow-sm">
-      <Link to="/" className="group whitespace-nowrap flex items-center gap-2">
-        <span className="text-3xl">🔔</span>
+    <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-white/80 backdrop-blur-xl text-riderLight px-4 md:px-6 py-3 md:py-4 flex justify-between items-center transition-all duration-300 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+      <Link to="/" className="group whitespace-nowrap flex items-center gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-riderMaroon via-riderBlue to-riderMaroon text-white shadow-lg">🔔</span>
         <span className="leading-tight">
           <span className="block text-[10px] md:text-xs tracking-[0.2em] uppercase text-gray-500 font-semibold">
-            Welcome To
+            Fast Local Delivery
           </span>
           <span className="block font-black text-lg md:text-2xl tracking-tight bg-gradient-to-r from-riderMaroon via-riderBlue to-riderMaroon bg-clip-text text-transparent group-hover:brightness-110 transition-all">
             Neighbourhood Rider
@@ -128,7 +128,7 @@ export default function Navbar() {
                 Logout
               </button>
             )}
-            <p className="text-xs text-center text-gray-500 mt-4">Ruaka • Gathigi Estate</p>
+            <p className="text-xs text-center text-gray-500 mt-4">Groceries • Meals • Drinks</p>
           </div>
         </div>
       </div>

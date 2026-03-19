@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { API_URL } from "../../lib/config";
+import { apiFetch, apiGetCached, invalidateCache } from "../../lib/api";
 import { FaSave, FaCloudRain, FaSun } from "react-icons/fa";
 
 export default function SystemSettings({ notify }) {
@@ -11,13 +11,10 @@ export default function SystemSettings({ notify }) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/admin/settings`, { credentials: "include" });
-        const data = await res.json();
-        if (res.ok) {
-          setSettings({
-            isRaining: Boolean(data.isRaining),
-          });
-        }
+        const data = await apiGetCached("/api/admin/settings", { ttlMs: 3000 });
+        setSettings({
+          isRaining: Boolean(data.isRaining),
+        });
       } catch (err) {
         console.error(err);
       }
@@ -30,21 +27,17 @@ export default function SystemSettings({ notify }) {
     event.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/settings`, {
+      await apiFetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(settings),
       });
-
-      if (res.ok) {
-        notify("Weather mode updated successfully.", "success");
-      } else {
-        notify("Failed to update settings", "error");
-      }
+      invalidateCache("/api/admin/settings");
+      invalidateCache("/api/admin/dashboard");
+      notify("Weather mode updated successfully.", "success");
     } catch (err) {
       console.error(err);
-      notify("Connection error", "error");
+      notify(err.message || "Connection error", "error");
     } finally {
       setLoading(false);
     }
