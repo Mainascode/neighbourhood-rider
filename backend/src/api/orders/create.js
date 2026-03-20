@@ -1,8 +1,8 @@
 import { connectDB } from "../../lib/db.js";
 import Order from "../../models/Order.js";
-import SystemSetting from "../../models/SystemSetting.js";
 import requireAuth from "../../middleware/auth.js";
-import { updateOrderStatus, ORDER_STATUS } from "../../lib/orderStatus.js";
+import OrderStatusLog from "../../models/OrderStatusLog.js";
+import { ORDER_STATUS } from "../../lib/orderStatus.js";
 import { notifyAdmin, notifyUser } from "../../lib/notificationService.js";
 
 export default async function handler(req, res) {
@@ -11,12 +11,6 @@ export default async function handler(req, res) {
   const user = requireAuth(req);
   await connectDB();
 
-  const { pickupLng, pickupLat, address, dropoff, dropoffLat, dropoffLng, isScheduled, scheduledFor } = req.body;
-
-  /* Time Validation */
-  // Late orders are allowed; no blocking here.
-
-  /* New: Handle Vendor Order */
   const { vendorId, items = [] } = req.body;
   const normalizedItems = Array.isArray(items)
     ? items.map((item) => ({
@@ -26,6 +20,8 @@ export default async function handler(req, res) {
       quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
       image: item.image || "",
       category: item.category || "",
+      note: String(item.note || "").trim(),
+      userEstimatedPrice: Number(item.userEstimatedPrice ?? item.price) || 0,
     }))
     : [];
 
@@ -33,86 +29,94 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "At least one item is required" });
   }
 
-  /* Pricing Calculation */
-  const { calculateOrderPricing } = await import("../../lib/pricing.js");
-  const goodsTotal = normalizedItems.reduce((sum, i) => sum + (Number(i.price) * Number(i.quantity || 1)), 0);
-
-  // Create pricing breakdown
-  const { pricing, distribution } = await calculateOrderPricing(
-    goodsTotal,
-    { lat: pickupLat, lng: pickupLng },
-    { lat: dropoffLat || -1.2667, lng: dropoffLng || 36.7383 }
-  );
-  let settings = await SystemSetting.findOne({ key: "global_config" });
-  if (!settings) {
-    settings = await SystemSetting.create({});
-  }
+  const estimatedTotal = normalizedItems.reduce((sum, item) => {
+    return sum + (Number(item.userEstimatedPrice || 0) * Number(item.quantity || 1));
+  }, 0);
 
   const orderData = {
     userId: user.id,
     vendorId: vendorId || null,
     items: normalizedItems,
     pickup: {
-      address: address || "Ruaka - Gathigi Estate",
+      address: "Shopping list request",
       location: {
         type: "Point",
-        coordinates: [pickupLng || 36.7383, pickupLat || -1.2667]
+        coordinates: [36.7383, -1.2667]
       }
     },
     dropoff: {
-      address: typeof dropoff === 'string' ? dropoff : (dropoff?.address || "Ruaka - Gathigi Estate"),
+      address: "Customer delivery address",
       location: {
         type: "Point",
-        coordinates: [dropoffLng || 36.7383, dropoffLat || -1.2667]
+        coordinates: [36.7383, -1.2667]
       }
     },
-    status: ORDER_STATUS.CREATED,
-
-    // Financials
-    pricing,
-    distribution,
-    goodsTotal: pricing.goodsTotal,
-    deliveryFee: pricing.deliveryFee,
-    amount: pricing.totalCost,
-    etaMinutes: pricing.etaMinutes,
+    status: ORDER_STATUS.DRAFT,
+    pricing: {
+      goodsTotal: 0,
+      deliveryFee: 0,
+      serviceFee: 0,
+      totalCost: 0,
+    },
+    distribution: {
+      vendorPayout: 0,
+      riderPayout: 0,
+      adminRevenue: 0,
+      splits: {
+        vendor: 0,
+        rider: 0,
+        admin: 0,
+      }
+    },
+    goodsTotal: 0,
+    estimatedTotal,
+    finalTotal: 0,
+    deliveryFee: 0,
+    amount: 0,
+    etaMinutes: null,
     lateOrder: false,
-
     isDeliveryFeePaid: false,
     paymentMethod: "mpesa",
     completionOtp: Math.floor(1000 + Math.random() * 9000).toString(),
-    isScheduled: Boolean(isScheduled),
-    scheduledFor: scheduledFor || null,
-    paymentData: {
-      isRaining: Boolean(settings.isRaining),
-    },
+    isScheduled: false,
+    scheduledFor: null,
+    paymentData: {},
   };
 
   const order = await Order.create(orderData);
+  console.log("ORDER STATUS:", order.status, String(order._id), "source=orders.create");
 
-  await updateOrderStatus({
+  await OrderStatusLog.create({
     orderId: order._id,
-    fromStatusRaw: order.status,
-    toStatus: ORDER_STATUS.PAYMENT_PENDING,
-    actor: { id: user.id, role: user.role, name: user.name },
+    fromStatus: ORDER_STATUS.DRAFT,
+    toStatus: ORDER_STATUS.DRAFT,
+    actorId: user.id,
+    actorRole: user.role,
+    actorName: user.name,
     source: "orders.create",
-    io: req.app.get("io"),
   });
 
   await notifyUser({
     recipientId: user.id,
-    title: "Order created",
-    body: "Your order has been created. Complete M-Pesa payment to continue.",
+    title: "Shopping list submitted",
+    body: "Your request has been submitted. The admin will review it and send the final price.",
     orderId: String(order._id),
-    eventType: "ORDER_CREATED",
-    data: { status: ORDER_STATUS.PAYMENT_PENDING },
+    eventType: "ORDER_DRAFT",
+    data: { status: ORDER_STATUS.DRAFT },
   });
   await notifyAdmin({
-    title: "New order created",
-    body: `Order #${String(order._id).slice(-6)} is waiting for payment.`,
+    title: "New shopping list",
+    body: `Order #${String(order._id).slice(-6)} is ready for admin review.`,
     orderId: String(order._id),
     deepLink: "/admin/dashboard",
-    eventType: "NEW_ORDER_CREATED",
+    eventType: "NEW_ORDER_DRAFT",
   });
 
-  res.status(201).json({ order, suggestedRiders: [], assignedTo: null });
+  res.status(201).json({
+    success: true,
+    order,
+    suggestedRiders: [],
+    assignedTo: null,
+    message: "Shopping list submitted",
+  });
 }

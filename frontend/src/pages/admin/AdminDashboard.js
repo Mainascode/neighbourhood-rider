@@ -1,25 +1,54 @@
-import { useEffect, useState, useCallback } from "react";
-import { apiFetch, apiGetCached } from "../../lib/api";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { apiFetch, apiGetCached, invalidateCache } from "../../lib/api";
 import { useNotify } from "../../context/NotificationContext";
-import { FaBoxOpen, FaMoneyBillWave, FaCloudRain, FaClock, FaCog, FaUsers } from "react-icons/fa";
+import { FaBoxOpen, FaMoneyBillWave, FaClock, FaCog, FaUsers, FaClipboardList } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import SystemSettings from "./SystemSettings";
 
 const STATUS_OPTIONS = [
-  { value: "PROCESSING", label: "Processing" },
-  { value: "ON_THE_WAY", label: "On the way" },
+  { value: "SHOPPING", label: "Shopping" },
+  { value: "DELIVERING", label: "Delivering" },
   { value: "DELIVERED", label: "Delivered" },
 ];
 
 function normalizeStatus(status) {
   const raw = String(status || "").toUpperCase();
-  if (["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"].includes(raw)) return "PAYMENT_PENDING";
-  if (["PAID", "PROCESSING", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED"].includes(raw)) return "PROCESSING";
-  if (raw === "ON_THE_WAY") return "ON_THE_WAY";
+  if (raw === "DRAFT") return "DRAFT";
+  if (["AWAITING_CONFIRMATION", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"].includes(raw)) return "AWAITING_CONFIRMATION";
+  if (raw === "PAID") return "PAID";
+  if (["SHOPPING", "PROCESSING", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED"].includes(raw)) return "SHOPPING";
+  if (["DELIVERING", "ON_THE_WAY"].includes(raw)) return "DELIVERING";
   if (raw === "DELIVERED") return "DELIVERED";
   if (raw === "REFUNDED") return "REFUNDED";
   if (raw === "CANCELLED") return "CANCELLED";
-  return raw;
+  return "DRAFT";
+}
+
+function computeDeliveryPreview(isRaining) {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 9) return isRaining ? 120 : 100;
+  if (hour >= 9 && hour < 17) return isRaining ? 70 : 50;
+  if (hour >= 18 && hour < 22) return isRaining ? 120 : 100;
+  return isRaining ? 120 : 100;
+}
+
+function seedReviewItems(order) {
+  const sourceItems = Array.isArray(order.finalItems) && order.finalItems.length > 0
+    ? order.finalItems
+    : Array.isArray(order.items)
+      ? order.items
+      : [];
+
+  return sourceItems.map((item, index) => ({
+    _id: item._id || `${order._id}-${index}`,
+    name: item.name || "Item",
+    quantity: Math.max(1, Number(item.quantity) || 1),
+    finalPrice: Number(item.finalPrice ?? item.price ?? item.userEstimatedPrice) || 0,
+    userEstimatedPrice: Number(item.userEstimatedPrice ?? item.price) || 0,
+    note: item.note || "",
+    image: item.image || "",
+    category: item.category || "",
+  }));
 }
 
 export default function AdminDashboard() {
@@ -27,6 +56,8 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({
     totalOrders: 0,
+    draftOrders: 0,
+    awaitingConfirmationOrders: 0,
     unpaidOrders: 0,
     paidOrders: 0,
     processingOrders: 0,
@@ -36,6 +67,7 @@ export default function AdminDashboard() {
     isRaining: false,
   });
   const [notifications, setNotifications] = useState([]);
+  const [reviewEdits, setReviewEdits] = useState({});
   const { notify } = useNotify();
 
   const addNotification = useCallback((msg, type = "info") => {
@@ -70,7 +102,87 @@ export default function AdminDashboard() {
     fetchOrders();
   }, [fetchDashboard, fetchOrders]);
 
-  const updateOrderStatus = async (orderId, status) => {
+  useEffect(() => {
+    setReviewEdits((prev) => {
+      const next = { ...prev };
+      for (const order of orders) {
+        const status = normalizeStatus(order.status);
+        if ((status === "DRAFT" || status === "AWAITING_CONFIRMATION") && !next[order._id]) {
+          next[order._id] = seedReviewItems(order);
+        }
+      }
+      return next;
+    });
+  }, [orders]);
+
+  const deliveryPreview = computeDeliveryPreview(stats.isRaining);
+
+  const orderedRows = useMemo(() => {
+    const priority = { DRAFT: 0, AWAITING_CONFIRMATION: 1, PAID: 2, SHOPPING: 3, DELIVERING: 4, DELIVERED: 5, CANCELLED: 6, REFUNDED: 7 };
+    return [...orders].sort((a, b) => {
+      const pa = priority[normalizeStatus(a.status)] ?? 99;
+      const pb = priority[normalizeStatus(b.status)] ?? 99;
+      if (pa !== pb) return pa - pb;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [orders]);
+
+  const updateReviewItem = (orderId, itemId, field, value) => {
+    setReviewEdits((prev) => ({
+      ...prev,
+      [orderId]: (prev[orderId] || []).map((item) =>
+        item._id === itemId
+          ? {
+              ...item,
+              [field]: field === "quantity" || field === "finalPrice"
+                ? Math.max(0, Number(value) || 0)
+                : value,
+            }
+          : item
+      ),
+    }));
+  };
+
+  const removeReviewItem = (orderId, itemId) => {
+    setReviewEdits((prev) => ({
+      ...prev,
+      [orderId]: (prev[orderId] || []).filter((item) => item._id !== itemId),
+    }));
+  };
+
+  const sendFinalPrice = async (orderId) => {
+    try {
+      const finalItems = (reviewEdits[orderId] || []).map((item) => ({
+        _id: item._id,
+        name: item.name,
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        finalPrice: Math.max(0, Number(item.finalPrice) || 0),
+        userEstimatedPrice: Math.max(0, Number(item.userEstimatedPrice) || 0),
+        note: item.note || "",
+        image: item.image || "",
+        category: item.category || "",
+      }));
+
+      const updatedOrder = await apiFetch(`/api/admin/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "review",
+          finalItems,
+        }),
+      });
+
+      setOrders((prev) => prev.map((order) => (order._id === orderId ? updatedOrder : order)));
+      invalidateCache("/api/admin/dashboard");
+      addNotification("Final price sent to customer.", "success");
+      fetchDashboard();
+    } catch (error) {
+      console.error(error);
+      addNotification(error.message || "Failed to send final price.", "error");
+    }
+  };
+
+  const updateFulfilmentStatus = async (orderId, status) => {
     try {
       const updatedOrder = await apiFetch(`/api/admin/orders/${orderId}/status`, {
         method: "PATCH",
@@ -79,11 +191,12 @@ export default function AdminDashboard() {
       });
 
       setOrders((prev) => prev.map((order) => (order._id === orderId ? updatedOrder : order)));
+      invalidateCache("/api/admin/dashboard");
       addNotification(`Order moved to ${status.replaceAll("_", " ")}.`, "success");
       fetchDashboard();
     } catch (error) {
       console.error(error);
-      addNotification("Failed to update order status.", "error");
+      addNotification(error.message || "Failed to update order status.", "error");
     }
   };
 
@@ -100,26 +213,16 @@ export default function AdminDashboard() {
 
         <nav className="w-full flex lg:block gap-2 overflow-x-auto px-3 pb-1 lg:space-y-3 relative z-10">
           <NavItem icon={<FaBoxOpen />} label="Overview" active={activeModal === null} onClick={() => setActiveModal(null)} />
-          <NavItem icon={<FaClock />} label="Orders" active={activeModal === "orders"} onClick={() => setActiveModal("orders")} />
+          <NavItem icon={<FaClipboardList />} label="Requests" active={activeModal === "orders"} onClick={() => setActiveModal("orders")} />
           <NavItem icon={<FaCog />} label="Weather" active={activeModal === "settings"} onClick={() => setActiveModal("settings")} />
         </nav>
-
-        <div className="hidden lg:block mt-auto w-full px-3 relative z-10">
-          <button
-            onClick={() => { window.location.href = "/"; }}
-            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-full text-gray-600 hover:text-white hover:bg-riderBlue transition-all font-bold hover:shadow-lg"
-          >
-            <span className="text-lg">←</span>
-            <span className="hidden lg:block">Go Back</span>
-          </button>
-        </div>
       </aside>
 
       <main className="flex-1 relative overflow-y-auto lg:h-screen p-3 md:p-4 lg:p-10 safe-pad-bottom">
         <header className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-10">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Single-Rider Control Panel</h1>
-            <p className="text-gray-600 text-sm mt-1">Manage weather, paid orders, and delivery progress in one mobile-friendly workspace.</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Single Admin Assisted Shopping</h1>
+            <p className="text-gray-600 text-sm mt-1">Review lists, send final prices, track payment, and fulfil orders from one place.</p>
           </div>
           <div className="flex items-center gap-3">
             <div className={`px-4 py-2 rounded-full text-sm font-bold ${stats.isRaining ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>
@@ -148,20 +251,20 @@ export default function AdminDashboard() {
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <StatCard title="Total Revenue" value={`KES ${stats.totalRevenue || 0}`} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-green-400 to-emerald-600" />
-            <StatCard title="Total Orders" value={stats.totalOrders || 0} icon={<FaBoxOpen className="text-white text-2xl" />} color="bg-gradient-to-br from-purple-400 to-violet-600" />
-            <StatCard title="Unpaid Orders" value={stats.unpaidOrders || 0} icon={<FaClock className="text-white text-2xl" />} color="bg-gradient-to-br from-pink-400 to-rose-600" />
+            <StatCard title="Draft Requests" value={stats.draftOrders || 0} icon={<FaClipboardList className="text-white text-2xl" />} color="bg-gradient-to-br from-purple-400 to-violet-600" />
+            <StatCard title="Awaiting Confirmation" value={stats.awaitingConfirmationOrders || 0} icon={<FaClock className="text-white text-2xl" />} color="bg-gradient-to-br from-pink-400 to-rose-600" />
             <StatCard title="Paid Orders" value={stats.paidOrders || 0} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-blue-400 to-indigo-600" />
-            <StatCard title="Active Deliveries" value={stats.processingOrders || 0} icon={<FaCloudRain className="text-white text-2xl" />} color="bg-gradient-to-br from-cyan-400 to-sky-600" />
+            <StatCard title="Active Fulfilment" value={stats.processingOrders || 0} icon={<FaBoxOpen className="text-white text-2xl" />} color="bg-gradient-to-br from-cyan-400 to-sky-600" />
             <StatCard title="Customers" value={stats.totalUsers || 0} icon={<FaUsers className="text-white text-2xl" />} color="bg-gradient-to-br from-orange-400 to-red-500" />
+            <StatCard title="Revenue" value={`KES ${stats.totalRevenue || 0}`} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-green-400 to-emerald-600" />
           </div>
 
           {(activeModal === null || activeModal === "orders") && (
             <section className="rounded-[1.75rem] md:rounded-3xl bg-white/70 backdrop-blur-md border border-riderBlue/10 p-4 md:p-6 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold">Incoming Orders</h2>
-                  <p className="text-sm text-gray-600">Paid orders move through Processing → On the way → Delivered.</p>
+                  <h2 className="text-2xl font-bold">Shopping Requests</h2>
+                  <p className="text-sm text-gray-600">Draft requests can be reviewed and quoted here. Delivery fee preview: KES {deliveryPreview}.</p>
                 </div>
                 <button
                   onClick={() => {
@@ -175,66 +278,132 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-4">
-                {orders.map((order) => {
+                {orderedRows.map((order) => {
                   const status = normalizeStatus(order.status);
-                  const canAdvance = ["PROCESSING", "ON_THE_WAY", "DELIVERED"].includes(status) || status === "PAYMENT_PENDING";
+                  const editableItems = reviewEdits[order._id] || [];
+                  const quoteItemsTotal = editableItems.reduce((sum, item) => {
+                    return sum + (Number(item.finalPrice || 0) * Number(item.quantity || 1));
+                  }, 0);
+                  const quotePreviewTotal = quoteItemsTotal + deliveryPreview;
+
                   return (
                     <div key={order._id} className="rounded-2xl border border-riderBlue/10 bg-white/80 p-4 md:p-5 shadow-sm">
                       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-3 mb-3">
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-riderBlue/10 text-riderBlue">
+                              {status.replaceAll("_", " ")}
+                            </span>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                               order.paid ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
                             }`}>
-                              {order.paid ? "Paid" : "Awaiting payment"}
-                            </span>
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-riderBlue/10 text-riderBlue">
-                              {status.replaceAll("_", " ")}
+                              {order.paid ? "Paid" : "Not paid"}
                             </span>
                             <span className="text-xs text-gray-500">#{order._id.slice(-6).toUpperCase()}</span>
                           </div>
 
-                          <div className="grid md:grid-cols-2 gap-4">
+                          <div className="grid md:grid-cols-2 gap-4 mb-4">
                             <div>
                               <h3 className="font-bold text-lg">{order.userId?.name || "Customer"}</h3>
                               <p className="text-sm text-gray-600">{order.userId?.email || "No email"}</p>
-                              <p className="text-sm text-gray-600 mt-1">{order.dropoff?.address || "Ruaka - Gathigi Estate"}</p>
+                              <p className="text-sm text-gray-600 mt-1">Estimated total: KES {order.estimatedTotal || 0}</p>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                               <InfoPill label="Items" value={`KES ${order.goodsTotal || 0}`} />
                               <InfoPill label="Delivery" value={`KES ${order.deliveryFee || 0}`} />
-                              <InfoPill label="Total" value={`KES ${order.amount || 0}`} />
+                              <InfoPill label="Final" value={`KES ${order.finalTotal || order.amount || 0}`} />
                             </div>
                           </div>
 
-                          <div className="mt-4 rounded-2xl bg-gray-50 border border-gray-100 p-4">
-                            <div className="text-sm font-bold text-riderLight mb-2">Order breakdown</div>
-                            <ul className="space-y-2 text-sm text-gray-700">
-                              {(order.items || []).map((item, index) => (
-                                <li key={`${order._id}-${index}`} className="flex justify-between gap-4">
-                                  <span>{item.name || "Item"} x{item.quantity || 1}</span>
-                                  <span className="font-bold">KES {(item.price || 0) * (item.quantity || 1)}</span>
-                                </li>
+                          {(status === "DRAFT" || status === "AWAITING_CONFIRMATION") ? (
+                            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 space-y-3">
+                              <div className="text-sm font-bold text-riderLight">Admin Review</div>
+                              {editableItems.map((item) => (
+                                <div key={item._id} className="rounded-xl border border-gray-200 bg-white p-3">
+                                  <div className="flex justify-between gap-3 items-start">
+                                    <div className="flex-1">
+                                      <div className="font-bold text-riderLight">{item.name}</div>
+                                      {item.note ? <div className="text-xs text-gray-500 mt-1">Note: {item.note}</div> : null}
+                                      <div className="grid grid-cols-2 gap-3 mt-3">
+                                        <div>
+                                          <label className="block text-[11px] uppercase tracking-wide text-gray-500 font-bold mb-1">Qty</label>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            value={item.quantity}
+                                            onChange={(event) => updateReviewItem(order._id, item._id, "quantity", event.target.value)}
+                                            className="w-full rounded-xl border border-gray-200 px-3 py-2"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] uppercase tracking-wide text-gray-500 font-bold mb-1">Final Price</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={item.finalPrice}
+                                            onChange={(event) => updateReviewItem(order._id, item._id, "finalPrice", event.target.value)}
+                                            className="w-full rounded-xl border border-gray-200 px-3 py-2"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => removeReviewItem(order._id, item._id)}
+                                      className="text-xs font-bold text-red-500"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
                               ))}
-                            </ul>
-                          </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                                <InfoPill label="Items Total" value={`KES ${quoteItemsTotal}`} />
+                                <InfoPill label="Delivery Fee" value={`KES ${deliveryPreview}`} />
+                                <InfoPill label="Quote Total" value={`KES ${quotePreviewTotal}`} />
+                              </div>
+
+                              <button
+                                onClick={() => sendFinalPrice(order._id)}
+                                className="w-full min-h-[46px] px-4 py-3 rounded-xl font-bold bg-riderMaroon text-white hover:bg-rose-700"
+                              >
+                                {status === "DRAFT" ? "Send Final Price" : "Update Final Price"}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                              <div className="text-sm font-bold text-riderLight mb-2">Final Items</div>
+                              <ul className="space-y-2 text-sm text-gray-700">
+                                {(order.finalItems?.length ? order.finalItems : order.items || []).map((item, index) => (
+                                  <li key={`${order._id}-${index}`} className="flex justify-between gap-4">
+                                    <span>{item.name || "Item"} x{item.quantity || 1}</span>
+                                    <span className="font-bold">KES {(Number(item.finalPrice ?? item.price ?? item.userEstimatedPrice) || 0) * (Number(item.quantity) || 1)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
 
                         <div className="xl:w-64 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
-                          {canAdvance ? (
+                          {status === "PAID" || status === "SHOPPING" || status === "DELIVERING" ? (
                             STATUS_OPTIONS.map((option) => (
                               <button
                                 key={option.value}
-                                onClick={() => updateOrderStatus(order._id, option.value)}
+                                onClick={() => updateFulfilmentStatus(order._id, option.value)}
                                 disabled={!order.paid || status === option.value}
                                 className="w-full min-h-[46px] px-4 py-3 rounded-xl font-bold bg-riderBlue text-white hover:bg-blue-600 disabled:opacity-40"
                               >
                                 Mark {option.label}
                               </button>
                             ))
+                          ) : status === "AWAITING_CONFIRMATION" ? (
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                              Waiting for customer confirmation and payment.
+                            </div>
                           ) : (
                             <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                              No admin action needed.
+                              No fulfilment action needed.
                             </div>
                           )}
                         </div>
@@ -243,7 +412,7 @@ export default function AdminDashboard() {
                   );
                 })}
 
-                {orders.length === 0 && (
+                {orderedRows.length === 0 && (
                   <div className="text-center py-16 text-gray-500">
                     No orders found.
                   </div>

@@ -21,11 +21,13 @@ export async function getOrderStatus(req, res) {
         const response = {
             status: normalizedStatus,
             searching: searching,
-            riderAssigned: ["PROCESSING", "ON_THE_WAY", "DELIVERED"].includes(normalizedStatus),
+            riderAssigned: ["SHOPPING", "DELIVERING", "DELIVERED", "PROCESSING", "ON_THE_WAY"].includes(normalizedStatus),
             paid: Boolean(order.paid),
-            totalPaid: Number(order.amount || 0),
+            totalPaid: Number(order.finalTotal || order.amount || 0),
             deliveryFee: Number(order.deliveryFee || 0),
             itemsTotal: Number(order.goodsTotal || 0),
+            finalTotal: Number(order.finalTotal || order.amount || 0),
+            awaitingConfirmation: normalizedStatus === "AWAITING_CONFIRMATION",
             updatedAt: order.updatedAt,
         };
 

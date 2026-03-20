@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { FaComments, FaPaperPlane, FaTimes } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_URL } from "../lib/config";
+import { API_URL, ENABLE_MAPS } from "../lib/config";
 
 
 // Replace with actual Admin WhatsApp
@@ -95,6 +95,7 @@ export default function ChatBot({ user }) {
 
   /* Geo-Location Helper */
   const getLocation = () => {
+    if (!ENABLE_MAPS) return;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {

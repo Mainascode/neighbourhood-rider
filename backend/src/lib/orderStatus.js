@@ -3,13 +3,17 @@ import Order from "../models/Order.js";
 import { sendNotification } from "./notificationService.js";
 
 export const ORDER_STATUS = {
+  DRAFT: "DRAFT",
+  AWAITING_CONFIRMATION: "AWAITING_CONFIRMATION",
+  PAID: "PAID",
+  SHOPPING: "SHOPPING",
+  DELIVERING: "DELIVERING",
+  DELIVERED: "DELIVERED",
   CREATED: "CREATED",
   PAYMENT_PENDING: "PAYMENT_PENDING",
   PAYMENT_CONFIRMED: "PAYMENT_CONFIRMED",
-  PAID: "PAID",
   PROCESSING: "PROCESSING",
   ON_THE_WAY: "ON_THE_WAY",
-  DELIVERED: "DELIVERED",
   CANCELLED: "CANCELLED",
   REFUNDED: "REFUNDED",
   VENDOR_ACCEPTED: "VENDOR_ACCEPTED",
@@ -22,12 +26,16 @@ export const ORDER_STATUS = {
 export const ORDER_STATUSES = Object.values(ORDER_STATUS);
 
 const STATUS_MESSAGES = {
+  [ORDER_STATUS.DRAFT]: "Shopping list submitted",
+  [ORDER_STATUS.AWAITING_CONFIRMATION]: "Final price ready for confirmation",
+  [ORDER_STATUS.PAID]: "Payment confirmed",
+  [ORDER_STATUS.SHOPPING]: "Admin is shopping for your order",
+  [ORDER_STATUS.DELIVERING]: "Your order is out for delivery",
+  [ORDER_STATUS.DELIVERED]: "Order delivered",
   [ORDER_STATUS.PAYMENT_PENDING]: "Confirming payment",
   [ORDER_STATUS.PAYMENT_CONFIRMED]: "Payment confirmed",
-  [ORDER_STATUS.PAID]: "Payment confirmed",
   [ORDER_STATUS.PROCESSING]: "Admin is preparing your order",
   [ORDER_STATUS.ON_THE_WAY]: "Your order is on the way",
-  [ORDER_STATUS.DELIVERED]: "Order delivered",
   [ORDER_STATUS.CANCELLED]: "Order cancelled",
   [ORDER_STATUS.REFUNDED]: "Order refunded",
   [ORDER_STATUS.CREATED]: "Order created",
@@ -38,6 +46,12 @@ export function getStatusMessage(status) {
 }
 
 const ALLOWED_TRANSITIONS = {
+  [ORDER_STATUS.DRAFT]: [ORDER_STATUS.AWAITING_CONFIRMATION, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.AWAITING_CONFIRMATION]: [ORDER_STATUS.PAID, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PAID]: [ORDER_STATUS.SHOPPING, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.SHOPPING]: [ORDER_STATUS.DELIVERING, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.DELIVERING]: [ORDER_STATUS.DELIVERED],
+  [ORDER_STATUS.DELIVERED]: [],
   [ORDER_STATUS.CREATED]: [ORDER_STATUS.PAYMENT_PENDING, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.PAYMENT_PENDING]: [ORDER_STATUS.PAYMENT_CONFIRMED, ORDER_STATUS.PAID, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.PAYMENT_CONFIRMED]: [ORDER_STATUS.PAID, ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
@@ -50,29 +64,33 @@ const ALLOWED_TRANSITIONS = {
 };
 
 const LEGACY_STATUS_MAP = {
+  draft: ORDER_STATUS.DRAFT,
+  awaiting_confirmation: ORDER_STATUS.AWAITING_CONFIRMATION,
   pending: ORDER_STATUS.CREATED,
   payment_pending: ORDER_STATUS.PAYMENT_PENDING,
   payment_failed: ORDER_STATUS.PAYMENT_PENDING,
   pending_vendor: ORDER_STATUS.PAID,
   paid: ORDER_STATUS.PAID,
+  shopping: ORDER_STATUS.SHOPPING,
+  delivering: ORDER_STATUS.DELIVERING,
   processing: ORDER_STATUS.PROCESSING,
   preparing: ORDER_STATUS.PREPARING,
   ready_for_pickup: ORDER_STATUS.PROCESSING,
   pending_rider: ORDER_STATUS.PROCESSING,
   assigned: ORDER_STATUS.PROCESSING,
   picking_up: ORDER_STATUS.PROCESSING,
-  delivering: ORDER_STATUS.ON_THE_WAY,
+  on_the_way: ORDER_STATUS.DELIVERING,
   delivered: ORDER_STATUS.DELIVERED,
   completed: ORDER_STATUS.DELIVERED,
   cancelled: ORDER_STATUS.CANCELLED,
 };
 
 export function normalizeOrderStatus(status) {
-  if (!status) return status;
+  if (!status) return ORDER_STATUS.DRAFT;
   const upper = String(status).toUpperCase();
   if (ORDER_STATUSES.includes(upper)) return upper;
   const lower = String(status).toLowerCase();
-  return LEGACY_STATUS_MAP[lower] || status;
+  return LEGACY_STATUS_MAP[lower] || ORDER_STATUS.DRAFT;
 }
 
 function canCancel(fromStatus, actorRole) {
@@ -180,6 +198,18 @@ export async function updateOrderStatus({
     const actorRole = actor?.role || "system";
 
     const userNotifications = {
+      [ORDER_STATUS.DRAFT]: {
+        title: "Shopping list submitted",
+        body: "Your shopping list has been sent to the admin for review.",
+        eventType: "ORDER_DRAFT",
+        deepLink: "/order",
+      },
+      [ORDER_STATUS.AWAITING_CONFIRMATION]: {
+        title: "Final price ready",
+        body: "Your updated shopping list is ready. Review it and confirm payment.",
+        eventType: "ORDER_AWAITING_CONFIRMATION",
+        deepLink: "/order",
+      },
       [ORDER_STATUS.PAYMENT_CONFIRMED]: {
         title: "Payment confirmed",
         body: "Your payment was confirmed.",
@@ -188,8 +218,20 @@ export async function updateOrderStatus({
       },
       [ORDER_STATUS.PAID]: {
         title: "Payment confirmed",
-        body: "Your order has been paid and is waiting for processing.",
+        body: "Your order has been paid and is ready for fulfilment.",
         eventType: "ORDER_PAID",
+        deepLink: "/orders",
+      },
+      [ORDER_STATUS.SHOPPING]: {
+        title: "Shopping in progress",
+        body: "The admin is shopping for your requested items.",
+        eventType: "ORDER_SHOPPING",
+        deepLink: "/orders",
+      },
+      [ORDER_STATUS.DELIVERING]: {
+        title: "Delivery in progress",
+        body: "Your order is on the way.",
+        eventType: "ORDER_DELIVERING",
         deepLink: "/orders",
       },
       [ORDER_STATUS.PROCESSING]: {

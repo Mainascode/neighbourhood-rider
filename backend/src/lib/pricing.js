@@ -2,6 +2,10 @@ import axios from "axios";
 import DistanceCache from "../models/DistanceCache.js";
 import SystemSetting from "../models/SystemSetting.js";
 
+function mapsEnabled() {
+    return String(process.env.ENABLE_MAPS || "false").toLowerCase() === "true";
+}
+
 function getEathour() {
     const formatter = new Intl.DateTimeFormat("en-KE", {
         timeZone: "Africa/Nairobi",
@@ -29,6 +33,20 @@ function getDynamicDeliveryFee(isRaining) {
     return isRaining ? 120 : 100;
 }
 
+export async function calculateReviewDeliveryFee() {
+    try {
+        let settings = await SystemSetting.findOne({ key: "global_config" });
+        if (!settings) {
+            settings = await SystemSetting.create({});
+        }
+
+        return getDynamicDeliveryFee(Boolean(settings.isRaining));
+    } catch (error) {
+        console.error("Delivery fee fallback applied:", error.message);
+        return 100;
+    }
+}
+
 export async function calculateOrderPricing(goodsTotal, pickup, dropoff, overrides = {}) {
     // 0. Fetch System Settings
     let settings = await SystemSetting.findOne({ key: "global_config" });
@@ -43,7 +61,7 @@ export async function calculateOrderPricing(goodsTotal, pickup, dropoff, overrid
     let duration = null;
     let etaMinutes = null;
 
-    if (pickup && dropoff && pickup.lat && pickup.lng && dropoff.lat && dropoff.lng) {
+    if (mapsEnabled() && pickup && dropoff && pickup.lat && pickup.lng && dropoff.lat && dropoff.lng) {
         try {
             // 1. Generate Cache Keys (Round to ~1km precision, 2 decimal places)
             const pickupArea = `Lat: ${Number(pickup.lat).toFixed(2)}, Lng: ${Number(pickup.lng).toFixed(2)}`;

@@ -7,13 +7,15 @@ import { Link } from "react-router-dom";
 
 function normalizeStatus(status) {
   const raw = String(status || "").toUpperCase();
-  if (["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"].includes(raw)) return "PAYMENT_PENDING";
-  if (["PAID", "PROCESSING", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED"].includes(raw)) return "PROCESSING";
-  if (raw === "ON_THE_WAY") return "ON_THE_WAY";
+  if (raw === "DRAFT") return "DRAFT";
+  if (["AWAITING_CONFIRMATION", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"].includes(raw)) return "AWAITING_CONFIRMATION";
+  if (raw === "PAID") return "PAID";
+  if (["SHOPPING", "PROCESSING", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED"].includes(raw)) return "SHOPPING";
+  if (["DELIVERING", "ON_THE_WAY"].includes(raw)) return "DELIVERING";
   if (raw === "DELIVERED") return "DELIVERED";
   if (raw === "REFUNDED") return "REFUNDED";
   if (raw === "CANCELLED") return "CANCELLED";
-  return raw;
+  return "DRAFT";
 }
 
 export default function MyOrders() {
@@ -46,7 +48,7 @@ export default function MyOrders() {
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const status = normalizeStatus(order.status);
-      if (activeTab === "pending") return ["PAYMENT_PENDING", "PROCESSING", "ON_THE_WAY"].includes(status);
+      if (activeTab === "pending") return ["DRAFT", "AWAITING_CONFIRMATION", "PAID", "SHOPPING", "DELIVERING"].includes(status);
       if (activeTab === "completed") return status === "DELIVERED";
       if (activeTab === "cancelled") return ["CANCELLED", "REFUNDED"].includes(status);
       return true;
@@ -92,7 +94,7 @@ export default function MyOrders() {
               onClick={() => setActiveTab("pending")}
               label="Pending"
               icon={<FaClock />}
-              count={orders.filter((order) => ["PAYMENT_PENDING", "PROCESSING", "ON_THE_WAY"].includes(normalizeStatus(order.status))).length}
+              count={orders.filter((order) => ["DRAFT", "AWAITING_CONFIRMATION", "PAID", "SHOPPING", "DELIVERING"].includes(normalizeStatus(order.status))).length}
             />
             <TabButton
               active={activeTab === "completed"}
@@ -147,7 +149,7 @@ export default function MyOrders() {
                         <span className="text-gray-600 text-xs">#{order._id.slice(-6).toUpperCase()}</span>
                         <span className="text-gray-600 text-xs">• {new Date(order.createdAt).toLocaleString()}</span>
                       </div>
-                      <h3 className="font-bold text-lg mb-1 text-riderLight">{order.items?.length || 0} items</h3>
+                      <h3 className="font-bold text-lg mb-1 text-riderLight">{(order.finalItems?.length || order.items?.length || 0)} items</h3>
                       <p className="text-sm text-gray-600">{order.dropoff?.address || order.pickup?.address || "Ruaka - Gathigi Estate"}</p>
                       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                         <div className="rounded-xl bg-black/10 px-3 py-3">
@@ -160,7 +162,7 @@ export default function MyOrders() {
                         </div>
                         <div className="rounded-xl bg-black/10 px-3 py-3">
                           <div className="text-gray-500">Total paid</div>
-                          <div className="font-bold text-riderMaroon">KES {order.amount || 0}</div>
+                          <div className="font-bold text-riderMaroon">KES {order.finalTotal || order.amount || 0}</div>
                         </div>
                       </div>
                     </div>
@@ -212,9 +214,9 @@ export default function MyOrders() {
               <div>
                 <span className="font-semibold">Items</span>
                 <ul className="mt-1 text-xs text-gray-600 space-y-1">
-                  {receiptOrder.items?.map((item, index) => (
+                  {(receiptOrder.finalItems?.length ? receiptOrder.finalItems : receiptOrder.items || []).map((item, index) => (
                     <li key={`${item.name}-${index}`}>
-                      {item.name || "Item"} x{item.quantity || 1} - KES {(item.price || 0) * (item.quantity || 1)}
+                      {item.name || "Item"} x{item.quantity || 1} - KES {(Number(item.finalPrice ?? item.price ?? item.userEstimatedPrice) || 0) * (item.quantity || 1)}
                     </li>
                   ))}
                 </ul>
@@ -229,7 +231,7 @@ export default function MyOrders() {
               </div>
               <div className="flex justify-between">
                 <span className="font-semibold">Total paid</span>
-                <span className="font-bold">KES {receiptOrder.amount || 0}</span>
+                <span className="font-bold">KES {receiptOrder.finalTotal || receiptOrder.amount || 0}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-semibold">Status</span>

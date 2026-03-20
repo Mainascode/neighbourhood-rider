@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import { ENABLE_MAPS } from "../lib/config";
 
 const LIBRARIES = ["places"];
 
 export default function LiveMap({ role, order, socket, riderLocation, deliveryLocation, userLocation }) {
+    if (!ENABLE_MAPS) {
+        return (
+            <div className="h-[320px] w-full flex items-center justify-center rounded-3xl border border-riderBlue/10 bg-riderBlack/30 px-6 text-center text-sm text-gray-400">
+                Live map is currently disabled. Order updates will continue through status notifications.
+            </div>
+        );
+    }
+
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,

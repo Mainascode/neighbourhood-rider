@@ -302,6 +302,9 @@ export default function setupSocket(io) {
     });
 
     socket.on("rider:location", async ({ orderId, lat, lng }) => {
+      if (String(process.env.ENABLE_MAPS || "false").toLowerCase() !== "true") {
+        return;
+      }
       if (!isRider(socket)) return;
 
       const location = parseLocationPayload({ lat, lng });
@@ -347,6 +350,9 @@ export default function setupSocket(io) {
     });
 
     socket.on("user:location", async ({ orderId, lat, lng }) => {
+      if (String(process.env.ENABLE_MAPS || "false").toLowerCase() !== "true") {
+        return;
+      }
       if (!socket.user) return;
       if (String(socket.user.role || "").toLowerCase() !== "user") return;
       if (!orderId) return;

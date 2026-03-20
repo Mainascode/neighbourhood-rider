@@ -260,8 +260,9 @@ export const handleMpesaCallback = async (req, res) => {
             const order = await Order.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
 
             if (order) {
+                console.log("ORDER STATUS:", order.status, String(order._id), "source=payments.mpesa_callback.before");
                 const amt = Number(amount);
-                const matchesTotal = Math.abs(order.amount - amt) < 10;
+                const matchesTotal = Math.abs((order.finalTotal || order.amount) - amt) < 10;
                 const matchesDelivery = Math.abs(order.deliveryFee - amt) < 10;
                 if (!matchesTotal && !matchesDelivery) {
                     await MpesaTransaction.findOneAndUpdate(
@@ -295,11 +296,12 @@ export const handleMpesaCallback = async (req, res) => {
                 // Let's assume this handles the main full payment or delivery fee payment based on context. 
                 // Checks:
                 const setUpdates = {};
-                if (Math.abs(order.amount - amount) < 10) {
+                if (Math.abs((order.finalTotal || order.amount) - amount) < 10) {
                     setUpdates.paid = true;
                     setUpdates.goodsPaid = true;
                     setUpdates.isDeliveryFeePaid = true;
                     setUpdates.paymentMethod = "mpesa";
+                    setUpdates.paidAt = new Date();
                 } else if (Math.abs(order.deliveryFee - amount) < 10) {
                     setUpdates.isDeliveryFeePaid = true;
                 }
@@ -312,7 +314,7 @@ export const handleMpesaCallback = async (req, res) => {
                 };
 
                 const currentStatus = normalizeOrderStatus(order.status);
-                if ([ORDER_STATUS.CREATED, ORDER_STATUS.PAYMENT_PENDING].includes(currentStatus)) {
+                if ([ORDER_STATUS.CREATED, ORDER_STATUS.PAYMENT_PENDING, ORDER_STATUS.AWAITING_CONFIRMATION, ORDER_STATUS.DRAFT].includes(currentStatus)) {
                     await updateOrderStatus({
                         orderId: order._id,
                         fromStatusRaw: order.status,
@@ -327,6 +329,7 @@ export const handleMpesaCallback = async (req, res) => {
                     Object.assign(order, setUpdates);
                     await order.save();
                 }
+                console.log("ORDER STATUS:", normalizeOrderStatus(order.status), String(order._id), "source=payments.mpesa_callback.after");
 
                 // DISTRIBUTE FUNDS (Pending)
                 // Import dynamically to avoid circular dependency issues if any, or just import at top if safe.
@@ -340,7 +343,7 @@ export const handleMpesaCallback = async (req, res) => {
                 if (matchesTotal) {
                     await notifyAdmin({
                         title: "Paid order ready",
-                        body: `Order #${String(order._id).slice(-6)} has been paid and is ready for processing.`,
+                        body: `Order #${String(order._id).slice(-6)} has been paid and is ready for shopping.`,
                         orderId: String(order._id),
                         deepLink: "/admin/dashboard",
                         eventType: "ORDER_PAID",
@@ -348,7 +351,7 @@ export const handleMpesaCallback = async (req, res) => {
                     await notifyUser({
                         recipientId: order.userId,
                         title: "Payment received",
-                        body: "Your payment was received. We are preparing your order.",
+                        body: "Your payment was received. The admin can now fulfil your order.",
                         orderId: String(order._id),
                         eventType: "ORDER_PAID",
                     });
@@ -396,6 +399,7 @@ export const handleMpesaCallback = async (req, res) => {
                 console.error("Payment event log failed:", logErr.message);
             });
             if (order) {
+                console.log("ORDER STATUS:", order.status, String(order._id), "source=payments.mpesa_callback.failed");
                 const currentStatus = normalizeOrderStatus(order.status);
                 if (currentStatus !== ORDER_STATUS.CANCELLED) {
                     await updateOrderStatus({

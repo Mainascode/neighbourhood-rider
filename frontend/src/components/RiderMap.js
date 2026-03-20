@@ -1,10 +1,19 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import { socket } from "../lib/socket";
+import { ENABLE_MAPS } from "../lib/config";
 
 const LIBRARIES = ["places"];
 
 export default function RiderMap({ orderId }) {
+  if (!ENABLE_MAPS) {
+    return (
+      <div className="h-64 w-full flex items-center justify-center bg-gray-100 rounded-xl text-gray-500">
+        Live map is disabled in single-admin mode.
+      </div>
+    );
+  }
+
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,

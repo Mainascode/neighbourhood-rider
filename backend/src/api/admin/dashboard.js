@@ -18,12 +18,14 @@ router.get("/", async (req, res) => {
     }
 
     const totalOrders = await Order.countDocuments();
+    const draftOrders = await Order.countDocuments({ status: "DRAFT" });
+    const awaitingConfirmationOrders = await Order.countDocuments({ status: "AWAITING_CONFIRMATION" });
     const unpaidOrders = await Order.countDocuments({
       paid: false,
     });
     const totalUsers = await User.countDocuments({ role: "user" }); // Total customers
     const paidOrders = await Order.countDocuments({ paid: true });
-    const processingOrders = await Order.countDocuments({ status: { $in: ["PAID", "PROCESSING", "ON_THE_WAY"] } });
+    const processingOrders = await Order.countDocuments({ status: { $in: ["PAID", "SHOPPING", "DELIVERING", "PROCESSING", "ON_THE_WAY"] } });
     const completedOrders = await Order.countDocuments({ status: "DELIVERED" });
 
     const totalRevenue = await Payment.aggregate([
@@ -33,6 +35,8 @@ router.get("/", async (req, res) => {
 
     res.json({
       totalOrders,
+      draftOrders,
+      awaitingConfirmationOrders,
       unpaidOrders,
       totalUsers,
       paidOrders,

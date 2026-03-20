@@ -26,9 +26,10 @@ const OrderSchema = new mongoose.Schema({
     }
   },
   items: [],
+  finalItems: { type: Array, default: [] },
   status: {
     type: String,
-    enum: ["CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PAID", "PROCESSING", "ON_THE_WAY", "DELIVERED", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "CANCELLED", "REFUNDED"],
+    enum: ["DRAFT", "AWAITING_CONFIRMATION", "PAID", "SHOPPING", "DELIVERING", "DELIVERED", "CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PROCESSING", "ON_THE_WAY", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "CANCELLED", "REFUNDED"],
     default: "CREATED",
   },
   vendorCancelReason: {
@@ -37,9 +38,11 @@ const OrderSchema = new mongoose.Schema({
   },
   paid: { type: Boolean, default: false }, // Overall Payment (legacy / rider)
   goodsPaid: { type: Boolean, default: false }, // Vendor Payment Status
-  amount: { type: Number, default: 0, immutable: true }, // Total Amount (Goods + Fee)
-  goodsTotal: { type: Number, default: 0, immutable: true }, // Cost of Items
-  deliveryFee: { type: Number, default: 50, immutable: true },
+  amount: { type: Number, default: 0 },
+  goodsTotal: { type: Number, default: 0 },
+  estimatedTotal: { type: Number, default: 0 },
+  finalTotal: { type: Number, default: 0 },
+  deliveryFee: { type: Number, default: 0 },
   isDeliveryFeePaid: { type: Boolean, default: false }, // Delivery Fee Payment Status
   riderId: { type: mongoose.Schema.Types.ObjectId, ref: "Rider" },
   isBotOrder: { type: Boolean, default: false },
@@ -52,6 +55,9 @@ const OrderSchema = new mongoose.Schema({
   riderAssignedAt: { type: Date },
   pickedUpAt: { type: Date },
   deliveredAt: { type: Date },
+  paidAt: { type: Date },
+  reviewedAt: { type: Date },
+  userConfirmedAt: { type: Date },
   statusUpdatedAt: { type: Date },
   prepTimeMinutes: { type: Number, default: 20 },
   etaMinutes: { type: Number },
@@ -71,7 +77,6 @@ const OrderSchema = new mongoose.Schema({
     serviceFee: Number,  // KES 30
     totalCost: Number
     },
-    immutable: true,
   },
 
   // Calculated Splits
@@ -82,7 +87,6 @@ const OrderSchema = new mongoose.Schema({
     adminRevenue: Number,
     splits: Object
     },
-    immutable: true,
   }
 }, { timestamps: true });
 
