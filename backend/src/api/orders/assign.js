@@ -23,7 +23,14 @@ export default async function handler(req, res) {
       actor: { id: req.user?._id, role: req.user?.role, name: req.user?.name },
       source: "orders.assign",
       io: req.app.get("io"),
-      set: { riderId, riderAssignedAt: new Date() },
+      set: {
+        riderId,
+        riderAssignedAt: new Date(),
+        riderResponseStatus: "PENDING",
+        riderAcceptedAt: null,
+        riderRejectedAt: null,
+        riderRejectionReason: "",
+      },
     });
 
     await Rider.findByIdAndUpdate(riderId, {
@@ -81,7 +88,8 @@ export default async function handler(req, res) {
         const currentOrder = await Order.findById(orderId);
         if (!currentOrder) return;
         const stillPending = currentOrder.status === ORDER_STATUS.RIDER_ASSIGNED
-          && currentOrder.riderId?.toString() === riderId.toString();
+          && currentOrder.riderId?.toString() === riderId.toString()
+          && currentOrder.riderResponseStatus !== "ACCEPTED";
         if (!stillPending) return;
 
         await updateOrderStatus({
@@ -92,7 +100,13 @@ export default async function handler(req, res) {
           source: "orders.assign.timeout",
           reason: "RIDER_TIMEOUT",
           io: req.app.get("io"),
-          set: { riderId: null },
+          set: {
+            riderId: null,
+            riderResponseStatus: "PENDING",
+            riderAcceptedAt: null,
+            riderRejectedAt: null,
+            riderRejectionReason: "",
+          },
         });
 
         await Rider.findByIdAndUpdate(riderId, { status: "ONLINE_AVAILABLE", isAvailable: true, currentOrders: 0 });

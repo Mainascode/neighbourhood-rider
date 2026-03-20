@@ -54,6 +54,14 @@ const OrderSchema = new mongoose.Schema({
   paymentMethod: { type: String, enum: ['mpesa', 'cash', 'google_pay'], default: 'mpesa' },
   paymentData: { type: Object }, // Store full callback data
   riderAssignedAt: { type: Date },
+  riderResponseStatus: {
+    type: String,
+    enum: ["PENDING", "ACCEPTED", "REJECTED"],
+    default: "PENDING",
+  },
+  riderAcceptedAt: { type: Date },
+  riderRejectedAt: { type: Date },
+  riderRejectionReason: { type: String, default: "" },
   pickedUpAt: { type: Date },
   deliveredAt: { type: Date },
   paidAt: { type: Date },

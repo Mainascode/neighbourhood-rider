@@ -88,6 +88,10 @@ export async function assignRiderToOrder(orderId, pickupLocation, rider, io) {
             set: {
                 riderId: updatedRider._id,
                 riderAssignedAt: new Date(),
+                riderResponseStatus: "PENDING",
+                riderAcceptedAt: null,
+                riderRejectedAt: null,
+                riderRejectionReason: "",
             },
         });
 
@@ -227,7 +231,12 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
         setTimeout(async () => {
             // Check if order is still 'assigned' (not 'picking_up' which means accepted)
             const checkOrder = await Order.findById(orderId);
-            if (checkOrder && checkOrder.status === ORDER_STATUS.RIDER_ASSIGNED && checkOrder.riderId.toString() === assignedRider._id.toString()) {
+            if (
+                checkOrder &&
+                checkOrder.status === ORDER_STATUS.RIDER_ASSIGNED &&
+                checkOrder.riderId?.toString() === assignedRider._id.toString() &&
+                checkOrder.riderResponseStatus !== "ACCEPTED"
+            ) {
                 console.log(`Rider ${assignedRider.name} timed out for Order ${orderId}. Reassigning...`);
                 const launchMode = isRuakaLaunchModeEnabled();
                 const fallbackStatus = launchMode ? ORDER_STATUS.PENDING_RIDER : ORDER_STATUS.READY_FOR_PICKUP;
@@ -241,7 +250,13 @@ export async function matchOrder(orderId, pickupLocation, attempt = 1, excludeRi
                     reason: "RIDER_TIMEOUT",
                     io,
                     preconditions: { riderId: assignedRider._id },
-                    set: { riderId: null },
+                    set: {
+                        riderId: null,
+                        riderResponseStatus: "PENDING",
+                        riderAcceptedAt: null,
+                        riderRejectedAt: null,
+                        riderRejectionReason: "",
+                    },
                 });
 
                 // 2. Set rider to available again (or maybe penalty?)

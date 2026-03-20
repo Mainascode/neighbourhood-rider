@@ -1,9 +1,33 @@
 import Notification from "../models/Notification.js";
+import NotificationPreference from "../models/NotificationPreference.js";
 import User from "../models/User.js";
+import { sendPushNotification } from "./push.js";
 
 function toRecipientType(role = "user") {
   const normalized = String(role || "user").toUpperCase();
   return normalized === "ADMIN" ? "ADMIN" : "USER";
+}
+
+function shouldSendPush(preferences, category) {
+  if (!category) return true;
+  if (!preferences) return true;
+  if (category === "orderUpdates") return preferences.orderUpdates !== false;
+  if (category === "promotions") return preferences.promotions !== false;
+  if (category === "systemAlerts") return preferences.systemAlerts !== false;
+  return true;
+}
+
+function emitRealtimeNotification({ io, recipientId, recipientType, notification }) {
+  if (!io || !recipientId || !recipientType || !notification) return;
+
+  io.to(`notify:${String(recipientType).toUpperCase()}:${recipientId}`).emit("notification:new", notification);
+
+  if (notification.eventType) {
+    io.to(`notify:${String(recipientType).toUpperCase()}:${recipientId}`).emit(
+      `notification:${notification.eventType}`,
+      notification
+    );
+  }
 }
 
 export async function createNotification({
@@ -46,9 +70,10 @@ export async function sendNotification({
   deepLink,
   category,
 }) {
-  return createNotification({
+  const normalizedRecipientType = String(recipientType || "USER").toUpperCase();
+  const notification = await createNotification({
     recipientId,
-    recipientType: String(recipientType || "USER").toUpperCase(),
+    recipientType: normalizedRecipientType,
     title,
     body,
     orderId,
@@ -61,6 +86,32 @@ export async function sendNotification({
       ...(io ? { io: true } : {}),
     },
   });
+
+  emitRealtimeNotification({
+    io,
+    recipientId,
+    recipientType: normalizedRecipientType,
+    notification,
+  });
+
+  if (notification && type === "ALERT") {
+    try {
+      const preferences = await NotificationPreference.findOne({
+        recipientId,
+        recipientType: normalizedRecipientType,
+      })
+        .select("orderUpdates promotions systemAlerts")
+        .lean();
+
+      if (shouldSendPush(preferences, category)) {
+        await sendPushNotification(recipientId, title, body, deepLink || "/");
+      }
+    } catch (err) {
+      console.error("Push notification send failed:", err.message || err);
+    }
+  }
+
+  return notification;
 }
 
 export async function notifyAdmin({ title, body, orderId, deepLink = "/admin", eventType = "ADMIN_UPDATE", data = {} }) {

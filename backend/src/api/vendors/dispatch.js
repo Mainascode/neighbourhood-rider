@@ -55,7 +55,14 @@ export default async function handler(req, res) {
             actor: { id: user.id, role: user.role, name: user.name },
             source: "vendors.dispatch",
             io: req.app.get("io"),
-            set: { riderId: assignedRider._id, riderAssignedAt: new Date() },
+            set: {
+                riderId: assignedRider._id,
+                riderAssignedAt: new Date(),
+                riderResponseStatus: "PENDING",
+                riderAcceptedAt: null,
+                riderRejectedAt: null,
+                riderRejectionReason: "",
+            },
         });
 
         await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_BUSY", isAvailable: false, currentOrders: 1 });
@@ -99,7 +106,8 @@ export default async function handler(req, res) {
                 const currentOrder = await Order.findById(order._id);
                 if (!currentOrder) return;
                 const stillPending = currentOrder.status === ORDER_STATUS.RIDER_ASSIGNED
-                    && currentOrder.riderId?.toString() === assignedRider._id.toString();
+                    && currentOrder.riderId?.toString() === assignedRider._id.toString()
+                    && currentOrder.riderResponseStatus !== "ACCEPTED";
                 if (!stillPending) return;
 
                 await updateOrderStatus({
@@ -110,7 +118,13 @@ export default async function handler(req, res) {
                     source: "vendors.dispatch.timeout",
                     reason: "RIDER_TIMEOUT",
                     io: req.app.get("io"),
-                    set: { riderId: null },
+                    set: {
+                        riderId: null,
+                        riderResponseStatus: "PENDING",
+                        riderAcceptedAt: null,
+                        riderRejectedAt: null,
+                        riderRejectionReason: "",
+                    },
                 });
 
                 await Rider.findByIdAndUpdate(assignedRider._id, { status: "ONLINE_AVAILABLE", isAvailable: true, currentOrders: 0 });

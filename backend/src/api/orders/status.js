@@ -9,7 +9,7 @@ export async function getOrderStatus(req, res) {
     try {
         const { id } = req.params;
         const order = await Order.findById(id)
-            .select("status paid amount deliveryFee isDeliveryFeePaid goodsTotal updatedAt");
+            .select("status paid amount deliveryFee isDeliveryFeePaid goodsTotal finalTotal riderResponseStatus updatedAt");
 
         if (!order) {
             return res.status(404).json({ error: "Order not found" });
@@ -21,13 +21,16 @@ export async function getOrderStatus(req, res) {
         const response = {
             status: normalizedStatus,
             searching: searching,
-            riderAssigned: ["SHOPPING", "DELIVERING", "DELIVERED", "PROCESSING", "ON_THE_WAY"].includes(normalizedStatus),
+            riderAssigned: ["RIDER_ASSIGNED", "SHOPPING", "DELIVERING", "DELIVERED", "PROCESSING", "ON_THE_WAY"].includes(normalizedStatus),
             paid: Boolean(order.paid),
             totalPaid: Number(order.finalTotal || order.amount || 0),
             deliveryFee: Number(order.deliveryFee || 0),
             itemsTotal: Number(order.goodsTotal || 0),
             finalTotal: Number(order.finalTotal || order.amount || 0),
             awaitingConfirmation: normalizedStatus === "AWAITING_CONFIRMATION",
+            riderResponseStatus: order.riderResponseStatus || "PENDING",
+            riderAccepted: order.riderResponseStatus === "ACCEPTED",
+            riderRejected: order.riderResponseStatus === "REJECTED",
             updatedAt: order.updatedAt,
         };
 
