@@ -53,6 +53,7 @@ function seedReviewItems(order) {
 
 export default function AdminDashboard() {
   const [activeModal, setActiveModal] = useState(null);
+  const [selectedStatKey, setSelectedStatKey] = useState(null);
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -65,6 +66,7 @@ export default function AdminDashboard() {
     totalUsers: 0,
     totalRevenue: 0,
     isRaining: false,
+    details: {},
   });
   const [notifications, setNotifications] = useState([]);
   const [reviewEdits, setReviewEdits] = useState({});
@@ -126,6 +128,83 @@ export default function AdminDashboard() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [orders]);
+
+  const statDetailMap = useMemo(() => ({
+    draftOrders: {
+      title: "Draft Requests",
+      subtitle: "Open request details before review and quotation.",
+      items: orderedRows
+        .filter((order) => normalizeStatus(order.status) === "DRAFT")
+        .map((order) => ({
+          id: order._id,
+          customerName: order.userId?.name || "Customer",
+          customerEmail: order.userId?.email || "",
+          estimatedTotal: Number(order.estimatedTotal || 0),
+          itemsCount: Array.isArray(order.items) ? order.items.length : 0,
+          customerNote: order.customerNote || "",
+          createdAt: order.createdAt,
+        })),
+    },
+    awaitingConfirmationOrders: stats.details?.awaitingConfirmationOrders || {
+      title: "Awaiting Confirmation",
+      subtitle: "Orders waiting for the customer to confirm and pay.",
+      items: orderedRows
+        .filter((order) => normalizeStatus(order.status) === "AWAITING_CONFIRMATION")
+        .map((order) => ({
+          id: order._id,
+          customerName: order.userId?.name || "Customer",
+          customerEmail: order.userId?.email || "",
+          finalTotal: Number(order.finalTotal || order.amount || 0),
+          deliveryFee: Number(order.deliveryFee || 0),
+          updatedAt: order.updatedAt,
+        })),
+    },
+    paidOrders: {
+      title: "Paid Orders",
+      subtitle: "Orders already paid and ready for the next fulfilment step.",
+      items: orderedRows
+        .filter((order) => Boolean(order.paid) || normalizeStatus(order.status) === "PAID")
+        .map((order) => ({
+          id: order._id,
+          customerName: order.userId?.name || "Customer",
+          customerEmail: order.userId?.email || "",
+          status: normalizeStatus(order.status),
+          finalTotal: Number(order.finalTotal || order.amount || 0),
+          updatedAt: order.updatedAt,
+        })),
+    },
+    processingOrders: {
+      title: "Active Fulfilment",
+      subtitle: "Orders currently being prepared, assigned, or delivered.",
+      items: orderedRows
+        .filter((order) => ["SHOPPING", "DELIVERING"].includes(normalizeStatus(order.status)))
+        .map((order) => ({
+          id: order._id,
+          customerName: order.userId?.name || "Customer",
+          customerEmail: order.userId?.email || "",
+          status: normalizeStatus(order.status),
+          finalTotal: Number(order.finalTotal || order.amount || 0),
+          paid: Boolean(order.paid),
+          updatedAt: order.updatedAt,
+        })),
+    },
+    customers: stats.details?.customers || { title: "Customers", subtitle: "Customer details", items: [] },
+    revenue: {
+      title: "Revenue Overview",
+      subtitle: "Quick view of fulfilled and paid orders contributing to revenue.",
+      items: orderedRows
+        .filter((order) => Boolean(order.paid))
+        .map((order) => ({
+          id: order._id,
+          customerName: order.userId?.name || "Customer",
+          status: normalizeStatus(order.status),
+          revenueAmount: Number(order.finalTotal || order.amount || 0),
+          paidAt: order.paidAt || order.updatedAt,
+        })),
+    },
+  }), [orderedRows, stats.details]);
+
+  const selectedStatDetails = selectedStatKey ? statDetailMap[selectedStatKey] || null : null;
 
   const updateReviewItem = (orderId, itemId, field, value) => {
     setReviewEdits((prev) => ({
@@ -251,12 +330,12 @@ export default function AdminDashboard() {
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <StatCard title="Draft Requests" value={stats.draftOrders || 0} icon={<FaClipboardList className="text-white text-2xl" />} color="bg-gradient-to-br from-purple-400 to-violet-600" />
-            <StatCard title="Awaiting Confirmation" value={stats.awaitingConfirmationOrders || 0} icon={<FaClock className="text-white text-2xl" />} color="bg-gradient-to-br from-pink-400 to-rose-600" />
-            <StatCard title="Paid Orders" value={stats.paidOrders || 0} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-blue-400 to-indigo-600" />
-            <StatCard title="Active Fulfilment" value={stats.processingOrders || 0} icon={<FaBoxOpen className="text-white text-2xl" />} color="bg-gradient-to-br from-cyan-400 to-sky-600" />
-            <StatCard title="Customers" value={stats.totalUsers || 0} icon={<FaUsers className="text-white text-2xl" />} color="bg-gradient-to-br from-orange-400 to-red-500" />
-            <StatCard title="Revenue" value={`KES ${stats.totalRevenue || 0}`} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-green-400 to-emerald-600" />
+            <StatCard title="Draft Requests" value={stats.draftOrders || 0} detailKey="draftOrders" onOpenDetails={setSelectedStatKey} icon={<FaClipboardList className="text-white text-2xl" />} color="bg-gradient-to-br from-purple-400 to-violet-600" />
+            <StatCard title="Awaiting Confirmation" value={stats.awaitingConfirmationOrders || 0} detailKey="awaitingConfirmationOrders" onOpenDetails={setSelectedStatKey} icon={<FaClock className="text-white text-2xl" />} color="bg-gradient-to-br from-pink-400 to-rose-600" />
+            <StatCard title="Paid Orders" value={stats.paidOrders || 0} detailKey="paidOrders" onOpenDetails={setSelectedStatKey} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-blue-400 to-indigo-600" />
+            <StatCard title="Active Fulfilment" value={stats.processingOrders || 0} detailKey="processingOrders" onOpenDetails={setSelectedStatKey} icon={<FaBoxOpen className="text-white text-2xl" />} color="bg-gradient-to-br from-cyan-400 to-sky-600" />
+            <StatCard title="Customers" value={stats.totalUsers || 0} detailKey="customers" onOpenDetails={setSelectedStatKey} icon={<FaUsers className="text-white text-2xl" />} color="bg-gradient-to-br from-orange-400 to-red-500" />
+            <StatCard title="Revenue" value={`KES ${stats.totalRevenue || 0}`} detailKey="revenue" onOpenDetails={setSelectedStatKey} icon={<FaMoneyBillWave className="text-white text-2xl" />} color="bg-gradient-to-br from-green-400 to-emerald-600" />
           </div>
 
           {(activeModal === null || activeModal === "orders") && (
@@ -433,6 +512,17 @@ export default function AdminDashboard() {
             </section>
           )}
         </motion.div>
+
+        <AnimatePresence>
+          {selectedStatDetails ? (
+            <DetailsModal
+              title={selectedStatDetails.title}
+              subtitle={selectedStatDetails.subtitle}
+              items={selectedStatDetails.items || []}
+              onClose={() => setSelectedStatKey(null)}
+            />
+          ) : null}
+        </AnimatePresence>
       </main>
     </div>
   );
@@ -452,7 +542,7 @@ function NavItem({ icon, label, active, onClick }) {
   );
 }
 
-function StatCard({ title, value, icon, color }) {
+function StatCard({ title, value, icon, color, detailKey, onOpenDetails }) {
   return (
     <div className="rounded-3xl bg-white/70 backdrop-blur-md border border-riderBlue/10 p-6 shadow-xl">
       <div className="flex items-start justify-between gap-4">
@@ -460,9 +550,15 @@ function StatCard({ title, value, icon, color }) {
           <p className="text-sm text-gray-600 font-semibold">{title}</p>
           <h3 className="text-3xl font-extrabold mt-2">{value}</h3>
         </div>
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${color}`}>
+        <button
+          type="button"
+          onClick={() => onOpenDetails?.(detailKey)}
+          className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-riderBlue/20 ${color}`}
+          aria-label={`Open ${title} details`}
+          title={`Open ${title} details`}
+        >
           {icon}
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -475,4 +571,73 @@ function InfoPill({ label, value }) {
       <div className="font-bold text-riderLight mt-1">{value}</div>
     </div>
   );
+}
+
+function DetailsModal({ title, subtitle, items, onClose }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-sm p-4 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-riderBlue/10"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200">
+          <div>
+            <h3 className="text-2xl font-extrabold text-riderLight">{title || "Details"}</h3>
+            <p className="text-sm text-gray-600 mt-1">{subtitle || "Full details for this dashboard card."}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-3 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="overflow-y-auto max-h-[calc(85vh-96px)] px-6 py-5 space-y-3 bg-slate-50/70">
+          {items.length ? items.map((item, index) => (
+            <div key={item.id || index} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              {Object.entries(item).map(([key, value]) => (
+                <div key={key} className="grid grid-cols-[140px_1fr] gap-3 py-1.5 text-sm">
+                  <div className="font-bold text-slate-500">{prettifyKey(key)}</div>
+                  <div className="text-slate-800 break-words">{formatDetailValue(value)}</div>
+                </div>
+              ))}
+            </div>
+          )) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-gray-500">
+              No details available for this card yet.
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function prettifyKey(key) {
+  return String(key || "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
+function formatDetailValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
+    return new Date(value).toLocaleString();
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
