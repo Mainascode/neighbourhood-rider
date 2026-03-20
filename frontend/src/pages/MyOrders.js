@@ -29,7 +29,7 @@ export default function MyOrders() {
 
     const fetchOrders = async () => {
       try {
-        const data = await apiGetCached("/api/orders/my", { ttlMs: 3000 });
+        const data = await apiGetCached("/api/orders/my", { ttlMs: 3000, timeoutMs: 30000 });
         const rows = Array.isArray(data) ? data : [];
         setOrders(rows);
       } catch (error) {

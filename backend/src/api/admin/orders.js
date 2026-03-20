@@ -31,8 +31,20 @@ router.patch("/:id/status", async (req, res) => {
     let currentStatus = normalizeOrderStatus(order.status);
 
     if (action === "review") {
-      if (![ORDER_STATUS.DRAFT, ORDER_STATUS.AWAITING_CONFIRMATION].includes(currentStatus)) {
-        return res.status(400).json({ error: "Only draft requests can be reviewed" });
+      const reviewableStatuses = [
+        ORDER_STATUS.DRAFT,
+        ORDER_STATUS.AWAITING_CONFIRMATION,
+        ORDER_STATUS.CREATED,
+        ORDER_STATUS.PAYMENT_PENDING,
+        ORDER_STATUS.PAYMENT_CONFIRMED,
+      ];
+
+      if (currentStatus === ORDER_STATUS.PAID && !order.paid) {
+        reviewableStatuses.push(ORDER_STATUS.PAID);
+      }
+
+      if (!reviewableStatuses.includes(currentStatus) || order.paid) {
+        return res.status(400).json({ error: "Only unpaid list requests can be reviewed" });
       }
 
       const sanitizedFinalItems = Array.isArray(finalItems)
@@ -112,7 +124,7 @@ router.patch("/:id/status", async (req, res) => {
 
         await OrderStatusLog.create({
           orderId: order._id,
-          fromStatus: ORDER_STATUS.AWAITING_CONFIRMATION,
+          fromStatus: currentStatus,
           toStatus: ORDER_STATUS.AWAITING_CONFIRMATION,
           actorId: req.user?._id,
           actorRole: req.user?.role,
@@ -125,7 +137,7 @@ router.patch("/:id/status", async (req, res) => {
       await notifyUser({
         recipientId: updatedOrder.userId,
         title: "Final price ready",
-        body: "The admin has reviewed your shopping list. Open your order to confirm and pay.",
+        body: "The rider has reviewed your shopping list. Open your order to confirm and pay.",
         orderId: String(updatedOrder._id),
         eventType: "ORDER_AWAITING_CONFIRMATION",
       });

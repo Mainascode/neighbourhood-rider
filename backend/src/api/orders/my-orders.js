@@ -14,8 +14,11 @@ router.get("/", async (req, res) => {
     const query = user.role === "admin" ? {} : { userId: user._id };
 
     const orders = await Order.find(query)
+      .select("userId items finalItems customerNote status paid goodsTotal estimatedTotal finalTotal amount deliveryFee isDeliveryFeePaid isReceived isReviewed paidAt deliveredAt reviewedAt createdAt updatedAt dropoff pickup paymentMethod")
       .sort({ createdAt: -1 })
-      .populate("userId", "name phone email");
+      .limit(user.role === "admin" ? 100 : 50)
+      .populate("userId", "name phone email")
+      .lean();
 
     return ok(res, orders);
   } catch (err) {
