@@ -321,8 +321,15 @@ async function startServer() {
   /* socket */
   const io = new Server(server, {
     cors: {
-      origin: getAllowedOrigins(),
+      origin(origin, callback) {
+        const allowedOrigins = getAllowedOrigins();
+        if (!origin || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`));
+      },
       credentials: true,
+      methods: ["GET", "POST"],
     },
   });
 
