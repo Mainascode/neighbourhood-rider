@@ -64,6 +64,7 @@ export default function Order() {
   const { user } = useAuth();
   const [products, setProducts] = useState(FALLBACK_PRODUCTS);
   const [listItems, setListItems] = useState([]);
+  const [customerNote, setCustomerNote] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [activeOrder, setActiveOrder] = useState(null);
   const [mpesaPhone, setMpesaPhone] = useState("");
@@ -199,13 +200,15 @@ export default function Order() {
             image: item.image || "",
             category: item.category || "",
           })),
+          customerNote,
         }),
       });
 
       setActiveOrder(data.order);
       setListItems([]);
+      setCustomerNote("");
       invalidateCache("/api/orders/my");
-      window.alert("Shopping request submitted. The admin will review it and send the final price.");
+      window.alert("Shopping request submitted. The rider will review it and send the final price.");
     } catch (error) {
       console.error(error);
       window.alert("Failed to submit shopping request.");
@@ -268,12 +271,12 @@ export default function Order() {
                 <div>
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-riderLight leading-tight">Assisted Shopping Requests</h1>
                   <p className="text-sm md:text-base text-gray-500 mt-2 max-w-2xl">
-                    Build your list, submit it for review, receive a final price, then confirm and pay with M-Pesa.
+                    Build your list, submit it for review, receive a final price from the rider, then confirm and pay with M-Pesa.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-gray-200 px-4 py-3 bg-gray-50 text-sm self-start md:self-auto">
                   <div className="font-bold text-riderLight">How it works</div>
-                  <div className="text-gray-500">Submit list → Admin reviews → You confirm & pay</div>
+                  <div className="text-gray-500">Submit list → Rider reviews → You confirm & pay</div>
                 </div>
               </div>
 
@@ -307,14 +310,11 @@ export default function Order() {
                       )}
                     </div>
                     <div className="p-4 md:p-5">
-                      <div className="flex justify-between gap-3 items-start">
-                        <div>
-                          <h3 className="font-bold text-riderLight text-base md:text-lg leading-snug">{product.name}</h3>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide">{product.category}</p>
-                        </div>
-                        <span className="text-riderMaroon font-bold">KES {product.price}</span>
+                      <div>
+                        <h3 className="font-bold text-riderLight text-base md:text-lg leading-snug">{product.name}</h3>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">{product.category}</p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-3">Use this as a starting estimate for your request.</p>
+                      <p className="text-xs text-gray-500 mt-3">Add it to your list and set your own estimate in the request panel.</p>
                       <button
                         onClick={() => addToList(product)}
                         className="mt-4 w-full min-h-[46px] bg-riderBlue hover:bg-blue-600 text-white py-3 rounded-xl font-bold transition-all"
@@ -389,10 +389,10 @@ export default function Order() {
                   </div>
 
                   <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
-                    <h3 className="font-bold text-riderLight mb-3">Admin Breakdown</h3>
+                    <h3 className="font-bold text-riderLight mb-3">Rider Breakdown</h3>
                     {orderStatus === "DRAFT" ? (
                       <div className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-sm text-gray-500">
-                        Your list is waiting for admin review. Final prices and delivery fee will appear here.
+                        Your list is waiting for rider review. Final prices and delivery fee will appear here.
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -427,10 +427,17 @@ export default function Order() {
                   </div>
                 </div>
 
+                {activeOrder.customerNote ? (
+                  <div className="mt-5 rounded-2xl bg-amber-50 border border-amber-200 p-4">
+                    <h3 className="font-bold text-amber-900 mb-2">Extra Request Note</h3>
+                    <p className="text-sm text-amber-800 whitespace-pre-wrap">{activeOrder.customerNote}</p>
+                  </div>
+                ) : null}
+
                 {orderStatus === "AWAITING_CONFIRMATION" && (
                   <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4">
                     <h3 className="font-bold text-green-700 mb-2">Confirm & Pay</h3>
-                    <p className="text-sm text-gray-600 mb-3">Review the admin-updated total, then confirm payment to proceed.</p>
+                    <p className="text-sm text-gray-600 mb-3">Review the rider-updated total, then confirm payment to proceed.</p>
                     <input
                       type="tel"
                       value={mpesaPhone}
@@ -491,7 +498,7 @@ export default function Order() {
           <aside className="space-y-6">
             <section className="rounded-[1.75rem] md:rounded-3xl bg-white p-4 sm:p-6 border border-gray-100 shadow-sm sticky top-24 md:top-28">
               <h2 className="text-xl md:text-2xl font-bold text-riderLight mb-1">Your List</h2>
-              <p className="text-sm text-gray-500 mb-6">Add what you need and send it for admin review.</p>
+              <p className="text-sm text-gray-500 mb-6">Add what you need and send it for rider review.</p>
 
               {activeRequestOpen ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-gray-500 text-sm">
@@ -510,7 +517,7 @@ export default function Order() {
                           <div className="flex justify-between gap-3 items-start">
                             <div className="flex-1">
                               <h3 className="font-bold text-riderLight">{item.name}</h3>
-                              <p className="text-xs text-gray-500 mb-3">Tell the admin your expected price and any note.</p>
+                              <p className="text-xs text-gray-500 mb-3">Set your estimate and add any item note for the rider.</p>
                               <div className="grid grid-cols-2 gap-3 mb-3">
                                 <div>
                                   <label className="block text-[11px] uppercase tracking-wide text-gray-500 font-bold mb-1">Quantity</label>
@@ -539,7 +546,7 @@ export default function Order() {
                                   type="text"
                                   value={item.note}
                                   onChange={(event) => updateListItem(item._id, "note", event.target.value)}
-                                  placeholder="Optional note for the admin"
+                                  placeholder="Optional note for the rider"
                                   className="w-full rounded-xl border border-gray-200 px-3 py-2"
                                 />
                               </div>
@@ -554,6 +561,17 @@ export default function Order() {
                         </div>
                       ))
                     )}
+                  </div>
+
+                  <div className="mb-5">
+                    <label className="block text-[11px] uppercase tracking-wide text-gray-500 font-bold mb-1">Extra Request Note</label>
+                    <textarea
+                      value={customerNote}
+                      onChange={(event) => setCustomerNote(event.target.value)}
+                      rows={4}
+                      placeholder="Need something not shown above? Tell the rider here, including brands, sizes, or extra household items."
+                      className="w-full rounded-2xl border border-gray-200 px-3 py-3"
+                    />
                   </div>
 
                   <div className="space-y-3 text-sm">

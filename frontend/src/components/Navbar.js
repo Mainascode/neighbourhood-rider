@@ -51,7 +51,7 @@ export default function Navbar() {
           <>
             <NavLink to="/order" label="Shop" />
             <NavLink to="/orders" label="Orders" />
-            <NavLink to="/admin/dashboard" label="Admin Dashboard" />
+            <NavLink to="/admin/dashboard" label="Rider Dashboard" />
           </>
         )}
 
@@ -113,7 +113,7 @@ export default function Navbar() {
               <>
                 <Link to="/order" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Shop</Link>
                 <Link to="/orders" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Orders</Link>
-                <Link to="/admin/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Admin Dashboard</Link>
+                <Link to="/admin/dashboard" className="hover:text-riderMaroon transition-colors" onClick={() => setIsMenuOpen(false)}>Rider Dashboard</Link>
               </>
             )}
 

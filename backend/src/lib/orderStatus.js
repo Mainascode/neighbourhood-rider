@@ -29,12 +29,12 @@ const STATUS_MESSAGES = {
   [ORDER_STATUS.DRAFT]: "Shopping list submitted",
   [ORDER_STATUS.AWAITING_CONFIRMATION]: "Final price ready for confirmation",
   [ORDER_STATUS.PAID]: "Payment confirmed",
-  [ORDER_STATUS.SHOPPING]: "Admin is shopping for your order",
+  [ORDER_STATUS.SHOPPING]: "Rider is shopping for your order",
   [ORDER_STATUS.DELIVERING]: "Your order is out for delivery",
   [ORDER_STATUS.DELIVERED]: "Order delivered",
   [ORDER_STATUS.PAYMENT_PENDING]: "Confirming payment",
   [ORDER_STATUS.PAYMENT_CONFIRMED]: "Payment confirmed",
-  [ORDER_STATUS.PROCESSING]: "Admin is preparing your order",
+  [ORDER_STATUS.PROCESSING]: "Rider is preparing your order",
   [ORDER_STATUS.ON_THE_WAY]: "Your order is on the way",
   [ORDER_STATUS.CANCELLED]: "Order cancelled",
   [ORDER_STATUS.REFUNDED]: "Order refunded",
@@ -200,7 +200,7 @@ export async function updateOrderStatus({
     const userNotifications = {
       [ORDER_STATUS.DRAFT]: {
         title: "Shopping list submitted",
-        body: "Your shopping list has been sent to the admin for review.",
+        body: "Your shopping list has been sent to the rider for review.",
         eventType: "ORDER_DRAFT",
         deepLink: "/order",
       },
@@ -224,7 +224,7 @@ export async function updateOrderStatus({
       },
       [ORDER_STATUS.SHOPPING]: {
         title: "Shopping in progress",
-        body: "The admin is shopping for your requested items.",
+        body: "The rider is shopping for your requested items.",
         eventType: "ORDER_SHOPPING",
         deepLink: "/orders",
       },

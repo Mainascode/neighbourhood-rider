@@ -27,6 +27,7 @@ const OrderSchema = new mongoose.Schema({
   },
   items: [],
   finalItems: { type: Array, default: [] },
+  customerNote: { type: String, default: "" },
   status: {
     type: String,
     enum: ["DRAFT", "AWAITING_CONFIRMATION", "PAID", "SHOPPING", "DELIVERING", "DELIVERED", "CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PROCESSING", "ON_THE_WAY", "VENDOR_ACCEPTED", "PREPARING", "READY_FOR_PICKUP", "PENDING_RIDER", "RIDER_ASSIGNED", "CANCELLED", "REFUNDED"],

@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const user = requireAuth(req);
   await connectDB();
 
-  const { vendorId, items = [] } = req.body;
+  const { vendorId, items = [], customerNote = "" } = req.body;
   const normalizedItems = Array.isArray(items)
     ? items.map((item) => ({
       _id: item._id,
@@ -37,6 +37,7 @@ export default async function handler(req, res) {
     userId: user.id,
     vendorId: vendorId || null,
     items: normalizedItems,
+    customerNote: String(customerNote || "").trim(),
     pickup: {
       address: "Shopping list request",
       location: {
@@ -99,14 +100,14 @@ export default async function handler(req, res) {
   await notifyUser({
     recipientId: user.id,
     title: "Shopping list submitted",
-    body: "Your request has been submitted. The admin will review it and send the final price.",
+    body: "Your request has been submitted. The rider will review it and send the final price.",
     orderId: String(order._id),
     eventType: "ORDER_DRAFT",
     data: { status: ORDER_STATUS.DRAFT },
   });
   await notifyAdmin({
     title: "New shopping list",
-    body: `Order #${String(order._id).slice(-6)} is ready for admin review.`,
+    body: `Order #${String(order._id).slice(-6)} is ready for rider review.`,
     orderId: String(order._id),
     deepLink: "/admin/dashboard",
     eventType: "NEW_ORDER_DRAFT",

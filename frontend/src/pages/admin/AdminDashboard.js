@@ -207,7 +207,7 @@ export default function AdminDashboard() {
         <div className="mb-4 lg:mb-12 px-4 lg:px-6 flex items-center justify-between lg:justify-start gap-3 relative z-10">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-riderBlue to-riderMaroon shadow-lg shadow-riderBlue/20"></div>
           <span className="text-lg lg:text-xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-riderBlue to-riderMaroon">
-            Admin<span className="font-black">Dashboard</span>
+            Rider<span className="font-black">Dashboard</span>
           </span>
         </div>
 
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
       <main className="flex-1 relative overflow-y-auto lg:h-screen p-3 md:p-4 lg:p-10 safe-pad-bottom">
         <header className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-10">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Single Admin Assisted Shopping</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">Single Rider Assisted Shopping</h1>
             <p className="text-gray-600 text-sm mt-1">Review lists, send final prices, track payment, and fulfil orders from one place.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -317,7 +317,13 @@ export default function AdminDashboard() {
 
                           {(status === "DRAFT" || status === "AWAITING_CONFIRMATION") ? (
                             <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 space-y-3">
-                              <div className="text-sm font-bold text-riderLight">Admin Review</div>
+                              <div className="text-sm font-bold text-riderLight">Rider Review</div>
+                              {order.customerNote ? (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                                  <div className="font-bold mb-1">Extra request note</div>
+                                  <div className="whitespace-pre-wrap">{order.customerNote}</div>
+                                </div>
+                              ) : null}
                               {editableItems.map((item) => (
                                 <div key={item._id} className="rounded-xl border border-gray-200 bg-white p-3">
                                   <div className="flex justify-between gap-3 items-start">

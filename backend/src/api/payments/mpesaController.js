@@ -351,7 +351,7 @@ export const handleMpesaCallback = async (req, res) => {
                     await notifyUser({
                         recipientId: order.userId,
                         title: "Payment received",
-                        body: "Your payment was received. The admin can now fulfil your order.",
+                        body: "Your payment was received. The rider can now fulfil your order.",
                         orderId: String(order._id),
                         eventType: "ORDER_PAID",
                     });

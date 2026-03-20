@@ -522,7 +522,7 @@ export default function RiderDashboard({ tab = "orders" }) {
                     {assignments.length === 0 ? (
                         <div className="col-span-full bg-riderDark/50 backdrop-blur-md p-12 rounded-2xl shadow-lg border border-riderBlue/10 text-center text-gray-600">
                             <p className="text-xl">No active deliveries.</p>
-                            <p className="text-sm mt-2 opacity-50">Wait for the admin to assign you some work!</p>
+                            <p className="text-sm mt-2 opacity-50">Wait for new delivery work to appear here.</p>
                         </div>
                     ) : (
                         assignments.map((order) => (
